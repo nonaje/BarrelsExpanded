@@ -39,6 +39,35 @@ function BarrEx_Barrel:getFreeCapacity()
     return math.max(self.capacity - self.amount, 0)
 end
 
+---@return number
+function BarrEx_Barrel:getLiquidWeightPerUnit()
+    if not self.liquidType then
+        return 0
+    end
+
+    local weightPerUnit = Constant.BARREL_LIQUID_WEIGHT_PER_UNIT[self.liquidType]
+    if weightPerUnit == nil then
+        return 0
+    end
+
+    return weightPerUnit
+end
+
+---@return number
+function BarrEx_Barrel:getLiquidWeight()
+    if self.amount <= 0 then
+        return 0
+    end
+
+    return self.amount * self:getLiquidWeightPerUnit()
+end
+
+---@return number
+function BarrEx_Barrel:getTotalWeight()
+    local baseWeight = Constant.BARREL_EMPTY_WEIGHT or 0
+    return baseWeight + self:getLiquidWeight()
+end
+
 ---@param liquidType string
 ---@return boolean
 function BarrEx_Barrel:canAcceptLiquid(liquidType)

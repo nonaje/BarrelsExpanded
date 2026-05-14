@@ -5,5 +5,6 @@
   "Tooltip_BarrEx_BarrelContents": "Barrel contents:",
   "Tooltip_BarrEx_Liquid": "Liquid:",
   "Tooltip_BarrEx_Amount": "Amount:",
+  "Tooltip_BarrEx_Weight": "Weight:",
   "Tooltip_BarrEx_TooFar": "You are too far away. Get closer to the barrel."
 }

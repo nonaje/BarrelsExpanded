@@ -9,7 +9,9 @@ Constant.NETWORK = {
 }
 
 Constant.MODDATA_KEYS = {
-    BARREL = "BarrEx_Barrel"
+    BARREL = "BarrEx_Barrel",
+    BARREL_WEIGHT = "BarrEx_Weight",
+    BARREL_ID = "BarrEx_BarrelId"
 }
 
 -----------------------------------
@@ -28,6 +30,7 @@ Constant.TOOLTIP = {
     BARREL_CONTENTS = "Tooltip_BarrEx_BarrelContents",
     LIQUID = "Tooltip_BarrEx_Liquid",
     AMOUNT = "Tooltip_BarrEx_Amount",
+    WEIGHT = "Tooltip_BarrEx_Weight",
     TOO_FAR = "Tooltip_BarrEx_TooFar"
 }
 
@@ -61,6 +64,11 @@ Constant.BARREL_DATA_POLL_TICKS = 120
 Constant.MAX_INTERACTION_DISTANCE = 1.55
 Constant.OPEN_BARREL_ACTION_TIME = 1
 
+Constant.BARREL_EMPTY_WEIGHT = 20
+Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = {
+    FUEL = 0.82,
+    WATER = 1.0,
+}
 
 -----------------------------------
 -------- BARREL TILE NAMES --------

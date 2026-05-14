@@ -108,6 +108,7 @@ local function buildBarrelInfoTooltipDescription(barrelData)
     if not barrelData then return "" end
 
     local liquidType = getLiquidDisplayName(barrelData.liquidType)
+    local totalWeight = barrelData:getTotalWeight()
 
     return table.concat({
         translate(Constant.TOOLTIP.BARREL_CONTENTS) .. " <LINE>",
@@ -117,6 +118,11 @@ local function buildBarrelInfoTooltipDescription(barrelData)
             translate(Constant.TOOLTIP.AMOUNT),
             barrelData.amount,
             barrelData.capacity
+        ),
+        string.format(
+            " <RGB:1,1,1> %s %.2f <LINE>",
+            translate(Constant.TOOLTIP.WEIGHT),
+            totalWeight
         )
     })
 end
@@ -147,13 +153,14 @@ end
 --- @param inRange boolean
 local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)
     local barrelData = BarrEx_BarrelData.get(barrel)
-    local isOpened = barrelData ~= nil
     local barrelOption = context:addOption(translate(Constant.CONTEXT_MENU.BARREL), nil, nil)
     local subMenu = context:getNew(context)
     context:addSubMenu(barrelOption, subMenu)
 
-    if isOpened then
-        local pct = barrelData.capacity > 0 and math.floor((barrelData.amount / barrelData.capacity) * 100) or 0
+    if barrelData then
+        local amount = barrelData.amount or 0
+        local capacity = barrelData.capacity or 0
+        local pct = capacity > 0 and math.floor((amount / capacity) * 100) or 0
         local infoLabel = string.format("%s  %d%%", translate(Constant.CONTEXT_MENU.INFO), pct)
         local infoOption = subMenu:addOption(infoLabel, nil, nil)
         infoOption.notAvailable = true
