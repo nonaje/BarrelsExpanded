@@ -1,0 +1,8 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/Tooltip.schema.json",
+  "Tooltip_BarrEx_Required": "Requires:",
+  "Tooltip_BarrEx_OneOf": "One of:",
+  "Tooltip_BarrEx_BarrelContents": "Barrel contents:",
+  "Tooltip_BarrEx_Liquid": "Liquid:",
+  "Tooltip_BarrEx_Amount": "Amount:"
+}

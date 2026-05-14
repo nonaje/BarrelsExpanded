@@ -16,9 +16,23 @@ Constant.MODDATA_KEYS = {
 ------ CONTEXT MENU OPTIONS -------
 -----------------------------------
 Constant.CONTEXT_MENU = {
-    BARREL = "Barril",
-    OPEN_BARREL = "Abrir Barril",
-    REMOVE_THE_COVER = "Quitar la tapa"
+    BARREL = "ContextMenu_BarrEx_Barrel",
+    OPEN_BARREL = "ContextMenu_BarrEx_OpenBarrel",
+    REMOVE_THE_COVER = "ContextMenu_BarrEx_RemoveCover"
+}
+
+Constant.TOOLTIP = {
+    REQUIRED = "Tooltip_BarrEx_Required",
+    ONE_OF = "Tooltip_BarrEx_OneOf",
+    BARREL_CONTENTS = "Tooltip_BarrEx_BarrelContents",
+    LIQUID = "Tooltip_BarrEx_Liquid",
+    AMOUNT = "Tooltip_BarrEx_Amount"
+}
+
+Constant.UI = {
+    EMPTY = "UI_BarrEx_Empty",
+    LIQUID_FUEL = "UI_BarrEx_Liquid_FUEL",
+    LIQUID_WATER = "UI_BarrEx_Liquid_WATER"
 }
 
 ---------------------------------------

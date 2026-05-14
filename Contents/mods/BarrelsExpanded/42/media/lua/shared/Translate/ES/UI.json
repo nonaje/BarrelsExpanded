@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/UI.schema.json",
+  "UI_BarrEx_Empty": "Vacio",
+  "UI_BarrEx_Liquid_FUEL": "Combustible",
+  "UI_BarrEx_Liquid_WATER": "Agua"
+}

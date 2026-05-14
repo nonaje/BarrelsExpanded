@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/Mod.schema.json",
+  "name": "Barrels Expanded [MP + SP]",
+  "description": "Adds interactive barrels that can spawn with liquid and be inspected in multiplayer and singleplayer."
+}

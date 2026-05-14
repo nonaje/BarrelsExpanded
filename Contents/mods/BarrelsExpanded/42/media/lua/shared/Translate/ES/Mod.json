@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/Mod.schema.json",
+  "name": "Barrels Expanded [MP + SP]",
+  "description": "Agrega barriles interactivos que pueden aparecer con liquido y permiten inspeccionar su contenido en multijugador y un jugador."
+}

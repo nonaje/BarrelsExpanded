@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/ContextMenu.schema.json",
+  "ContextMenu_BarrEx_Barrel": "Barril",
+  "ContextMenu_BarrEx_OpenBarrel": "Abrir barril",
+  "ContextMenu_BarrEx_RemoveCover": "Quitar la tapa"
+}

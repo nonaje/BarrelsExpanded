@@ -35,11 +35,19 @@ local function onOpenBarrel(player, args)
     local barrel = getBarrelFromArgs(args)
     if not barrel then return end
 
+    if BarrEx_BarrelData.exists(barrel) then
+        barrel:transmitModData()
+        log("Open ignored; barrel already initialized: " .. (BarrEx_BarrelData.buildId(barrel) or "unknown"))
+        return
+    end
+
     local barrelData = BarrEx_BarrelFactory.createRandom(barrel)
     BarrEx_BarrelData.set(barrel, barrelData)
 
     barrel:transmitModData()
     log("Barrel opened: " .. (barrelData.id or "unknown"))
+    log("Liquid Type: " .. (barrelData.liquidType or "unknown"))
+    log("Amount: " .. (barrelData.amount or "unknown") .. "/" .. (barrelData.capacity or "unknown"))
 end
 
 local function onClientCommand(module, command, player, args)

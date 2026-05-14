@@ -33,6 +33,13 @@ function BarrEx_BarrelData.get(barrel)
     return BarrEx_Barrel:fromData(data)
 end
 
+--- Returns whether the barrel already has persisted data.
+--- @param barrel IsoObject|nil
+--- @return boolean
+function BarrEx_BarrelData.exists(barrel)
+    return BarrEx_BarrelData.get(barrel) ~= nil
+end
+
 --- Writes barrel data into modData.
 --- @param barrel IsoObject|nil
 --- @param barrelData BarrEx_Barrel|nil
