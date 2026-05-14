@@ -10,13 +10,35 @@ end
 local function reconcilePlacedBarrel(worldObject)
     if not Utils.isExpandableBarrel(worldObject) then return end
 
-    local barrelData = BarrEx_BarrelData.reconcileWorldObject(worldObject)
-    if not barrelData then return end
+    -- Single get() call reused for both the existence check and the reconcile logic,
+    -- avoiding the triple deserialization that exists() + reconcileWorldObject() would cause.
+    local barrelData = BarrEx_BarrelData.get(worldObject)
 
+    if barrelData then
+        -- Barrel already has data (placed from inventory or loaded from save).
+        -- Re-anchor the position-based ID in case coordinates changed.
+        barrelData.id = BarrEx_BarrelData.buildId(worldObject)
+        BarrEx_BarrelData.set(worldObject, barrelData)
+        worldObject:transmitModData()
+        log(string.format(
+            "Barrel world state reconciled: id=%s amount=%d/%d weight=%.2f",
+            barrelData.id or "unknown",
+            barrelData.amount or 0,
+            barrelData.capacity or 0,
+            barrelData:getTotalWeight()
+        ))
+        return
+    end
+
+    -- New barrel with no data (world-spawned). Auto-initialize so its weight
+    -- is real from the moment the player encounters it.
+    barrelData = BarrEx_BarrelFactory.createRandom(worldObject)
+    BarrEx_BarrelData.set(worldObject, barrelData)
     worldObject:transmitModData()
     log(string.format(
-        "Barrel world state reconciled: id=%s amount=%d/%d weight=%.2f",
+        "Barrel auto-initialized: id=%s liquid=%s amount=%d/%d weight=%.2f",
         barrelData.id or "unknown",
+        barrelData.liquidType or "none",
         barrelData.amount or 0,
         barrelData.capacity or 0,
         barrelData:getTotalWeight()
@@ -77,19 +99,34 @@ local function onOpenBarrel(player, args)
         return
     end
 
-    if BarrEx_BarrelData.exists(barrel) then
+    local barrelData = BarrEx_BarrelData.get(barrel)
+
+    if not barrelData then
+        -- Race condition: open command arrived before OnObjectAdded could auto-init.
+        -- Create and reveal in a single set() call to avoid a redundant write.
+        barrelData = BarrEx_BarrelFactory.createRandom(barrel)
+        barrelData.revealed = true
+        BarrEx_BarrelData.set(barrel, barrelData)
         barrel:transmitModData()
-        log("Open ignored; barrel already initialized: " .. (BarrEx_BarrelData.buildId(barrel) or "unknown"))
+        log("Barrel lazily initialized and revealed: " .. (barrelData.id or "unknown"))
+        log("Liquid type: " .. (barrelData.liquidType or "none"))
+        log(string.format("Amount: %d/%d", barrelData.amount or 0, barrelData.capacity or 0))
+        log(string.format("Weight: %.2f", BarrEx_BarrelData.getWeight(barrelData)))
         return
     end
 
-    local barrelData = BarrEx_BarrelFactory.createRandom(barrel)
-    BarrEx_BarrelData.set(barrel, barrelData)
+    if barrelData:isRevealed() then
+        barrel:transmitModData()
+        log("Open ignored; barrel already revealed: " .. (barrelData.id or "unknown"))
+        return
+    end
 
+    barrelData.revealed = true
+    BarrEx_BarrelData.set(barrel, barrelData)
     barrel:transmitModData()
-    log("Barrel opened: " .. (barrelData.id or "unknown"))
-    log("Liquid Type: " .. (barrelData.liquidType or "unknown"))
-    log("Amount: " .. (barrelData.amount or "unknown") .. "/" .. (barrelData.capacity or "unknown"))
+    log("Barrel revealed: " .. (barrelData.id or "unknown"))
+    log("Liquid type: " .. (barrelData.liquidType or "none"))
+    log(string.format("Amount: %d/%d", barrelData.amount or 0, barrelData.capacity or 0))
     log(string.format("Weight: %.2f", BarrEx_BarrelData.getWeight(barrelData)))
 end
 

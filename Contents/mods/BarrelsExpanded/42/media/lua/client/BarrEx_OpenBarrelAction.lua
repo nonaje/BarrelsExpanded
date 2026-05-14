@@ -36,7 +36,10 @@ function BarrEx_OpenBarrelAction:new(player, barrel, tool)
 end
 
 function BarrEx_OpenBarrelAction:isValid()
-    if BarrEx_BarrelData.exists(self.barrel) then return false end
+    -- Allow nil barrelData: the barrel may not have synced from the server yet
+    -- (race condition on multiplayer chunk load). The server handles lazy init.
+    -- isRevealedRaw avoids full deserialization (no buildId + table alloc) every tick.
+    if BarrEx_BarrelData.isRevealedRaw(self.barrel) then return false end
     if not Utils.isPlayerInRange(self.character, self.barrel) then return false end
     return true
 end
@@ -67,8 +70,8 @@ function BarrEx_OpenBarrelAction:perform()
     self.character:ClearVariable("LootPosition")
     local barrel = self.barrel
 
-    if BarrEx_BarrelData.exists(barrel) then
-        log("Open ignored; barrel already initialized.")
+    if BarrEx_BarrelData.isRevealedRaw(barrel) then
+        log("Open ignored; barrel already revealed.")
         ISBaseTimedAction.perform(self)
         return
     end
@@ -90,22 +93,24 @@ function BarrEx_OpenBarrelAction:perform()
     local function onTick()
         ticks = ticks + 1
 
-        local barrelData = BarrEx_BarrelData.get(barrel)
-        if barrelData then
-            local liquidType = barrelData.liquidType or "EMPTY"
-            log(string.format(
-                "Barrel data synced: id=%s, liquid=%s, amount=%d/%d",
-                barrelData.id or "N/A",
-                liquidType,
-                barrelData.amount,
-                barrelData.capacity
-            ))
+        if BarrEx_BarrelData.isRevealedRaw(barrel) then
+            -- Full get() only on success, not every tick while waiting.
+            local barrelData = BarrEx_BarrelData.get(barrel)
+            if barrelData then
+                log(string.format(
+                    "Barrel revealed and synced: id=%s liquid=%s amount=%d/%d",
+                    barrelData.id or "N/A",
+                    barrelData.liquidType or "none",
+                    barrelData.amount,
+                    barrelData.capacity
+                ))
+            end
             Events.OnTick.Remove(onTick)
             return
         end
 
         if ticks >= Constant.BARREL_DATA_POLL_TICKS then
-            log("Barrel data not available yet.")
+            log("Barrel reveal not confirmed yet.")
             Events.OnTick.Remove(onTick)
         end
     end

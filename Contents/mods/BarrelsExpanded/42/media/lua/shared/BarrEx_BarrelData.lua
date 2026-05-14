@@ -39,11 +39,21 @@ function BarrEx_BarrelData.fromRawData(rawData, fallbackId)
 
     local barrelId = type(rawData.id) == "string" and rawData.id or fallbackId
 
+    -- Backward compat: if 'revealed' is absent the data was written by the old system,
+    -- which only stored data for already-opened barrels. Treat nil as true.
+    local revealed
+    if rawData.revealed == nil then
+        revealed = true
+    else
+        revealed = rawData.revealed == true
+    end
+
     return BarrEx_Barrel:new({
         id = barrelId,
         liquidType = liquidType,
         amount = amount,
         capacity = capacity,
+        revealed = revealed,
     })
 end
 
@@ -128,17 +138,44 @@ function BarrEx_BarrelData.get(barrel)
     local modData = barrel:getModData()
     if not modData then return nil end
 
-    return BarrEx_BarrelData.fromRawData(modData[Constant.MODDATA_KEYS.BARREL], BarrEx_BarrelData.buildId(barrel))
+    local raw = modData[Constant.MODDATA_KEYS.BARREL]
+    if type(raw) ~= "table" then return nil end
+
+    -- Only compute the expensive buildId (4 Java calls) when the stored id is
+    -- absent or invalid. In normal operation the id is always present, so this
+    -- avoids 4 redundant Java bridge calls on the hot get() path.
+    local fallbackId = type(raw.id) ~= "string" and BarrEx_BarrelData.buildId(barrel) or nil
+    return BarrEx_BarrelData.fromRawData(raw, fallbackId)
 end
 
---- Returns whether the barrel already has persisted data.
+--- Returns whether the barrel's contents have been revealed to the player.
 --- @param barrel IsoObject|nil
 --- @return boolean
-function BarrEx_BarrelData.exists(barrel)
-    return BarrEx_BarrelData.get(barrel) ~= nil
+function BarrEx_BarrelData.isRevealed(barrel)
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    return barrelData ~= nil and barrelData:isRevealed()
+end
+
+--- Fast check of the revealed flag without full deserialization.
+--- Use this in hot paths (called every game tick or every cursor frame)
+--- instead of isRevealed() to avoid the buildId + table allocation overhead.
+--- Backward compat: absent 'revealed' key means old opened barrel data.
+--- @param barrel IsoObject|nil
+--- @return boolean
+function BarrEx_BarrelData.isRevealedRaw(barrel)
+    if not barrel then return false end
+    local modData = barrel:getModData()
+    if not modData then return false end
+    local raw = modData[Constant.MODDATA_KEYS.BARREL]
+    if type(raw) ~= "table" then return false end
+    if raw.revealed == nil then return true end
+    return raw.revealed == true
 end
 
 --- Writes barrel data into modData.
+--- Inlines writeToModData + applyWeight to eliminate a duplicate getModData()
+--- Java call, a duplicate toData() allocation, and a duplicate getTotalWeight()
+--- computation that the split call-chain would otherwise produce.
 --- @param barrel IsoObject|nil
 --- @param barrelData BarrEx_Barrel|nil
 function BarrEx_BarrelData.set(barrel, barrelData)
@@ -150,22 +187,15 @@ function BarrEx_BarrelData.set(barrel, barrelData)
     local normalized = normalizeBarrelData(barrelData, BarrEx_BarrelData.buildId(barrel))
     if not normalized then return end
 
-    BarrEx_BarrelData.writeToModData(modData, normalized)
-    BarrEx_BarrelData.applyWeight(barrel, normalized)
-end
+    local serialized = normalized:toData()
+    local weight = normalized:getTotalWeight()
 
---- @param barrel IsoObject|nil
---- @return BarrEx_Barrel|nil
-function BarrEx_BarrelData.reconcileWorldObject(barrel)
-    if not barrel then return nil end
+    modData[Constant.MODDATA_KEYS.BARREL] = serialized
+    modData[Constant.MODDATA_KEYS.BARREL_ID] = serialized.id
+    modData[Constant.MODDATA_KEYS.BARREL_WEIGHT] = weight
 
-    local barrelData = BarrEx_BarrelData.get(barrel)
-    if not barrelData then return nil end
-
-    barrelData.id = BarrEx_BarrelData.buildId(barrel)
-    BarrEx_BarrelData.set(barrel, barrelData)
-
-    return barrelData
+    call(barrel, "setCustomWeight", true)
+    call(barrel, "setWeight", weight)
 end
 
 --- @param barrel IsoObject|nil

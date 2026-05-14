@@ -5,6 +5,7 @@ local Constant = require("BarrEx_Constant")
 ---@field liquidType string|nil
 ---@field amount number
 ---@field capacity number
+---@field revealed boolean
 local BarrEx_Barrel = {}
 
 BarrEx_Barrel.__index = BarrEx_Barrel
@@ -20,6 +21,7 @@ function BarrEx_Barrel:new(data)
     instance.liquidType = data.liquidType
     instance.amount = data.amount or 0
     instance.capacity = data.capacity or Constant.BARREL_DEFAULT_CAPACITY
+    instance.revealed = data.revealed == true
 
     return instance
 end
@@ -27,6 +29,11 @@ end
 ---@return boolean
 function BarrEx_Barrel:isEmpty()
     return self.amount <= 0
+end
+
+---@return boolean
+function BarrEx_Barrel:isRevealed()
+    return self.revealed == true
 end
 
 ---@return boolean
@@ -132,6 +139,7 @@ function BarrEx_Barrel:toData()
         liquidType = self.liquidType,
         amount = self.amount,
         capacity = self.capacity,
+        revealed = self.revealed,
     }
 end
 

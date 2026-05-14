@@ -4,19 +4,15 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 
 local BarrEx_BarrelFactory = {}
 
+-- Built once at module load; Constant.LIQUID_TYPE is a static table.
+local liquidTypesList = {}
+for _, value in pairs(Constant.LIQUID_TYPE) do
+    liquidTypesList[#liquidTypesList + 1] = value
+end
+
 local function getRandomLiquidType()
-    local liquidTypes = {}
-
-    for _, value in pairs(Constant.LIQUID_TYPE) do
-        liquidTypes[#liquidTypes + 1] = value
-    end
-
-    if #liquidTypes == 0 then
-        return nil
-    end
-
-    local index = ZombRand(1, #liquidTypes + 1)
-    return liquidTypes[index]
+    if #liquidTypesList == 0 then return nil end
+    return liquidTypesList[ZombRand(1, #liquidTypesList + 1)]
 end
 
 --- Creates a new barrel instance with random contents.
@@ -24,13 +20,18 @@ end
 --- @return BarrEx_Barrel
 function BarrEx_BarrelFactory.createRandom(barrel)
     local capacity = Constant.BARREL_DEFAULT_CAPACITY
-    local amount = ZombRand(1, capacity + 1)
+    local liquidType = getRandomLiquidType()
+    -- If no liquid types are registered, produce an empty barrel so that
+    -- amount stays consistent with the nil liquidType (fromRawData would
+    -- zero it out anyway during normalization).
+    local amount = liquidType and ZombRand(1, capacity + 1) or 0
 
     return BarrEx_Barrel:new({
         id = BarrEx_BarrelData.buildId(barrel),
-        liquidType = getRandomLiquidType(),
+        liquidType = liquidType,
         amount = amount,
         capacity = capacity,
+        revealed = false,
     })
 end
 

@@ -45,12 +45,13 @@ end
 --- @param player IsoPlayer
 local function onOpenBarrel(barrel, player)
     if not barrel or not player then return end
-    if BarrEx_BarrelData.exists(barrel) then
-        log("Open ignored; barrel already initialized.")
+    if BarrEx_BarrelData.isRevealedRaw(barrel) then
+        log("Open ignored; barrel already revealed.")
         return
     end
 
     local inventory = player:getInventory()
+    if not inventory then return end
     local tool = nil
     for _, itemType in ipairs(Constant.OPEN_BARREL_REQUIRED_ITEMS) do
         tool = inventory:getFirstTypeRecurse(itemType)
@@ -157,7 +158,7 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     local subMenu = context:getNew(context)
     context:addSubMenu(barrelOption, subMenu)
 
-    if barrelData then
+    if barrelData and barrelData:isRevealed() then
         local amount = barrelData.amount or 0
         local capacity = barrelData.capacity or 0
         local pct = capacity > 0 and math.floor((amount / capacity) * 100) or 0
