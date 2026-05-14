@@ -26,7 +26,8 @@ Constant.TOOLTIP = {
     ONE_OF = "Tooltip_BarrEx_OneOf",
     BARREL_CONTENTS = "Tooltip_BarrEx_BarrelContents",
     LIQUID = "Tooltip_BarrEx_Liquid",
-    AMOUNT = "Tooltip_BarrEx_Amount"
+    AMOUNT = "Tooltip_BarrEx_Amount",
+    TOO_FAR = "Tooltip_BarrEx_TooFar"
 }
 
 Constant.UI = {
@@ -56,6 +57,7 @@ Constant.LIQUID_TYPE = {
 
 Constant.BARREL_DEFAULT_CAPACITY = 160
 Constant.BARREL_DATA_POLL_TICKS = 120
+Constant.MAX_INTERACTION_DISTANCE = 1.55
 
 
 -----------------------------------

@@ -35,6 +35,11 @@ local function onOpenBarrel(player, args)
     local barrel = getBarrelFromArgs(args)
     if not barrel then return end
 
+    if not Utils.isPlayerInRange(player, barrel) then
+        log("Open rejected; player is too far from the barrel.")
+        return
+    end
+
     if BarrEx_BarrelData.exists(barrel) then
         barrel:transmitModData()
         log("Open ignored; barrel already initialized: " .. (BarrEx_BarrelData.buildId(barrel) or "unknown"))

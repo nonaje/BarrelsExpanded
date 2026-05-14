@@ -146,6 +146,13 @@ local function buildBarrelInfoTooltipDescription(barrelData)
 end
 
 --- @param option table
+local function attachTooFarTooltip(option)
+    local tooltip = ISInventoryPaneContextMenu.addToolTip()
+    tooltip.description = translate(Constant.TOOLTIP.TOO_FAR)
+    option.toolTip = tooltip
+end
+
+--- @param option table
 --- @param barrelData BarrEx_Barrel|nil
 local function attachBarrelInfoTooltip(option, barrelData)
     if not barrelData then return end
@@ -161,7 +168,8 @@ end
 --- @param canOpen boolean
 --- @param foundItems table<string>
 --- @param missingItems table<string>
-local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems)
+--- @param inRange boolean
+local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)
     local barrelData = BarrEx_BarrelData.get(barrel)
     local isOpened = barrelData ~= nil
     local barrelOption = context:addOption(translate(Constant.CONTEXT_MENU.BARREL), nil, nil)
@@ -169,12 +177,17 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     context:addSubMenu(barrelOption, subMenu)
 
     local openOption = subMenu:addOption(translate(Constant.CONTEXT_MENU.OPEN_BARREL), barrel, onOpenBarrel, player)
-    openOption.notAvailable = (not canOpen) or isOpened
+    openOption.notAvailable = (not canOpen) or isOpened or (not inRange)
 
     if isOpened then
         local openedBarrelData = barrelData
         attachBarrelInfoTooltip(barrelOption, openedBarrelData)
         attachBarrelInfoTooltip(openOption, openedBarrelData)
+        return
+    end
+
+    if not inRange then
+        attachTooFarTooltip(openOption)
         return
     end
 
@@ -199,8 +212,9 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
         player,
         Constant.OPEN_BARREL_REQUIRED_ITEMS
     )
+    local inRange = Utils.isPlayerInRange(player, barrel)
 
-    addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems)
+    addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.onFillWorldObjectContextMenu)

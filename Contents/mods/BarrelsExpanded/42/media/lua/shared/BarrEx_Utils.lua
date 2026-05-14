@@ -81,6 +81,23 @@ function Utils.isPlayerHoldingAnyRequiredItem(player, requiredItems)
     return Utils.getRequiredItemStatus(player, requiredItems)
 end
 
+--- Returns true when the player is close enough to the barrel to interact with it.
+--- Uses Chebyshev distance (tile-based max of dx/dy) against MAX_INTERACTION_DISTANCE.
+--- @param player IsoPlayer|nil
+--- @param barrel IsoObject|nil
+--- @return boolean
+function Utils.isPlayerInRange(player, barrel)
+    if not player or not barrel then return false end
+
+    local square = barrel:getSquare()
+    if not square then return false end
+
+    local dx = math.abs(player:getX() - square:getX())
+    local dy = math.abs(player:getY() - square:getY())
+
+    return math.max(dx, dy) <= Constant.MAX_INTERACTION_DISTANCE
+end
+
 --- @param player IsoPlayer|nil
 --- @param requiredItems table<string>|nil
 --- @return boolean hasAllRequiredItems
