@@ -1,6 +1,7 @@
 local Utils = require("BarrEx_Utils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local BarrEx_OpenBarrelAction = require("BarrEx_OpenBarrelAction")
 
 local ContextMenu = {}
 
@@ -49,41 +50,16 @@ local function onOpenBarrel(barrel, player)
         return
     end
 
-    local square = barrel:getSquare()
-    if not square then return end
-
-    sendClientCommand(Constant.NETWORK.MODULE, Constant.NETWORK.OPEN_BARREL, {
-        x = square:getX(),
-        y = square:getY(),
-        z = square:getZ(),
-        objectIndex = barrel:getObjectIndex()
-    })
-
-    local ticks = 0
-    local function onTick()
-        ticks = ticks + 1
-
-        local barrelData = BarrEx_BarrelData.get(barrel)
-        if barrelData then
-            local liquidType = barrelData.liquidType or "EMPTY"
-            log(string.format(
-                "Barrel data synced: id=%s, liquid=%s, amount=%d/%d",
-                barrelData.id or "N/A",
-                liquidType,
-                barrelData.amount,
-                barrelData.capacity
-            ))
-            Events.OnTick.Remove(onTick)
-            return
-        end
-
-        if ticks >= Constant.BARREL_DATA_POLL_TICKS then
-            log("Barrel data not available yet.")
-            Events.OnTick.Remove(onTick)
-        end
+    local inventory = player:getInventory()
+    local tool = nil
+    for _, itemType in ipairs(Constant.OPEN_BARREL_REQUIRED_ITEMS) do
+        tool = inventory:getFirstTypeRecurse(itemType)
+        if tool then break end
     end
 
-    Events.OnTick.Add(onTick)
+    if not tool then return end
+
+    ISTimedActionQueue.add(BarrEx_OpenBarrelAction:new(player, barrel, tool))
 end
 
 --- @param worldObjects IsoObject[]|nil
@@ -176,15 +152,17 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     local subMenu = context:getNew(context)
     context:addSubMenu(barrelOption, subMenu)
 
-    local openOption = subMenu:addOption(translate(Constant.CONTEXT_MENU.OPEN_BARREL), barrel, onOpenBarrel, player)
-    openOption.notAvailable = (not canOpen) or isOpened or (not inRange)
-
     if isOpened then
-        local openedBarrelData = barrelData
-        attachBarrelInfoTooltip(barrelOption, openedBarrelData)
-        attachBarrelInfoTooltip(openOption, openedBarrelData)
+        local pct = barrelData.capacity > 0 and math.floor((barrelData.amount / barrelData.capacity) * 100) or 0
+        local infoLabel = string.format("%s  %d%%", translate(Constant.CONTEXT_MENU.INFO), pct)
+        local infoOption = subMenu:addOption(infoLabel, nil, nil)
+        infoOption.notAvailable = true
+        attachBarrelInfoTooltip(infoOption, barrelData)
         return
     end
+
+    local openOption = subMenu:addOption(translate(Constant.CONTEXT_MENU.OPEN_BARREL), barrel, onOpenBarrel, player)
+    openOption.notAvailable = (not canOpen) or (not inRange)
 
     if not inRange then
         attachTooFarTooltip(openOption)

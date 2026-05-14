@@ -18,6 +18,7 @@ Constant.MODDATA_KEYS = {
 Constant.CONTEXT_MENU = {
     BARREL = "ContextMenu_BarrEx_Barrel",
     OPEN_BARREL = "ContextMenu_BarrEx_OpenBarrel",
+    INFO = "ContextMenu_BarrEx_Info",
     REMOVE_THE_COVER = "ContextMenu_BarrEx_RemoveCover"
 }
 
@@ -58,6 +59,7 @@ Constant.LIQUID_TYPE = {
 Constant.BARREL_DEFAULT_CAPACITY = 160
 Constant.BARREL_DATA_POLL_TICKS = 120
 Constant.MAX_INTERACTION_DISTANCE = 1.55
+Constant.OPEN_BARREL_ACTION_TIME = 1
 
 
 -----------------------------------
