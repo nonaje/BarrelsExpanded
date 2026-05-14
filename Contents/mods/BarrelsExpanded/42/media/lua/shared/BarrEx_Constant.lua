@@ -3,6 +3,15 @@ local Constant = {}
 Constant.MOD_ID = "BarrelsExpanded"
 Constant.LOG_PREFIX = "[BarrelsExpanded]"
 
+Constant.NETWORK = {
+    MODULE = "BarrEx",
+    OPEN_BARREL = "openBarrel"
+}
+
+Constant.MODDATA_KEYS = {
+    BARREL = "BarrEx_Barrel"
+}
+
 -----------------------------------
 ------ CONTEXT MENU OPTIONS -------
 -----------------------------------
@@ -32,6 +41,7 @@ Constant.LIQUID_TYPE = {
 }
 
 Constant.BARREL_DEFAULT_CAPACITY = 160
+Constant.BARREL_DATA_POLL_TICKS = 120
 
 
 -----------------------------------

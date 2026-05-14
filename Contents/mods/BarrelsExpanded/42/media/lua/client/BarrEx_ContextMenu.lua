@@ -1,5 +1,6 @@
 local Utils = require("BarrEx_Utils")
 local Constant = require("BarrEx_Constant")
+local BarrEx_BarrelData = require("BarrEx_BarrelData")
 
 local ContextMenu = {}
 
@@ -8,9 +9,45 @@ local function log(message)
 end
 
 --- @param barrel IsoObject
-local function onOpenBarrel(barrel)
-    -- Acá después se puede abrir UI, transformar el objeto, agregar modData, etc.
-    log("Barrel Opened")
+--- @param player IsoPlayer
+local function onOpenBarrel(barrel, player)
+    if not barrel or not player then return end
+
+    local square = barrel:getSquare()
+    if not square then return end
+
+    sendClientCommand(Constant.NETWORK.MODULE, Constant.NETWORK.OPEN_BARREL, {
+        x = square:getX(),
+        y = square:getY(),
+        z = square:getZ(),
+        objectIndex = barrel:getObjectIndex()
+    })
+
+    local ticks = 0
+    local function onTick()
+        ticks = ticks + 1
+
+        local barrelData = BarrEx_BarrelData.get(barrel)
+        if barrelData then
+            local liquidType = barrelData.liquidType or "EMPTY"
+            log(string.format(
+                "Barrel data synced: id=%s, liquid=%s, amount=%d/%d",
+                barrelData.id or "N/A",
+                liquidType,
+                barrelData.amount,
+                barrelData.capacity
+            ))
+            Events.OnTick.Remove(onTick)
+            return
+        end
+
+        if ticks >= Constant.BARREL_DATA_POLL_TICKS then
+            log("Barrel data not available yet.")
+            Events.OnTick.Remove(onTick)
+        end
+    end
+
+    Events.OnTick.Add(onTick)
 end
 
 --- @param worldObjects IsoObject[]|nil
@@ -55,15 +92,16 @@ end
 
 --- @param context ISContextMenu
 --- @param barrel IsoObject
+--- @param player IsoPlayer
 --- @param canOpen boolean
 --- @param foundItems table<string>
 --- @param missingItems table<string>
-local function addBarrelSubMenu(context, barrel, canOpen, foundItems, missingItems)
+local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems)
     local barrelOption = context:addOption(Constant.CONTEXT_MENU.BARREL, nil, nil)
     local subMenu = context:getNew(context)
     context:addSubMenu(barrelOption, subMenu)
 
-    local openOption = subMenu:addOption(Constant.CONTEXT_MENU.OPEN_BARREL, barrel, onOpenBarrel)
+    local openOption = subMenu:addOption(Constant.CONTEXT_MENU.OPEN_BARREL, barrel, onOpenBarrel, player)
     openOption.notAvailable = not canOpen
 
     attachRequiredItemsTooltip(openOption, foundItems, missingItems)
@@ -88,7 +126,7 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
         Constant.OPEN_BARREL_REQUIRED_ITEMS
     )
 
-    addBarrelSubMenu(context, barrel, canOpen, foundItems, missingItems)
+    addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.onFillWorldObjectContextMenu)
