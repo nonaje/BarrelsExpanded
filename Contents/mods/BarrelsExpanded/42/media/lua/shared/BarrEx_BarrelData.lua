@@ -184,7 +184,10 @@ function BarrEx_BarrelData.set(barrel, barrelData)
     local modData = barrel:getModData()
     if not modData then return end
 
-    local normalized = normalizeBarrelData(barrelData, BarrEx_BarrelData.buildId(barrel))
+    -- Only compute the expensive buildId (4 Java calls) when barrelData.id is
+    -- absent or invalid. In the common path the id is already set by the caller.
+    local fallbackId = type(barrelData.id) ~= "string" and BarrEx_BarrelData.buildId(barrel) or nil
+    local normalized = normalizeBarrelData(barrelData, fallbackId)
     if not normalized then return end
 
     local serialized = normalized:toData()
@@ -196,6 +199,27 @@ function BarrEx_BarrelData.set(barrel, barrelData)
 
     call(barrel, "setCustomWeight", true)
     call(barrel, "setWeight", weight)
+end
+
+--- Re-applies the cached weight to the Java world object without deserializing barrel data.
+--- Custom weights do not persist across game sessions; call this after a square reloads
+--- from disk to restore the correct weight on the IsoObject.
+--- Returns true when the cached weight was found and applied, false when the barrel
+--- has no cached weight (caller should fall back to a full reconcile).
+--- @param barrel IsoObject|nil
+--- @return boolean
+function BarrEx_BarrelData.reapplyWeight(barrel)
+    if not barrel then return false end
+
+    local modData = barrel:getModData()
+    if not modData then return false end
+
+    local weight = modData[Constant.MODDATA_KEYS.BARREL_WEIGHT]
+    if type(weight) ~= "number" then return false end
+
+    call(barrel, "setCustomWeight", true)
+    call(barrel, "setWeight", weight)
+    return true
 end
 
 --- @param barrel IsoObject|nil

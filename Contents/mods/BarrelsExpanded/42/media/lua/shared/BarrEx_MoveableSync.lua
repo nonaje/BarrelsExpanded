@@ -76,9 +76,14 @@ function BarrEx_MoveableSync.start()
     originalCanPickUpMoveable = ISMoveableSpriteProps.canPickUpMoveable
     rawset(ISMoveableSpriteProps, "canPickUpMoveable", function(self, character, square, object)
         if object and Utils.isExpandableBarrel(object) then
-            local barrelData = BarrEx_BarrelData.get(object)
-            if barrelData then
-                self.weight = barrelData:getTotalWeight()
+            -- Read the pre-computed weight from modData instead of calling get(),
+            -- which would allocate a BarrEx_Barrel table on every cursor frame.
+            local modData = object:getModData()
+            if modData then
+                local w = modData[Constant.MODDATA_KEYS.BARREL_WEIGHT]
+                if type(w) == "number" then
+                    self.weight = w
+                end
             end
         end
         return originalCanPickUpMoveable(self, character, square, object)

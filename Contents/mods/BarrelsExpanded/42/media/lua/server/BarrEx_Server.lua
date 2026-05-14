@@ -51,7 +51,10 @@ local function getBarrelFromArgs(args)
     if not args then return nil end
     if type(args.x) ~= "number" or type(args.y) ~= "number" or type(args.z) ~= "number" or type(args.objectIndex) ~= "number" then return nil end
 
-    local square = getCell():getGridSquare(args.x, args.y, args.z)
+    local cell = getCell()
+    if not cell then return nil end
+
+    local square = cell:getGridSquare(args.x, args.y, args.z)
     if not square then return nil end
 
     local objects = square:getObjects()
@@ -108,15 +111,18 @@ local function onOpenBarrel(player, args)
         barrelData.revealed = true
         BarrEx_BarrelData.set(barrel, barrelData)
         barrel:transmitModData()
-        log("Barrel lazily initialized and revealed: " .. (barrelData.id or "unknown"))
-        log("Liquid type: " .. (barrelData.liquidType or "none"))
-        log(string.format("Amount: %d/%d", barrelData.amount or 0, barrelData.capacity or 0))
-        log(string.format("Weight: %.2f", BarrEx_BarrelData.getWeight(barrelData)))
+        log(string.format(
+            "Barrel lazily initialized and revealed: id=%s liquid=%s amount=%d/%d weight=%.2f",
+            barrelData.id or "unknown",
+            barrelData.liquidType or "none",
+            barrelData.amount or 0,
+            barrelData.capacity or 0,
+            BarrEx_BarrelData.getWeight(barrelData)
+        ))
         return
     end
 
     if barrelData:isRevealed() then
-        barrel:transmitModData()
         log("Open ignored; barrel already revealed: " .. (barrelData.id or "unknown"))
         return
     end
@@ -124,10 +130,14 @@ local function onOpenBarrel(player, args)
     barrelData.revealed = true
     BarrEx_BarrelData.set(barrel, barrelData)
     barrel:transmitModData()
-    log("Barrel revealed: " .. (barrelData.id or "unknown"))
-    log("Liquid type: " .. (barrelData.liquidType or "none"))
-    log(string.format("Amount: %d/%d", barrelData.amount or 0, barrelData.capacity or 0))
-    log(string.format("Weight: %.2f", BarrEx_BarrelData.getWeight(barrelData)))
+    log(string.format(
+        "Barrel revealed: id=%s liquid=%s amount=%d/%d weight=%.2f",
+        barrelData.id or "unknown",
+        barrelData.liquidType or "none",
+        barrelData.amount or 0,
+        barrelData.capacity or 0,
+        BarrEx_BarrelData.getWeight(barrelData)
+    ))
 end
 
 local function onClientCommand(module, command, player, args)
@@ -138,25 +148,28 @@ local function onClientCommand(module, command, player, args)
     end
 end
 
--- Re-scan every barrel in a chunk when it is loaded from disk.
+-- Re-scan every barrel in a square when it is loaded from disk.
 -- Events.OnObjectAdded only fires for newly-generated world objects (first visit).
--- Previously-saved chunks reload their objects without re-firing OnObjectAdded,
--- so barrels in those chunks would never be initialized or have their weight
+-- Previously-saved squares reload their objects without re-firing OnObjectAdded,
+-- so barrels in those squares would never be initialized or have their weight
 -- re-applied. This handler fills that gap.
-local function reconcileChunk(wx, wy)
-    local cell = getCell()
-    if not cell then return end
+local function onLoadGridsquare(square)
+    if not square then return end
 
-    for lx = 0, 9 do
-        for ly = 0, 9 do
-            local square = cell:getGridSquare(wx * 10 + lx, wy * 10 + ly, 0)
-            if square then
-                local objects = square:getObjects()
-                if objects then
-                    for i = 0, objects:size() - 1 do
-                        reconcilePlacedBarrel(objects:get(i))
-                    end
-                end
+    local objects = square:getObjects()
+    if not objects then return end
+
+    for i = 0, objects:size() - 1 do
+        local worldObject = objects:get(i)
+        if Utils.isExpandableBarrel(worldObject) then
+            -- Fast path: re-apply the pre-computed weight stored in modData.
+            -- Avoids a full normalize+serialize+buildId cycle for every barrel
+            -- that already has valid data. Falls back to full reconcile only
+            -- when no cached weight exists (first-time init or corrupted data).
+            if not BarrEx_BarrelData.reapplyWeight(worldObject) then
+                reconcilePlacedBarrel(worldObject)  -- also calls transmitModData
+            else
+                worldObject:transmitModData()  -- sync client after weight re-applied
             end
         end
     end
@@ -164,4 +177,4 @@ end
 
 Events.OnClientCommand.Add(onClientCommand)
 Events.OnObjectAdded.Add(reconcilePlacedBarrel)
-Events.OnChunkLoaded.Add(reconcileChunk)
+Events.LoadGridsquare.Add(onLoadGridsquare)
