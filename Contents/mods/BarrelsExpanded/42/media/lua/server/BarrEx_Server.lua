@@ -138,5 +138,30 @@ local function onClientCommand(module, command, player, args)
     end
 end
 
+-- Re-scan every barrel in a chunk when it is loaded from disk.
+-- Events.OnObjectAdded only fires for newly-generated world objects (first visit).
+-- Previously-saved chunks reload their objects without re-firing OnObjectAdded,
+-- so barrels in those chunks would never be initialized or have their weight
+-- re-applied. This handler fills that gap.
+local function reconcileChunk(wx, wy)
+    local cell = getCell()
+    if not cell then return end
+
+    for lx = 0, 9 do
+        for ly = 0, 9 do
+            local square = cell:getGridSquare(wx * 10 + lx, wy * 10 + ly, 0)
+            if square then
+                local objects = square:getObjects()
+                if objects then
+                    for i = 0, objects:size() - 1 do
+                        reconcilePlacedBarrel(objects:get(i))
+                    end
+                end
+            end
+        end
+    end
+end
+
 Events.OnClientCommand.Add(onClientCommand)
 Events.OnObjectAdded.Add(reconcilePlacedBarrel)
+Events.OnChunkLoaded.Add(reconcileChunk)
