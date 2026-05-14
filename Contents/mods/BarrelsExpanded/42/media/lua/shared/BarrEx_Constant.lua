@@ -1,16 +1,21 @@
 local Constant = {}
 
+Constant.MOD_ID = "BarrelsExpanded"
+Constant.LOG_PREFIX = "[BarrelsExpanded]"
+
 -----------------------------------
 ------ CONTEXT MENU OPTIONS -------
 -----------------------------------
-Constant.REMOVE_THE_COVER = "Destapar"
-Constant.OPEN_BARREL = "Abrir"
-Constant.BARREL = "Barril"
+Constant.CONTEXT_MENU = {
+    BARREL = "Barril",
+    OPEN_BARREL = "Abrir Barril",
+    REMOVE_THE_COVER = "Quitar la tapa"
+}
 
 ---------------------------------------
 --- REQUIRED ITEMS FOR INTERACTIONS ---
 ---------------------------------------
-Constant.AVAILABLE_ITEMS_FOR_OPENING_BARREL = {
+Constant.OPEN_BARREL_REQUIRED_ITEMS = {
     "Base.Crowbar",
     "Base.CrowbarForged",
     "Base.Screwdriver",
@@ -18,29 +23,31 @@ Constant.AVAILABLE_ITEMS_FOR_OPENING_BARREL = {
     "Base.SheetMetalSnips"
 }
 
+-----------------------------------
+---- AVAILABLE LIQUID TYPES   -----
+-----------------------------------
+Constant.LIQUID_TYPE = {
+    FUEL    = "FUEL",
+    WATER   = "WATER",
+}
+
+Constant.BARREL_DEFAULT_CAPACITY = 160
+
 
 -----------------------------------
 -------- BARREL TILE NAMES --------
 -----------------------------------
-Constant.ORANGE_BARREL_NORTH_FACE_TILE_NAME = 'industry_01_22'
-Constant.ORANGE_BARREL_SOUTH_FACE_TILE_NAME = 'industry_01_23'
-
-Constant.DARK_GREEN_BARREL_NORTH_FACE_TILE_NAME = 'location_military_generic_01_14'
-Constant.DARK_GREEN_BARREL_SOUTH_FACE_TILE_NAME = 'location_military_generic_01_15'
-
-Constant.LIGHT_GREEN_BARREL_NORTH_FACE_TILE_NAME = 'location_military_generic_01_6'
-Constant.LIGHT_GREEN_BARREL_SOUTH_FACE_TILE_NAME = 'location_military_generic_01_7'
-
-Constant.GRAY_BARREL_TILE_NAME = 'crafted_01_32'
-
 Constant.BARREL_TILE_NAMES = {
-    [Constant.ORANGE_BARREL_NORTH_FACE_TILE_NAME]       = true,
-    [Constant.ORANGE_BARREL_SOUTH_FACE_TILE_NAME]       = true,
-    [Constant.DARK_GREEN_BARREL_NORTH_FACE_TILE_NAME]   = true,
-    [Constant.DARK_GREEN_BARREL_SOUTH_FACE_TILE_NAME]   = true,
-    [Constant.LIGHT_GREEN_BARREL_NORTH_FACE_TILE_NAME]  = true,
-    [Constant.LIGHT_GREEN_BARREL_SOUTH_FACE_TILE_NAME]  = true,
-    [Constant.GRAY_BARREL_TILE_NAME]                    = true
+    industry_01_22 = true,
+    industry_01_23 = true,
+
+    location_military_generic_01_14 = true,
+    location_military_generic_01_15 = true,
+
+    location_military_generic_01_6 = true,
+    location_military_generic_01_7 = true,
+
+    crafted_01_32 = true
 }
 
 return Constant
