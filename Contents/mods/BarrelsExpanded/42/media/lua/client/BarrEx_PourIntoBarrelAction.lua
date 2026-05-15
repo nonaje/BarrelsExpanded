@@ -1,7 +1,10 @@
-local Utils = require("BarrEx_Utils")
+local InventoryUtils = require("utils/BarrEx_InventoryUtils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local FluidActionUtils = require("utils/BarrEx_FluidActionUtils")
+local PlayerUtils = require("utils/BarrEx_PlayerUtils")
+local WorldUtils = require("utils/BarrEx_WorldUtils")
 local TransferSync = require("BarrEx_TransferSync")
 local TransferRules = require("core/BarrEx_TransferRules")
 
@@ -45,7 +48,7 @@ local function sendTransferCommand(action, command)
     if not action or not command then return false end
 
     local inventory = action.character:getInventory()
-    local item = Utils.findInventoryItem(
+    local item = InventoryUtils.findInventoryItem(
         inventory,
         action.sourceItem and action.sourceItem:getID() or nil,
         action.sourceItem and action.sourceItem:getFullType() or nil
@@ -67,7 +70,7 @@ local function sendTransferCommand(action, command)
         z = square:getZ(),
         objectIndex = action.barrel:getObjectIndex(),
         barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(action.barrel),
-        spriteName = Utils.getSpriteName(action.barrel),
+        spriteName = WorldUtils.getSpriteName(action.barrel),
         itemId = item:getID(),
         itemFullType = item:getFullType(),
     })
@@ -90,7 +93,7 @@ function BarrEx_PourIntoBarrelAction:new(player, barrel, sourceItem)
     o.transferStarted = false
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = Utils.getFluidTransferActionTime(o.totalAmount)
+    o.maxTime = FluidActionUtils.getFluidTransferActionTime(o.totalAmount)
 
     setmetatable(o, self)
     self.__index = self
@@ -119,7 +122,7 @@ end
 function BarrEx_PourIntoBarrelAction:isValid()
     if not self.barrel or not self.sourceItem then return false end
     if not BarrEx_BarrelData.isRevealedRaw(self.barrel) then return false end
-    if not Utils.isPlayerInRange(self.character, self.barrel) then return false end
+    if not PlayerUtils.isPlayerInRange(self.character, self.barrel) then return false end
 
     local inventory = self.character:getInventory()
     if not inventory then return false end
@@ -134,7 +137,7 @@ end
 function BarrEx_PourIntoBarrelAction:start()
     ISBaseTimedAction.start(self)
 
-    self.toolItem = Utils.findFirstRequiredItem(self.character, Constant.POUR_REQUIRED_ITEMS)
+    self.toolItem = PlayerUtils.findFirstRequiredItem(self.character, Constant.POUR_REQUIRED_ITEMS)
     self.transferStarted = sendTransferCommand(self, Constant.NETWORK.START_POUR_INTO_BARREL)
     if self.transferStarted then
         TransferSync.registerAction("pour", self, self.barrel, self.sourceItem)
@@ -145,7 +148,7 @@ function BarrEx_PourIntoBarrelAction:start()
     if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
         self.sourceItem:setJobDelta(0.0)
     end
-    local primaryHandItem, secondaryHandItem = Utils.getFluidActionHandItems(self.sourceItem, self.toolItem)
+    local primaryHandItem, secondaryHandItem = FluidActionUtils.getFluidActionHandItems(self.sourceItem, self.toolItem)
 
     if type(self.sourceItem.getPourType) == "function" then
         self:setAnimVariable("PourType", self.sourceItem:getPourType())

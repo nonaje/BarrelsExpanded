@@ -1,7 +1,7 @@
 require "Moveables/ISMoveableSpriteProps"
 
 local Constant = require("BarrEx_Constant")
-local Utils = require("BarrEx_Utils")
+local WorldUtils = require("utils/BarrEx_WorldUtils")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 
 local BarrEx_MoveableSync = {}
@@ -17,7 +17,7 @@ local function log(message)
 end
 
 local function isBarrelMoveable(worldObject)
-    return worldObject ~= nil and Utils.isExpandableBarrel(worldObject)
+    return worldObject ~= nil and WorldUtils.isExpandableBarrel(worldObject)
 end
 
 local function isBarrelSpriteName(spriteName)
@@ -79,7 +79,7 @@ local function findNewestBarrelOnSquare(square)
 
     for i = objects:size() - 1, 0, -1 do
         local object = objects:get(i)
-        if Utils.isExpandableBarrel(object) then
+        if WorldUtils.isExpandableBarrel(object) then
             return object
         end
     end
@@ -140,7 +140,7 @@ function BarrEx_MoveableSync.start()
     originalFromObject = ISMoveableSpriteProps.fromObject
     rawset(ISMoveableSpriteProps, "fromObject", function(object)
         local props = originalFromObject(object)
-        if props and props.isMoveable and Utils.isExpandableBarrel(object) then
+        if props and props.isMoveable and WorldUtils.isExpandableBarrel(object) then
             local modData = object:getModData()
             local cachedWeight = modData and modData[Constant.MODDATA_KEYS.BARREL_WEIGHT] or nil
 
@@ -171,7 +171,7 @@ function BarrEx_MoveableSync.start()
     -- pick up the correct value for the tooltip weight display.
     originalCanPickUpMoveable = ISMoveableSpriteProps.canPickUpMoveable
     rawset(ISMoveableSpriteProps, "canPickUpMoveable", function(self, character, square, object)
-        if object and Utils.isExpandableBarrel(object) then
+        if object and WorldUtils.isExpandableBarrel(object) then
             -- Read the pre-computed weight from modData instead of calling get(),
             -- which would allocate a BarrEx_Barrel table on every cursor frame.
             local modData = object:getModData()

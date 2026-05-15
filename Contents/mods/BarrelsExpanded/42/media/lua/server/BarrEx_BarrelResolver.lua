@@ -4,7 +4,7 @@
 -- but object indexes shift in MP when squares change.  This module encapsulates the
 -- fallback scan logic in one place.
 
-local Utils          = require("BarrEx_Utils")
+local WorldUtils     = require("utils/BarrEx_WorldUtils")
 local Constant       = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local SafeCall       = require("utils/BarrEx_SafeCall")
@@ -21,7 +21,7 @@ local function barrelMatchesArgs(barrel, args)
     if not barrel or not args then return false end
 
     if type(args.spriteName) == "string" and args.spriteName ~= "" then
-        local spriteName = Utils.getSpriteName(barrel)
+        local spriteName = WorldUtils.getSpriteName(barrel)
         if spriteName ~= args.spriteName then
             return false
         end
@@ -65,14 +65,14 @@ function BarrelResolver.getBarrelFromArgs(args)
 
     if type(args.objectIndex) == "number" and args.objectIndex >= 0 and args.objectIndex < objects:size() then
         local object = objects:get(args.objectIndex)
-        if Utils.isExpandableBarrel(object) and barrelMatchesArgs(object, args) then
+        if WorldUtils.isExpandableBarrel(object) and barrelMatchesArgs(object, args) then
             return object
         end
     end
 
     for i = 0, objects:size() - 1 do
         local object = objects:get(i)
-        if Utils.isExpandableBarrel(object) and barrelMatchesArgs(object, args) then
+        if WorldUtils.isExpandableBarrel(object) and barrelMatchesArgs(object, args) then
             return object
         end
     end

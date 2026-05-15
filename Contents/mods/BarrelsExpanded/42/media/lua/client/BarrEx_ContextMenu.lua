@@ -1,4 +1,5 @@
-local Utils = require("BarrEx_Utils")
+local PlayerUtils = require("utils/BarrEx_PlayerUtils")
+local WorldUtils = require("utils/BarrEx_WorldUtils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
@@ -59,7 +60,7 @@ end
 ---@param barrelData BarrEx_Barrel
 ---@param inRange boolean
 local function addPourOption(subMenu, barrel, player, barrelData, inRange)
-    local hasPourTool = Utils.isPlayerHoldingAnyRequiredItem(player, Constant.POUR_REQUIRED_ITEMS)
+    local hasPourTool = PlayerUtils.isPlayerHoldingAnyRequiredItem(player, Constant.POUR_REQUIRED_ITEMS)
     local sourceItems = Inventory.collectSourceContainersForPour(player, barrelData)
     local canPour = inRange and hasPourTool and #sourceItems > 0
 
@@ -184,7 +185,7 @@ end
 ---@param barrelData BarrEx_Barrel
 ---@param inRange boolean
 local function addFillOption(subMenu, barrel, player, barrelData, inRange)
-    local hasExtractTool = Utils.isPlayerHoldingAnyRequiredItem(player, Constant.EXTRACT_REQUIRED_ITEMS)
+    local hasExtractTool = PlayerUtils.isPlayerHoldingAnyRequiredItem(player, Constant.EXTRACT_REQUIRED_ITEMS)
     local targetItems = Inventory.collectTargetContainersForExtract(player, barrelData)
     local canExtract = inRange and hasExtractTool and #targetItems > 0
 
@@ -270,17 +271,17 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
     local clickedSquare = getClickedSquare(worldObjects)
     if not clickedSquare then return end
 
-    local barrel = Utils.findExpandableBarrelOnSquare(clickedSquare)
+    local barrel = WorldUtils.findExpandableBarrelOnSquare(clickedSquare)
     if not barrel then return end
 
     local player = getSpecificPlayer(playerIndex)
     if not player then return end
 
-    local canOpen, foundItems, missingItems = Utils.getRequiredItemStatus(
+    local canOpen, foundItems, missingItems = PlayerUtils.getRequiredItemStatus(
         player,
         Constant.OPEN_BARREL_REQUIRED_ITEMS
     )
-    local inRange = Utils.isPlayerInRange(player, barrel)
+    local inRange = PlayerUtils.isPlayerInRange(player, barrel)
 
     addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)
 end

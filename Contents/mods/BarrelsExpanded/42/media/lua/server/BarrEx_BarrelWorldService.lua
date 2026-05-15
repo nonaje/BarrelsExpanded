@@ -4,7 +4,8 @@
 -- interaction.  These are the barrel's "world state" concerns: creating,
 -- revealing and persisting barrel data on IsoObjects.
 
-local Utils             = require("BarrEx_Utils")
+local WorldUtils        = require("utils/BarrEx_WorldUtils")
+local PlayerUtils       = require("utils/BarrEx_PlayerUtils")
 local Constant          = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_BarrelFactory = require("BarrEx_BarrelFactory")
@@ -25,7 +26,7 @@ end
 --- Called both for new objects (OnObjectAdded) and reloaded squares (LoadGridsquare).
 ---@param worldObject IsoObject
 local function reconcile(worldObject)
-    if not Utils.isExpandableBarrel(worldObject) then return end
+    if not WorldUtils.isExpandableBarrel(worldObject) then return end
 
     -- Single get() reused for existence check and reconcile to avoid redundant
     -- deserialization passes that exists() + reconcile() would produce.
@@ -83,7 +84,7 @@ function BarrelWorldService.onLoadGridsquare(square)
 
     for i = 0, objects:size() - 1 do
         local worldObject = objects:get(i)
-        if Utils.isExpandableBarrel(worldObject) then
+        if WorldUtils.isExpandableBarrel(worldObject) then
             if not BarrEx_BarrelData.reapplyWeight(worldObject) then
                 reconcile(worldObject)
             else
@@ -100,7 +101,7 @@ function BarrelWorldService.onOpenBarrel(player, args)
     local barrel = BarrelResolver.getBarrelFromArgs(args)
     if not barrel then return end
 
-    if not Utils.isPlayerInRange(player, barrel) then
+    if not PlayerUtils.isPlayerInRange(player, barrel) then
         log("Open rejected; player is too far from the barrel.")
         return
     end

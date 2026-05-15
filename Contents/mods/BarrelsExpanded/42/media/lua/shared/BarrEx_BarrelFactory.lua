@@ -1,7 +1,7 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_Barrel = require("BarrEx_Barrel")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
-local Utils = require("BarrEx_Utils")
+local WorldUtils = require("utils/BarrEx_WorldUtils")
 
 local BarrEx_BarrelFactory = {}
 local compiledDistributions = {}
@@ -104,7 +104,7 @@ function BarrEx_BarrelFactory.createRandom(barrel, options)
     options = options or {}
 
     local spawnProfile = options.spawnProfile or Constant.BARREL_SPAWN_PROFILE.WORLD
-    local category = options.category or Utils.getBarrelCategory(barrel) or Constant.BARREL_TILE_CATEGORY.RURAL
+    local category = options.category or WorldUtils.getBarrelCategory(barrel) or Constant.BARREL_TILE_CATEGORY.RURAL
     local distribution = getDistribution(category, spawnProfile)
 
     local capacity = Constant.BARREL_DEFAULT_CAPACITY

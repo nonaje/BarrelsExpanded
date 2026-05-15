@@ -4,8 +4,8 @@
 -- can consult the same rules without duplicating logic.
 -- No networking, no world state, no side effects.
 
-local Utils    = require("BarrEx_Utils")
-local Constant = require("BarrEx_Constant")
+local InventoryUtils = require("utils/BarrEx_InventoryUtils")
+local PlayerUtils = require("utils/BarrEx_PlayerUtils")
 
 local InteractionRules = {}
 
@@ -20,7 +20,7 @@ function InteractionRules.playerHasRequiredTool(player, requiredItems)
     if not inventory then return false end
 
     for _, itemType in ipairs(requiredItems) do
-        if Utils.findInventoryItem(inventory, nil, itemType) then
+        if InventoryUtils.findInventoryItem(inventory, nil, itemType) then
             return true
         end
     end
@@ -38,7 +38,7 @@ function InteractionRules.getItemFromArgs(player, args)
     local inventory = player:getInventory()
     if not inventory then return nil end
 
-    return Utils.findInventoryItem(inventory, args.itemId, args.itemFullType)
+    return InventoryUtils.findInventoryItem(inventory, args.itemId, args.itemFullType)
 end
 
 --- Returns true when the player is in range of barrel and (optionally) has the required tool.
@@ -51,7 +51,7 @@ end
 function InteractionRules.validateInteraction(barrel, player, requiredItems, checkTool)
     if not barrel or not player then return false end
 
-    if not Utils.isPlayerInRange(player, barrel) then
+    if not PlayerUtils.isPlayerInRange(player, barrel) then
         return false
     end
 

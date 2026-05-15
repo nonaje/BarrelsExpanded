@@ -1,4 +1,5 @@
-local Utils = require("BarrEx_Utils")
+local PlayerUtils = require("utils/BarrEx_PlayerUtils")
+local WorldUtils = require("utils/BarrEx_WorldUtils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 
@@ -40,7 +41,7 @@ function BarrEx_OpenBarrelAction:isValid()
     -- (race condition on multiplayer chunk load). The server handles lazy init.
     -- isRevealedRaw avoids full deserialization (no buildId + table alloc) every tick.
     if BarrEx_BarrelData.isRevealedRaw(self.barrel) then return false end
-    if not Utils.isPlayerInRange(self.character, self.barrel) then return false end
+    if not PlayerUtils.isPlayerInRange(self.character, self.barrel) then return false end
     return true
 end
 
@@ -90,7 +91,7 @@ function BarrEx_OpenBarrelAction:perform()
         z = square:getZ(),
         objectIndex = barrel:getObjectIndex(),
         barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(barrel),
-        spriteName = Utils.getSpriteName(barrel),
+        spriteName = WorldUtils.getSpriteName(barrel),
     })
 
     local ticks = 0

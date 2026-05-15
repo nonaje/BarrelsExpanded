@@ -1,4 +1,3 @@
-local Utils = require("BarrEx_Utils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_OpenBarrelAction = require("BarrEx_OpenBarrelAction")
