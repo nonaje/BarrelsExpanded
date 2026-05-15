@@ -5,7 +5,10 @@ Constant.LOG_PREFIX = "[BarrelsExpanded]"
 
 Constant.NETWORK = {
     MODULE = "BarrEx",
-    OPEN_BARREL = "openBarrel"
+    OPEN_BARREL = "openBarrel",
+    POUR_INTO_BARREL = "pourIntoBarrel",
+    EXTRACT_FROM_BARREL = "extractFromBarrel",
+    EMPTY_BARREL = "emptyBarrel",
 }
 
 Constant.MODDATA_KEYS = {
@@ -22,7 +25,9 @@ Constant.CONTEXT_MENU = {
     BARREL = "ContextMenu_BarrEx_Barrel",
     OPEN_BARREL = "ContextMenu_BarrEx_OpenBarrel",
     INFO = "ContextMenu_BarrEx_Info",
-    REMOVE_THE_COVER = "ContextMenu_BarrEx_RemoveCover"
+    REMOVE_THE_COVER = "ContextMenu_BarrEx_RemoveCover",
+    POUR = "ContextMenu_BarrEx_Pour",
+    EXTRACT = "ContextMenu_BarrEx_Extract",
 }
 
 Constant.TOOLTIP = {
@@ -32,7 +37,14 @@ Constant.TOOLTIP = {
     LIQUID = "Tooltip_BarrEx_Liquid",
     AMOUNT = "Tooltip_BarrEx_Amount",
     WEIGHT = "Tooltip_BarrEx_Weight",
-    TOO_FAR = "Tooltip_BarrEx_TooFar"
+    TOO_FAR = "Tooltip_BarrEx_TooFar",
+    REQUIRES_FUNNEL = "Tooltip_BarrEx_RequiresFunnel",
+    REQUIRES_HOSE = "Tooltip_BarrEx_RequiresHose",
+    BARREL_FULL = "Tooltip_BarrEx_BarrelFull",
+    BARREL_EMPTY = "Tooltip_BarrEx_BarrelEmpty",
+    BARREL_CLOSED = "Tooltip_BarrEx_BarrelClosed",
+    INCOMPATIBLE_LIQUID = "Tooltip_BarrEx_IncompatibleLiquid",
+    NO_COMPATIBLE_CONTAINER = "Tooltip_BarrEx_NoCompatibleContainer",
 }
 
 Constant.UI = {
@@ -54,6 +66,14 @@ Constant.OPEN_BARREL_REQUIRED_ITEMS = {
     "Base.SheetMetalSnips"
 }
 
+Constant.POUR_REQUIRED_ITEMS = {
+    "Base.Funnel",
+}
+
+Constant.EXTRACT_REQUIRED_ITEMS = {
+    "Base.RubberHose",
+}
+
 -----------------------------------
 ---- AVAILABLE LIQUID TYPES   -----
 -----------------------------------
@@ -65,10 +85,92 @@ Constant.LIQUID_TYPE = {
     BLEACH = "BLEACH",
 }
 
+Constant.COMPATIBLE_CONTAINERS = {
+    GASOLINE = {
+        ["Base.PetrolCan"] = true,
+        ["Base.GasCan"] = true,
+        ["Base.JerryCan"] = true,
+    },
+    WATER = {
+        ["Base.WaterBottle"] = true,
+        ["Base.WaterBottleEmpty"] = true,
+        ["Base.WaterBottleFull"] = true,
+        ["Base.BottleCrafted"] = true,
+        ["Base.EmptyJar"] = true,
+        ["Base.JarCrafted"] = true,
+        ["Base.Pot"] = true,
+        ["Base.PotForged"] = true,
+        ["Base.BucketEmpty"] = true,
+        ["Base.BucketWaterFull"] = true,
+        ["Base.PaintbucketEmpty"] = true,
+        ["Base.WateredCan"] = true,
+        ["Base.Kettle"] = true,
+        ["Base.Kettle_Copper"] = true,
+        ["Base.Saucepan"] = true,
+        ["Base.SaucepanCopper"] = true,
+        ["Base.MugWhite"] = true,
+        ["Base.Mugl"] = true,
+        ["Base.MugSpiffo"] = true,
+        ["Base.Teacup"] = true,
+        ["Base.Canteen"] = true,
+        ["Base.CanteenClay"] = true,
+        ["Base.CanteenMilitary"] = true,
+        ["Base.Sportsbottle"] = true,
+        ["Base.HotWaterBottle"] = true,
+        ["Base.FeedingBottle"] = true,
+    },
+    TAINTED_WATER = {
+        ["Base.WaterBottle"] = true,
+        ["Base.WaterBottleEmpty"] = true,
+        ["Base.WaterBottleFull"] = true,
+        ["Base.BottleCrafted"] = true,
+        ["Base.EmptyJar"] = true,
+        ["Base.JarCrafted"] = true,
+        ["Base.Pot"] = true,
+        ["Base.PotForged"] = true,
+        ["Base.BucketEmpty"] = true,
+        ["Base.BucketWaterFull"] = true,
+        ["Base.PaintbucketEmpty"] = true,
+        ["Base.WateredCan"] = true,
+        ["Base.Kettle"] = true,
+        ["Base.Kettle_Copper"] = true,
+        ["Base.Saucepan"] = true,
+        ["Base.SaucepanCopper"] = true,
+        ["Base.MugWhite"] = true,
+        ["Base.Mugl"] = true,
+        ["Base.MugSpiffo"] = true,
+        ["Base.Teacup"] = true,
+        ["Base.Canteen"] = true,
+        ["Base.CanteenClay"] = true,
+        ["Base.CanteenMilitary"] = true,
+        ["Base.Sportsbottle"] = true,
+        ["Base.HotWaterBottle"] = true,
+        ["Base.FeedingBottle"] = true,
+    },
+    BLEACH = {
+        ["Base.Bleach"] = true,
+        ["Base.BleachEmpty"] = true,
+        ["Base.CleaningLiquid2"] = true,
+    },
+}
+
+-- Índice inverso para búsqueda O(1): FullType -> tabla de liquidTypes compatibles
+Constant.FULLTYPE_TO_LIQUIDS = {}
+for liquidType, containers in pairs(Constant.COMPATIBLE_CONTAINERS) do
+    for fullType, _ in pairs(containers) do
+        if not Constant.FULLTYPE_TO_LIQUIDS[fullType] then
+            Constant.FULLTYPE_TO_LIQUIDS[fullType] = {}
+        end
+        table.insert(Constant.FULLTYPE_TO_LIQUIDS[fullType], liquidType)
+    end
+end
+
 Constant.BARREL_DEFAULT_CAPACITY = 160
 Constant.BARREL_DATA_POLL_TICKS = 120
 Constant.MAX_INTERACTION_DISTANCE = 1.55
-Constant.OPEN_BARREL_ACTION_TIME = 1
+Constant.OPEN_BARREL_ACTION_TIME = 200
+Constant.POUR_BARREL_ACTION_TIME = 200
+Constant.EXTRACT_BARREL_ACTION_TIME = 150
 
 Constant.BARREL_EMPTY_WEIGHT = 20
 Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = {

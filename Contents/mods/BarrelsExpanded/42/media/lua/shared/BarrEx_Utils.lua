@@ -2,6 +2,17 @@ local Constant = require("BarrEx_Constant")
 
 local Utils = {}
 
+local function call(target, methodName, ...)
+    if not target then return nil end
+
+    local method = target[methodName]
+    if type(method) ~= "function" then
+        return nil
+    end
+
+    return method(target, ...)
+end
+
 --- Returns the sprite name for an IsoObject, or nil when unavailable.
 --- @param worldObject IsoObject|nil
 --- @return string|nil
@@ -72,17 +83,12 @@ function Utils.getRequiredItemStatus(player, requiredItems)
         return false, {}, {}
     end
 
-    local inventory = player:getInventory()
-    if not inventory then
-        return false, {}, {}
-    end
-
     local foundItems = {}
     local missingItems = {}
     local foundCount = 0
 
     for _, itemType in ipairs(requiredItems) do
-        if inventory:containsType(itemType) then
+        if Utils.findFirstRequiredItem(player, { itemType }) then
             foundCount = foundCount + 1
             foundItems[#foundItems + 1] = itemType
         else
@@ -91,6 +97,95 @@ function Utils.getRequiredItemStatus(player, requiredItems)
     end
 
     return foundCount > 0, foundItems, missingItems
+end
+
+--- Returns the first required item found in the player's inventory.
+--- @param player IsoPlayer|nil
+--- @param requiredItems table<string>|nil
+--- @return InventoryItem|nil
+function Utils.findFirstRequiredItem(player, requiredItems)
+    if not player or not requiredItems then return nil end
+
+    local inventory = player:getInventory()
+    if not inventory then return nil end
+
+    for _, itemType in ipairs(requiredItems) do
+        local item = inventory:getFirstTypeRecurse(itemType)
+        if item then
+            return item
+        end
+    end
+
+    return nil
+end
+
+---@param inventory ItemContainer|nil
+---@param itemId number
+---@return InventoryItem|nil
+local function findInventoryItemById(inventory, itemId)
+    if not inventory then return nil end
+
+    local items = inventory:getItems()
+    if not items then return nil end
+
+    for i = 0, items:size() - 1 do
+        local item = items:get(i)
+        if item and type(item.getID) == "function" and item:getID() == itemId then
+            return item
+        end
+
+        local nestedInventory = call(item, "getInventory")
+        if nestedInventory then
+            local nestedItem = findInventoryItemById(nestedInventory, itemId)
+            if nestedItem then
+                return nestedItem
+            end
+        end
+    end
+
+    return nil
+end
+
+--- Resolves the specific inventory item selected by the client when possible.
+--- Falls back to full type only when the item id lookup is unavailable.
+--- @param inventory ItemContainer|nil
+--- @param itemId number|nil
+--- @param itemFullType string|nil
+--- @return InventoryItem|nil
+function Utils.findInventoryItem(inventory, itemId, itemFullType)
+    if not inventory then return nil end
+
+    if type(itemId) == "number" then
+        local item = findInventoryItemById(inventory, itemId)
+        if item then
+            return item
+        end
+    end
+
+    if type(itemFullType) == "string" and itemFullType ~= "" then
+        return inventory:getFirstTypeRecurse(itemFullType)
+    end
+
+    return nil
+end
+
+--- Resolves which hand should display the main liquid container for vanilla-like pour poses.
+--- Items with EatType are usually shown in the secondary hand during drink/pour actions.
+--- @param mainItem InventoryItem|nil
+--- @param supportItem InventoryItem|nil
+--- @return InventoryItem|nil primaryHand
+--- @return InventoryItem|nil secondaryHand
+function Utils.getFluidActionHandItems(mainItem, supportItem)
+    if not mainItem then
+        return supportItem, nil
+    end
+
+    local hasEatType = type(mainItem.getEatType) == "function" and mainItem:getEatType() ~= nil
+    if hasEatType then
+        return supportItem, mainItem
+    end
+
+    return mainItem, supportItem
 end
 
 --- Backward-compatible wrapper.

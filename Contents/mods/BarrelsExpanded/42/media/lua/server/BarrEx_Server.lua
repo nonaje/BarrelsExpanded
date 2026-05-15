@@ -2,6 +2,7 @@ local Utils = require("BarrEx_Utils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_BarrelFactory = require("BarrEx_BarrelFactory")
+local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 
 local function log(message)
     print(Constant.LOG_PREFIX .. " - " .. message)
@@ -75,18 +76,49 @@ end
 
 --- Returns true if the player has at least one of the required tools in their inventory.
 --- @param player IsoPlayer
+--- @param requiredItems table<string>
 --- @return boolean
-local function playerHasRequiredTool(player)
+local function playerHasRequiredTool(player, requiredItems)
     local inventory = player:getInventory()
     if not inventory then return false end
 
-    for _, itemType in ipairs(Constant.OPEN_BARREL_REQUIRED_ITEMS) do
-        if inventory:containsType(itemType) then
+    for _, itemType in ipairs(requiredItems) do
+        if Utils.findInventoryItem(inventory, nil, itemType) then
             return true
         end
     end
 
     return false
+end
+
+---@param player IsoPlayer
+---@param args table|nil
+---@return InventoryItem|nil
+local function getItemFromArgs(player, args)
+    if not player or type(args) ~= "table" then return nil end
+
+    local inventory = player:getInventory()
+    if not inventory then return nil end
+
+    return Utils.findInventoryItem(inventory, args.itemId, args.itemFullType)
+end
+
+---@param barrel IsoObject|nil
+---@param player IsoPlayer|nil
+---@param requiredItems table<string>
+---@return boolean
+local function validateSharedInteraction(barrel, player, requiredItems)
+    if not barrel or not player then return false end
+
+    if not Utils.isPlayerInRange(player, barrel) then
+        return false
+    end
+
+    if not playerHasRequiredTool(player, requiredItems) then
+        return false
+    end
+
+    return true
 end
 
 --- @param player IsoPlayer
@@ -100,7 +132,7 @@ local function onOpenBarrel(player, args)
         return
     end
 
-    if not playerHasRequiredTool(player) then
+    if not playerHasRequiredTool(player, Constant.OPEN_BARREL_REQUIRED_ITEMS) then
         log("Open rejected; player does not have a required tool.")
         return
     end
@@ -147,11 +179,197 @@ local function onOpenBarrel(player, args)
     ))
 end
 
+---@param barrel IsoObject
+---@param barrelData BarrEx_Barrel
+local function persistBarrel(barrel, barrelData)
+    BarrEx_BarrelData.set(barrel, barrelData)
+    barrel:transmitModData()
+end
+
+---@param player IsoPlayer
+---@param args table
+local function onPourIntoBarrel(player, args)
+    local barrel = getBarrelFromArgs(args)
+    if not barrel then
+        log("Pour rejected; barrel was not found from command args.")
+        return
+    end
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData or not barrelData:isRevealed() then
+        log("Pour rejected; barrel is closed or missing data.")
+        return
+    end
+
+    if not validateSharedInteraction(barrel, player, Constant.POUR_REQUIRED_ITEMS) then
+        log("Pour rejected; failed shared interaction validation.")
+        return
+    end
+
+    if barrelData:isFull() then
+        log("Pour rejected; barrel is full.")
+        return
+    end
+
+    local sourceItem = getItemFromArgs(player, args)
+    if not sourceItem then
+        log("Pour rejected; source item not found in player inventory.")
+        return
+    end
+
+    local sourceLiquidType = LiquidAdapter.getLiquidType(sourceItem)
+    if not sourceLiquidType then
+        log("Pour rejected; source item has no recognized liquid.")
+        return
+    end
+
+    if not LiquidAdapter.canProvide(sourceItem, sourceLiquidType) then
+        log("Pour rejected; source item cannot provide the requested liquid.")
+        return
+    end
+
+    if not barrelData:canAcceptLiquid(sourceLiquidType, 1) then
+        log("Pour rejected; liquid type is incompatible with barrel contents.")
+        return
+    end
+
+    local sourceAmount = LiquidAdapter.getAmount(sourceItem)
+    local barrelFree = barrelData:getFreeCapacity()
+    local transferAmount = math.max(math.min(sourceAmount, barrelFree), 0)
+
+    if transferAmount <= 0 then
+        log("Pour rejected; no transferable amount.")
+        return
+    end
+
+    local removed = LiquidAdapter.removeLiquid(sourceItem, transferAmount)
+    if removed <= 0 then
+        log("Pour rejected; could not remove liquid from source item.")
+        return
+    end
+
+    local added = barrelData:addLiquid(sourceLiquidType, removed)
+    if added <= 0 then
+        -- Restore source item when barrel add fails unexpectedly.
+        LiquidAdapter.addLiquid(sourceItem, sourceLiquidType, removed)
+        log("Pour rejected; barrel add returned zero.")
+        return
+    end
+
+    local overflow = removed - added
+    if overflow > 0 then
+        LiquidAdapter.addLiquid(sourceItem, sourceLiquidType, overflow)
+    end
+
+    persistBarrel(barrel, barrelData)
+    log(string.format(
+        "Pour applied: id=%s liquid=%s moved=%.3f amount=%.3f/%.3f weight=%.2f",
+        barrelData.id or "unknown",
+        sourceLiquidType,
+        added,
+        barrelData.amount or 0,
+        barrelData.capacity or 0,
+        BarrEx_BarrelData.getWeight(barrelData)
+    ))
+end
+
+---@param player IsoPlayer
+---@param args table
+local function onExtractFromBarrel(player, args)
+    local barrel = getBarrelFromArgs(args)
+    if not barrel then
+        log("Extract rejected; barrel was not found from command args.")
+        return
+    end
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData or not barrelData:isRevealed() then
+        log("Extract rejected; barrel is closed or missing data.")
+        return
+    end
+
+    if not validateSharedInteraction(barrel, player, Constant.EXTRACT_REQUIRED_ITEMS) then
+        log("Extract rejected; failed shared interaction validation.")
+        return
+    end
+
+    if barrelData:isEmpty() then
+        log("Extract rejected; barrel is empty.")
+        return
+    end
+
+    local targetItem = getItemFromArgs(player, args)
+    if not targetItem then
+        log("Extract rejected; target item not found in player inventory.")
+        return
+    end
+
+    local liquidType = barrelData.liquidType
+    if type(liquidType) ~= "string" or Constant.LIQUID_TYPE[liquidType] == nil or liquidType == Constant.LIQUID_TYPE.EMPTY then
+        log("Extract rejected; barrel liquid type is invalid.")
+        return
+    end
+
+    if not LiquidAdapter.canReceive(targetItem, liquidType) then
+        log("Extract rejected; target item cannot receive this liquid type.")
+        return
+    end
+
+    local available = barrelData.amount
+    local freeCapacity = LiquidAdapter.getFreeCapacity(targetItem)
+    local transferAmount = math.max(math.min(available, freeCapacity), 0)
+
+    if transferAmount <= 0 then
+        log("Extract rejected; no transferable amount.")
+        return
+    end
+
+    local removed = barrelData:removeLiquid(transferAmount)
+    if removed <= 0 then
+        log("Extract rejected; could not remove liquid from barrel.")
+        return
+    end
+
+    local added = LiquidAdapter.addLiquid(targetItem, liquidType, removed)
+    if added <= 0 then
+        -- Restore barrel when item add fails unexpectedly.
+        barrelData:addLiquid(liquidType, removed)
+        log("Extract rejected; could not add liquid to target item.")
+        return
+    end
+
+    local overflow = removed - added
+    if overflow > 0 then
+        barrelData:addLiquid(liquidType, overflow)
+    end
+
+    persistBarrel(barrel, barrelData)
+    log(string.format(
+        "Extract applied: id=%s liquid=%s moved=%.3f amount=%.3f/%.3f weight=%.2f",
+        barrelData.id or "unknown",
+        liquidType,
+        added,
+        barrelData.amount or 0,
+        barrelData.capacity or 0,
+        BarrEx_BarrelData.getWeight(barrelData)
+    ))
+end
+
 local function onClientCommand(module, command, player, args)
     if module ~= Constant.NETWORK.MODULE then return end
 
     if command == Constant.NETWORK.OPEN_BARREL then
         onOpenBarrel(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.POUR_INTO_BARREL then
+        onPourIntoBarrel(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.EXTRACT_FROM_BARREL then
+        onExtractFromBarrel(player, args)
     end
 end
 

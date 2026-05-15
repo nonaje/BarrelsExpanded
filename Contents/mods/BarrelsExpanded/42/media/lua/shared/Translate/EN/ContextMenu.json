@@ -3,5 +3,7 @@
   "ContextMenu_BarrEx_Barrel": "Barrel",
   "ContextMenu_BarrEx_OpenBarrel": "Open Barrel",
   "ContextMenu_BarrEx_Info": "Information",
-  "ContextMenu_BarrEx_RemoveCover": "Remove Cover"
+  "ContextMenu_BarrEx_RemoveCover": "Remove Cover",
+  "ContextMenu_BarrEx_Pour": "Pour Liquid",
+  "ContextMenu_BarrEx_Extract": "Extract Liquid"
 }

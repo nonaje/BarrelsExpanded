@@ -96,9 +96,15 @@ function BarrEx_Barrel:getTotalWeight()
 end
 
 ---@param liquidType string
+---@param amount number|nil
 ---@return boolean
-function BarrEx_Barrel:canAcceptLiquid(liquidType)
+function BarrEx_Barrel:canAcceptLiquid(liquidType, amount)
     if Constant.LIQUID_TYPE[liquidType] == nil then
+        return false
+    end
+
+    local requested = tonumber(amount)
+    if requested and requested <= 0 then
         return false
     end
 
@@ -111,6 +117,17 @@ function BarrEx_Barrel:canAcceptLiquid(liquidType)
     end
 
     return self.liquidType == liquidType
+end
+
+---@param amount number
+---@return boolean
+function BarrEx_Barrel:canRemoveLiquid(amount)
+    local requested = tonumber(amount)
+    if not requested or requested <= 0 then
+        return false
+    end
+
+    return not self:isEmpty()
 end
 
 ---@param liquidType string
@@ -144,7 +161,7 @@ end
 ---@param amount number
 ---@return number removedAmount
 function BarrEx_Barrel:removeLiquid(amount)
-    if amount <= 0 then
+    if not self:canRemoveLiquid(amount) then
         return 0
     end
 

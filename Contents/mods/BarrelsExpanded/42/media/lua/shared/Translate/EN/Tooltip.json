@@ -6,5 +6,12 @@
   "Tooltip_BarrEx_Liquid": "Liquid:",
   "Tooltip_BarrEx_Amount": "Amount:",
   "Tooltip_BarrEx_Weight": "Weight:",
-  "Tooltip_BarrEx_TooFar": "You are too far away. Get closer to the barrel."
+  "Tooltip_BarrEx_TooFar": "You are too far away. Get closer to the barrel.",
+  "Tooltip_BarrEx_RequiresFunnel": "Requires: Funnel.",
+  "Tooltip_BarrEx_RequiresHose": "Requires: Rubber Hose.",
+  "Tooltip_BarrEx_BarrelFull": "The barrel is full.",
+  "Tooltip_BarrEx_BarrelEmpty": "The barrel is empty.",
+  "Tooltip_BarrEx_BarrelClosed": "Open the barrel first.",
+  "Tooltip_BarrEx_IncompatibleLiquid": "Incompatible liquid type.",
+  "Tooltip_BarrEx_NoCompatibleContainer": "No compatible container found."
 }

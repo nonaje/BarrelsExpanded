@@ -6,5 +6,12 @@
   "Tooltip_BarrEx_Liquid": "Liquido:",
   "Tooltip_BarrEx_Amount": "Cantidad:",
   "Tooltip_BarrEx_Weight": "Peso:",
-  "Tooltip_BarrEx_TooFar": "Estás demasiado lejos. Acércate más al barril."
+  "Tooltip_BarrEx_TooFar": "Estás demasiado lejos. Acércate más al barril.",
+  "Tooltip_BarrEx_RequiresFunnel": "Necesita: Embudo.",
+  "Tooltip_BarrEx_RequiresHose": "Necesita: Manguera de goma.",
+  "Tooltip_BarrEx_BarrelFull": "El barril está lleno.",
+  "Tooltip_BarrEx_BarrelEmpty": "El barril está vacío.",
+  "Tooltip_BarrEx_BarrelClosed": "Primero debes abrir el barril.",
+  "Tooltip_BarrEx_IncompatibleLiquid": "Tipo de líquido incompatible.",
+  "Tooltip_BarrEx_NoCompatibleContainer": "No se encontró un recipiente compatible."
 }

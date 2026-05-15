@@ -2,6 +2,9 @@ local Utils = require("BarrEx_Utils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_OpenBarrelAction = require("BarrEx_OpenBarrelAction")
+local BarrEx_PourIntoBarrelAction = require("BarrEx_PourIntoBarrelAction")
+local BarrEx_ExtractFromBarrelAction = require("BarrEx_ExtractFromBarrelAction")
+local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 
 local ContextMenu = {}
 
@@ -61,6 +64,22 @@ local function onOpenBarrel(barrel, player)
     if not tool then return end
 
     ISTimedActionQueue.add(BarrEx_OpenBarrelAction:new(player, barrel, tool))
+end
+
+--- @param barrel IsoObject
+--- @param player IsoPlayer
+--- @param sourceItem InventoryItem
+local function onPourIntoBarrel(barrel, player, sourceItem)
+    if not barrel or not player or not sourceItem then return end
+    ISTimedActionQueue.add(BarrEx_PourIntoBarrelAction:new(player, barrel, sourceItem))
+end
+
+--- @param barrel IsoObject
+--- @param player IsoPlayer
+--- @param targetItem InventoryItem
+local function onExtractFromBarrel(barrel, player, targetItem)
+    if not barrel or not player or not targetItem then return end
+    ISTimedActionQueue.add(BarrEx_ExtractFromBarrelAction:new(player, barrel, targetItem))
 end
 
 --- @param worldObjects IsoObject[]|nil
@@ -136,6 +155,14 @@ local function attachTooFarTooltip(option)
 end
 
 --- @param option table
+--- @param message string
+local function attachSimpleTooltip(option, message)
+    local tooltip = ISInventoryPaneContextMenu.addToolTip()
+    tooltip.description = message
+    option.toolTip = tooltip
+end
+
+--- @param option table
 --- @param barrelData BarrEx_Barrel|nil
 local function attachBarrelInfoTooltip(option, barrelData)
     if not barrelData then return end
@@ -143,6 +170,64 @@ local function attachBarrelInfoTooltip(option, barrelData)
     local tooltip = ISInventoryPaneContextMenu.addToolTip()
     tooltip.description = (tooltip.description or "") .. buildBarrelInfoTooltipDescription(barrelData)
     option.toolTip = tooltip
+end
+
+---@param inventory ItemContainer|nil
+---@param predicate fun(item: InventoryItem): boolean
+---@return InventoryItem|nil
+local function findFirstInventoryItem(inventory, predicate)
+    if not inventory then return nil end
+
+    local items = inventory:getItems()
+    if not items then return nil end
+
+    for i = 0, items:size() - 1 do
+        local item = items:get(i)
+        if predicate(item) then
+            return item
+        end
+    end
+
+    return nil
+end
+
+---@param player IsoPlayer
+---@param barrelData BarrEx_Barrel
+---@return InventoryItem|nil
+local function findSourceContainerForPour(player, barrelData)
+    local inventory = player and player:getInventory()
+    if not inventory or not barrelData then return nil end
+
+    local expectedType = nil
+    if not barrelData:isEmpty() then
+        expectedType = barrelData.liquidType
+    end
+
+    return findFirstInventoryItem(inventory, function(item)
+        if not LiquidAdapter.isLiquidContainer(item) then
+            return false
+        end
+
+        if not LiquidAdapter.canProvide(item, expectedType) then
+            return false
+        end
+
+        local sourceType = LiquidAdapter.getLiquidType(item)
+        return sourceType ~= nil and barrelData:canAcceptLiquid(sourceType, 1)
+    end)
+end
+
+---@param player IsoPlayer
+---@param barrelData BarrEx_Barrel
+---@return InventoryItem|nil
+local function findTargetContainerForExtract(player, barrelData)
+    local inventory = player and player:getInventory()
+    if not inventory or not barrelData then return nil end
+    if barrelData:isEmpty() then return nil end
+
+    return findFirstInventoryItem(inventory, function(item)
+        return LiquidAdapter.canReceive(item, barrelData.liquidType)
+    end)
 end
 
 --- @param context ISContextMenu
@@ -166,6 +251,58 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
         local infoOption = subMenu:addOption(infoLabel, nil, nil)
         infoOption.notAvailable = true
         attachBarrelInfoTooltip(infoOption, barrelData)
+
+        local hasPourTool = Utils.isPlayerHoldingAnyRequiredItem(player, Constant.POUR_REQUIRED_ITEMS)
+        local hasExtractTool = Utils.isPlayerHoldingAnyRequiredItem(player, Constant.EXTRACT_REQUIRED_ITEMS)
+
+        local sourceItem = findSourceContainerForPour(player, barrelData)
+        local targetItem = findTargetContainerForExtract(player, barrelData)
+
+        local canPour = inRange and hasPourTool and (not barrelData:isFull()) and sourceItem ~= nil
+        local canExtract = inRange and hasExtractTool and (not barrelData:isEmpty()) and targetItem ~= nil
+
+        local pourOption = nil
+        if sourceItem then
+            pourOption = subMenu:addOption(translate(Constant.CONTEXT_MENU.POUR), barrel, onPourIntoBarrel, player, sourceItem)
+        else
+            pourOption = subMenu:addOption(translate(Constant.CONTEXT_MENU.POUR), nil, nil)
+        end
+        pourOption.notAvailable = not canPour
+
+        if not canPour then
+            if not inRange then
+                attachTooFarTooltip(pourOption)
+            elseif not hasPourTool then
+                attachSimpleTooltip(pourOption, translate(Constant.TOOLTIP.REQUIRES_FUNNEL))
+            elseif barrelData:isFull() then
+                attachSimpleTooltip(pourOption, translate(Constant.TOOLTIP.BARREL_FULL))
+            elseif sourceItem == nil then
+                attachSimpleTooltip(pourOption, translate(Constant.TOOLTIP.NO_COMPATIBLE_CONTAINER))
+            else
+                attachSimpleTooltip(pourOption, translate(Constant.TOOLTIP.INCOMPATIBLE_LIQUID))
+            end
+        end
+
+        local extractOption = nil
+        if targetItem then
+            extractOption = subMenu:addOption(translate(Constant.CONTEXT_MENU.EXTRACT), barrel, onExtractFromBarrel, player, targetItem)
+        else
+            extractOption = subMenu:addOption(translate(Constant.CONTEXT_MENU.EXTRACT), nil, nil)
+        end
+        extractOption.notAvailable = not canExtract
+
+        if not canExtract then
+            if not inRange then
+                attachTooFarTooltip(extractOption)
+            elseif not hasExtractTool then
+                attachSimpleTooltip(extractOption, translate(Constant.TOOLTIP.REQUIRES_HOSE))
+            elseif barrelData:isEmpty() then
+                attachSimpleTooltip(extractOption, translate(Constant.TOOLTIP.BARREL_EMPTY))
+            elseif targetItem == nil then
+                attachSimpleTooltip(extractOption, translate(Constant.TOOLTIP.NO_COMPATIBLE_CONTAINER))
+            end
+        end
+
         return
     end
 
