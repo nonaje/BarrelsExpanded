@@ -1,8 +1,10 @@
-local Utils = require("BarrEx_Utils")
-local Constant = require("BarrEx_Constant")
+local Utils             = require("BarrEx_Utils")
+local Constant          = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_BarrelFactory = require("BarrEx_BarrelFactory")
-local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local LiquidAdapter     = require("BarrEx_LiquidContainerAdapter")
+local SafeCall          = require("utils/BarrEx_SafeCall")
+local TransferRules     = require("core/BarrEx_TransferRules")
 
 local activeTransfersByPlayer = {}
 local activeTransfersByBarrel = {}
@@ -11,16 +13,7 @@ local function log(message)
     print(Constant.LOG_PREFIX .. " - " .. message)
 end
 
-local function call(target, methodName, ...)
-    if not target then return nil end
-
-    local method = target[methodName]
-    if type(method) ~= "function" then
-        return nil
-    end
-
-    return method(target, ...)
-end
+local call = SafeCall.call
 
 local function notifyTransferRejected(player, mode, reason)
     if not player or type(sendServerCommand) ~= "function" then return end
@@ -394,7 +387,7 @@ end
 ---@param sourceItem InventoryItem
 ---@return number
 local function getMaxPourAmount(barrelData, sourceItem)
-    return math.max(math.min(LiquidAdapter.getAmount(sourceItem), barrelData:getFreeCapacity()), 0)
+    return TransferRules.getPourAmount(barrelData, sourceItem)
 end
 
 ---@param barrel IsoObject
@@ -482,7 +475,7 @@ end
 ---@param targetItem InventoryItem
 ---@return number
 local function getMaxExtractAmount(barrelData, targetItem)
-    return math.max(math.min(barrelData.amount or 0, LiquidAdapter.getFreeCapacity(targetItem)), 0)
+    return TransferRules.getExtractAmount(barrelData, targetItem)
 end
 
 ---@param barrel IsoObject

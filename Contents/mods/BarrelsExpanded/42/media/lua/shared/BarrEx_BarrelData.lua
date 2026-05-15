@@ -1,18 +1,10 @@
-local Constant = require("BarrEx_Constant")
+local Constant    = require("BarrEx_Constant")
 local BarrEx_Barrel = require("BarrEx_Barrel")
+local SafeCall    = require("utils/BarrEx_SafeCall")
 
 local BarrEx_BarrelData = {}
 
-local function call(target, methodName, ...)
-    if not target then return nil end
-
-    local method = target[methodName]
-    if type(method) ~= "function" then
-        return nil
-    end
-
-    return method(target, ...)
-end
+local call = SafeCall.call
 
 --- @param rawData table|nil
 --- @param fallbackId string|nil

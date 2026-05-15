@@ -1,17 +1,9 @@
-local Constant = require("BarrEx_Constant")
+local Constant  = require("BarrEx_Constant")
+local SafeCall  = require("utils/BarrEx_SafeCall")
 
 local Utils = {}
 
-local function call(target, methodName, ...)
-    if not target then return nil end
-
-    local method = target[methodName]
-    if type(method) ~= "function" then
-        return nil
-    end
-
-    return method(target, ...)
-end
+local call = SafeCall.call
 
 --- Returns the sprite name for an IsoObject, or nil when unavailable.
 --- @param worldObject IsoObject|nil

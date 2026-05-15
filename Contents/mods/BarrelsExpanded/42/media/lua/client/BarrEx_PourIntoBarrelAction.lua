@@ -3,6 +3,7 @@ local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 local TransferSync = require("BarrEx_TransferSync")
+local TransferRules = require("core/BarrEx_TransferRules")
 
 ---@class BarrEx_PourIntoBarrelAction : ISBaseTimedAction
 ---@field barrel IsoObject
@@ -37,7 +38,7 @@ local function getEstimatedPourAmount(barrel, sourceItem)
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData then return 0 end
 
-    return math.max(math.min(LiquidAdapter.getAmount(sourceItem), barrelData:getFreeCapacity()), 0)
+    return TransferRules.getPourAmount(barrelData, sourceItem)
 end
 
 local function sendTransferCommand(action, command)

@@ -1,4 +1,5 @@
-local Constant = require("BarrEx_Constant")
+local Constant  = require("BarrEx_Constant")
+local SafeCall  = require("utils/BarrEx_SafeCall")
 
 local Adapter = {}
 
@@ -18,16 +19,7 @@ local VANILLA_TO_BARREL_FLUID = {
     cleaningliquid = Constant.LIQUID_TYPE.BLEACH,
 }
 
-local function call(target, methodName, ...)
-    if not target then return nil end
-
-    local method = target[methodName]
-    if type(method) ~= "function" then
-        return nil
-    end
-
-    return method(target, ...)
-end
+local call = SafeCall.call
 
 local function getItemFullType(item)
     if not item then return nil end

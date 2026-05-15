@@ -1,3 +1,17 @@
+-- BarrEx_Constant: compatibility facade.
+--
+-- All consumers that do require("BarrEx_Constant") continue to work unchanged.
+-- Configuration has been extracted into focused modules under shared/config/;
+-- this file re-exports their values so no existing code needs to change in
+-- this phase.
+--
+-- DO NOT add new configuration here.  Add it to the appropriate config module
+-- and expose it through this facade if backward compatibility is needed.
+
+local LiquidConfig   = require("config/BarrEx_LiquidConfig")
+local ToolConfig     = require("config/BarrEx_ToolConfig")
+local TransferConfig = require("config/BarrEx_TransferConfig")
+
 local Constant = {}
 
 Constant.MOD_ID = "BarrelsExpanded"
@@ -68,132 +82,30 @@ Constant.UI = {
 ---------------------------------------
 --- REQUIRED ITEMS FOR INTERACTIONS ---
 ---------------------------------------
-Constant.OPEN_BARREL_REQUIRED_ITEMS = {
-    "Base.Crowbar",
-    "Base.CrowbarForged",
-    "Base.Screwdriver",
-    "Base.PipeWrench",
-    "Base.SheetMetalSnips"
-}
-
-Constant.POUR_REQUIRED_ITEMS = {
-    "Base.Funnel",
-}
-
-Constant.EXTRACT_REQUIRED_ITEMS = {
-    "Base.RubberHose",
-}
+-- Delegated to ToolConfig.  Names kept for backward compatibility.
+Constant.OPEN_BARREL_REQUIRED_ITEMS = ToolConfig.OPEN_BARREL_REQUIRED_ITEMS
+Constant.POUR_REQUIRED_ITEMS        = ToolConfig.POUR_REQUIRED_ITEMS
+Constant.EXTRACT_REQUIRED_ITEMS     = ToolConfig.EXTRACT_REQUIRED_ITEMS
 
 -----------------------------------
 ---- AVAILABLE LIQUID TYPES   -----
 -----------------------------------
-Constant.LIQUID_TYPE = {
-    EMPTY = "EMPTY",
-    WATER = "WATER",
-    TAINTED_WATER = "TAINTED_WATER",
-    GASOLINE = "GASOLINE",
-    BLEACH = "BLEACH",
-}
+-- Delegated to LiquidConfig.  Names kept for backward compatibility.
+Constant.LIQUID_TYPE                  = LiquidConfig.LIQUID_TYPE
+Constant.COMPATIBLE_CONTAINERS        = LiquidConfig.COMPATIBLE_CONTAINERS
+Constant.FULLTYPE_TO_LIQUIDS          = LiquidConfig.FULLTYPE_TO_LIQUIDS
+Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = LiquidConfig.BARREL_LIQUID_WEIGHT_PER_UNIT
 
-Constant.COMPATIBLE_CONTAINERS = {
-    GASOLINE = {
-        ["Base.PetrolCan"] = true,
-        ["Base.GasCan"] = true,
-        ["Base.JerryCan"] = true,
-    },
-    WATER = {
-        ["Base.WaterDispenserBottle"] = true,
-        ["Base.WaterBottle"] = true,
-        ["Base.WaterBottleEmpty"] = true,
-        ["Base.WaterBottleFull"] = true,
-        ["Base.BottleCrafted"] = true,
-        ["Base.EmptyJar"] = true,
-        ["Base.JarCrafted"] = true,
-        ["Base.Pot"] = true,
-        ["Base.PotForged"] = true,
-        ["Base.Bucket"] = true,
-        ["Base.BucketEmpty"] = true,
-        ["Base.BucketWaterFull"] = true,
-        ["Base.PaintbucketEmpty"] = true,
-        ["Base.WateredCan"] = true,
-        ["Base.Kettle"] = true,
-        ["Base.Kettle_Copper"] = true,
-        ["Base.Saucepan"] = true,
-        ["Base.SaucepanCopper"] = true,
-        ["Base.MugWhite"] = true,
-        ["Base.Mugl"] = true,
-        ["Base.MugSpiffo"] = true,
-        ["Base.Teacup"] = true,
-        ["Base.Canteen"] = true,
-        ["Base.CanteenClay"] = true,
-        ["Base.CanteenMilitary"] = true,
-        ["Base.Sportsbottle"] = true,
-        ["Base.HotWaterBottle"] = true,
-        ["Base.FeedingBottle"] = true,
-    },
-    TAINTED_WATER = {
-        ["Base.WaterDispenserBottle"] = true,
-        ["Base.WaterBottle"] = true,
-        ["Base.WaterBottleEmpty"] = true,
-        ["Base.WaterBottleFull"] = true,
-        ["Base.BottleCrafted"] = true,
-        ["Base.EmptyJar"] = true,
-        ["Base.JarCrafted"] = true,
-        ["Base.Pot"] = true,
-        ["Base.PotForged"] = true,
-        ["Base.Bucket"] = true,
-        ["Base.BucketEmpty"] = true,
-        ["Base.BucketWaterFull"] = true,
-        ["Base.PaintbucketEmpty"] = true,
-        ["Base.WateredCan"] = true,
-        ["Base.Kettle"] = true,
-        ["Base.Kettle_Copper"] = true,
-        ["Base.Saucepan"] = true,
-        ["Base.SaucepanCopper"] = true,
-        ["Base.MugWhite"] = true,
-        ["Base.Mugl"] = true,
-        ["Base.MugSpiffo"] = true,
-        ["Base.Teacup"] = true,
-        ["Base.Canteen"] = true,
-        ["Base.CanteenClay"] = true,
-        ["Base.CanteenMilitary"] = true,
-        ["Base.Sportsbottle"] = true,
-        ["Base.HotWaterBottle"] = true,
-        ["Base.FeedingBottle"] = true,
-    },
-    BLEACH = {
-        ["Base.Bleach"] = true,
-        ["Base.BleachEmpty"] = true,
-        ["Base.CleaningLiquid2"] = true,
-    },
-}
+Constant.BARREL_DEFAULT_CAPACITY   = 160
+Constant.BARREL_DATA_POLL_TICKS    = 120
+Constant.MAX_INTERACTION_DISTANCE  = 1.55
+Constant.OPEN_BARREL_ACTION_TIME   = 200
+Constant.BARREL_EMPTY_WEIGHT       = 20
 
--- Índice inverso para búsqueda O(1): FullType -> tabla de liquidTypes compatibles
-Constant.FULLTYPE_TO_LIQUIDS = {}
-for liquidType, containers in pairs(Constant.COMPATIBLE_CONTAINERS) do
-    for fullType, _ in pairs(containers) do
-        if not Constant.FULLTYPE_TO_LIQUIDS[fullType] then
-            Constant.FULLTYPE_TO_LIQUIDS[fullType] = {}
-        end
-        table.insert(Constant.FULLTYPE_TO_LIQUIDS[fullType], liquidType)
-    end
-end
-
-Constant.BARREL_DEFAULT_CAPACITY = 160
-Constant.BARREL_DATA_POLL_TICKS = 120
-Constant.MAX_INTERACTION_DISTANCE = 1.55
-Constant.OPEN_BARREL_ACTION_TIME = 200
-Constant.TRANSFER_ACTION_TIME_MULTIPLIER = 2
-Constant.SERVER_TRANSFER_TICK_INTERVAL = 5
-Constant.SERVER_TRANSFER_SYNC_INTERVAL = 10
-
-Constant.BARREL_EMPTY_WEIGHT = 20
-Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = {
-    TAINTED_WATER = 1.0,
-    WATER = 1.0,
-    GASOLINE = 0.75,
-    BLEACH = 1.1,
-}
+-- Delegated to TransferConfig.  Names kept for backward compatibility.
+Constant.TRANSFER_ACTION_TIME_MULTIPLIER = TransferConfig.ACTION_TIME_MULTIPLIER
+Constant.SERVER_TRANSFER_TICK_INTERVAL   = TransferConfig.SERVER_TICK_INTERVAL
+Constant.SERVER_TRANSFER_SYNC_INTERVAL   = TransferConfig.SERVER_SYNC_INTERVAL
 
 Constant.BARREL_SPAWN_PROFILE = {
     WORLD = "WORLD",
