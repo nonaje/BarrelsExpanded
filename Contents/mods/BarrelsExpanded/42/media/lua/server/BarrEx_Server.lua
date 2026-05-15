@@ -30,9 +30,12 @@ local function reconcilePlacedBarrel(worldObject)
         return
     end
 
-    -- New barrel with no data (world-spawned). Auto-initialize so its weight
-    -- is real from the moment the player encounters it.
-    barrelData = BarrEx_BarrelFactory.createRandom(worldObject)
+    -- New barrel with no data. Use explicit placement profile when available
+    -- to distinguish crafted-world from player-placed crafted barrels.
+    local spawnProfile = BarrEx_BarrelData.getSpawnProfile(worldObject) or Constant.BARREL_SPAWN_PROFILE.WORLD
+    barrelData = BarrEx_BarrelFactory.createRandom(worldObject, {
+        spawnProfile = spawnProfile,
+    })
     BarrEx_BarrelData.set(worldObject, barrelData)
     worldObject:transmitModData()
     log(string.format(
@@ -107,7 +110,11 @@ local function onOpenBarrel(player, args)
     if not barrelData then
         -- Race condition: open command arrived before OnObjectAdded could auto-init.
         -- Create and reveal in a single set() call to avoid a redundant write.
-        barrelData = BarrEx_BarrelFactory.createRandom(barrel)
+        local spawnProfile = BarrEx_BarrelData.getSpawnProfile(barrel) or Constant.BARREL_SPAWN_PROFILE.WORLD
+
+        barrelData = BarrEx_BarrelFactory.createRandom(barrel, {
+            spawnProfile = spawnProfile,
+        })
         barrelData.revealed = true
         BarrEx_BarrelData.set(barrel, barrelData)
         barrel:transmitModData()

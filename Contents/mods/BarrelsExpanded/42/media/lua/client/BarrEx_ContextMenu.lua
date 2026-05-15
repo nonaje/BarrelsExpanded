@@ -29,7 +29,7 @@ end
 --- @param liquidType string|nil
 --- @return string
 local function getLiquidDisplayName(liquidType)
-    if not liquidType then
+    if not liquidType or liquidType == Constant.LIQUID_TYPE.EMPTY then
         return translate(Constant.UI.EMPTY)
     end
 

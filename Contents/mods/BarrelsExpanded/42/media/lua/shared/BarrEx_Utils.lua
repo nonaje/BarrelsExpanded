@@ -25,6 +25,23 @@ function Utils.isExpandableBarrel(worldObject)
     return spriteName ~= nil and Constant.BARREL_TILE_NAMES[spriteName] == true
 end
 
+--- Returns the barrel category based on sprite mapping.
+--- @param worldObject IsoObject|nil
+--- @return string|nil
+function Utils.getBarrelCategory(worldObject)
+    local spriteName = Utils.getSpriteName(worldObject)
+    if not spriteName then return nil end
+
+    local category = Constant.BARREL_TILE_NAME_TO_CATEGORY[spriteName]
+    if category then return category end
+
+    if Constant.BARREL_TILE_NAMES[spriteName] then
+        return Constant.BARREL_TILE_CATEGORY.RURAL
+    end
+
+    return nil
+end
+
 --- Returns the first expandable barrel found in a square.
 --- @param square IsoGridSquare|nil
 --- @return IsoObject|nil

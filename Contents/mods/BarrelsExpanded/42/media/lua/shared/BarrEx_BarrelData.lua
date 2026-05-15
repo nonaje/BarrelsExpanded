@@ -20,9 +20,10 @@ end
 function BarrEx_BarrelData.fromRawData(rawData, fallbackId)
     if type(rawData) ~= "table" then return nil end
 
-    local liquidType = rawData.liquidType
-    if liquidType ~= nil and Constant.LIQUID_TYPE[liquidType] == nil then
-        liquidType = nil
+    local emptyType = Constant.LIQUID_TYPE.EMPTY
+    local liquidType = type(rawData.liquidType) == "string" and rawData.liquidType or emptyType
+    if Constant.LIQUID_TYPE[liquidType] == nil then
+        liquidType = emptyType
     end
 
     local capacity = tonumber(rawData.capacity) or Constant.BARREL_DEFAULT_CAPACITY or 0
@@ -31,7 +32,7 @@ function BarrEx_BarrelData.fromRawData(rawData, fallbackId)
     local amount = tonumber(rawData.amount) or 0
     amount = math.max(amount, 0)
 
-    if liquidType == nil then
+    if liquidType == emptyType then
         amount = 0
     elseif amount > capacity then
         amount = capacity
@@ -222,6 +223,44 @@ function BarrEx_BarrelData.reapplyWeight(barrel)
     return true
 end
 
+--- @param rawProfile string|nil
+--- @return string|nil
+local function normalizeSpawnProfile(rawProfile)
+    if rawProfile == Constant.BARREL_SPAWN_PROFILE.WORLD then
+        return Constant.BARREL_SPAWN_PROFILE.WORLD
+    end
+
+    if rawProfile == Constant.BARREL_SPAWN_PROFILE.PLAYER_CRAFTED then
+        return Constant.BARREL_SPAWN_PROFILE.PLAYER_CRAFTED
+    end
+
+    return nil
+end
+
+--- @param modData table|nil
+--- @param spawnProfile string|nil
+function BarrEx_BarrelData.writeSpawnProfile(modData, spawnProfile)
+    if not modData then return end
+
+    local normalized = normalizeSpawnProfile(spawnProfile)
+    if normalized then
+        modData[Constant.MODDATA_KEYS.BARREL_SPAWN_PROFILE] = normalized
+    else
+        modData[Constant.MODDATA_KEYS.BARREL_SPAWN_PROFILE] = nil
+    end
+end
+
+--- @param barrel IsoObject|nil
+--- @return string|nil
+function BarrEx_BarrelData.getSpawnProfile(barrel)
+    if not barrel then return nil end
+
+    local modData = barrel:getModData()
+    if not modData then return nil end
+
+    return normalizeSpawnProfile(modData[Constant.MODDATA_KEYS.BARREL_SPAWN_PROFILE])
+end
+
 --- @param barrel IsoObject|nil
 --- @param item InventoryItem|nil
 --- @return BarrEx_Barrel|nil
@@ -235,6 +274,7 @@ function BarrEx_BarrelData.copyWorldDataToItem(barrel, item)
     if not itemModData then return nil end
 
     BarrEx_BarrelData.writeToModData(itemModData, barrelData)
+    BarrEx_BarrelData.writeSpawnProfile(itemModData, Constant.BARREL_SPAWN_PROFILE.WORLD)
     BarrEx_BarrelData.applyWeightToItem(item, barrelData)
 
     return barrelData

@@ -10,6 +10,7 @@ local started = false
 local originalFromObject = nil
 local originalCanPickUpMoveable = nil
 local originalPickUpMoveableInternal = nil
+local originalPlaceMoveableInternal = nil
 
 local function log(message)
     print(Constant.LOG_PREFIX .. " [MoveableSync] " .. message)
@@ -17,6 +18,93 @@ end
 
 local function isBarrelMoveable(worldObject)
     return worldObject ~= nil and Utils.isExpandableBarrel(worldObject)
+end
+
+local function isBarrelSpriteName(spriteName)
+    return type(spriteName) == "string" and Constant.BARREL_TILE_NAMES[spriteName] == true
+end
+
+local function findInventoryItemFromArgs(...)
+    local argCount = select("#", ...)
+    for i = 1, argCount do
+        local value = select(i, ...)
+        if value and type(value) == "userdata" and type(value.getModData) == "function" and type(value.getType) == "function" then
+            return value
+        end
+    end
+    return nil
+end
+
+local function findSquareFromArgs(...)
+    local argCount = select("#", ...)
+    for i = 1, argCount do
+        local value = select(i, ...)
+        if value and type(value) == "userdata" and type(value.getObjects) == "function" and type(value.getX) == "function" then
+            return value
+        end
+    end
+    return nil
+end
+
+local function findSpriteNameFromArgs(...)
+    local argCount = select("#", ...)
+    for i = 1, argCount do
+        local value = select(i, ...)
+        if type(value) == "string" and Constant.BARREL_TILE_NAMES[value] == true then
+            return value
+        end
+    end
+    return nil
+end
+
+local function markPlacedBarrelAsPlayerCrafted(item)
+    if not item then return end
+
+    local itemModData = item:getModData()
+    if not itemModData then return end
+
+    -- Items already carrying barrel payload came from world barrels.
+    if type(itemModData[Constant.MODDATA_KEYS.BARREL]) == "table" then
+        return
+    end
+
+    BarrEx_BarrelData.writeSpawnProfile(itemModData, Constant.BARREL_SPAWN_PROFILE.PLAYER_CRAFTED)
+end
+
+local function findNewestBarrelOnSquare(square)
+    if not square then return nil end
+
+    local objects = square:getObjects()
+    if not objects then return nil end
+
+    for i = objects:size() - 1, 0, -1 do
+        local object = objects:get(i)
+        if Utils.isExpandableBarrel(object) then
+            return object
+        end
+    end
+
+    return nil
+end
+
+local function applyItemSpawnProfileToNewestPlacedBarrel(item, square)
+    if not item or not square then return end
+
+    local itemModData = item:getModData()
+    if not itemModData then return end
+
+    local spawnProfile = itemModData[Constant.MODDATA_KEYS.BARREL_SPAWN_PROFILE]
+    if spawnProfile ~= Constant.BARREL_SPAWN_PROFILE.PLAYER_CRAFTED then
+        return
+    end
+
+    local barrel = findNewestBarrelOnSquare(square)
+    if not barrel then return end
+
+    local barrelModData = barrel:getModData()
+    if not barrelModData then return end
+
+    BarrEx_BarrelData.writeSpawnProfile(barrelModData, spawnProfile)
 end
 
 local function decoratePickedUpItem(item, worldObject)
@@ -53,9 +141,17 @@ function BarrEx_MoveableSync.start()
     rawset(ISMoveableSpriteProps, "fromObject", function(object)
         local props = originalFromObject(object)
         if props and props.isMoveable and Utils.isExpandableBarrel(object) then
-            local barrelData = BarrEx_BarrelData.get(object)
-            if barrelData then
-                props.weight = barrelData:getTotalWeight()
+            local modData = object:getModData()
+            local cachedWeight = modData and modData[Constant.MODDATA_KEYS.BARREL_WEIGHT] or nil
+
+            if type(cachedWeight) == "number" then
+                props.weight = cachedWeight
+            else
+                -- Fallback for barrels that still have no cached weight.
+                local barrelData = BarrEx_BarrelData.get(object)
+                if barrelData then
+                    props.weight = barrelData:getTotalWeight()
+                end
             end
         end
         return props
@@ -98,7 +194,29 @@ function BarrEx_MoveableSync.start()
         return item
     end)
 
-    log("Moveable pickup hook installed.")
+    if type(ISMoveableSpriteProps.placeMoveableInternal) == "function" then
+        originalPlaceMoveableInternal = ISMoveableSpriteProps.placeMoveableInternal
+        rawset(ISMoveableSpriteProps, "placeMoveableInternal", function(self, ...)
+            local item = findInventoryItemFromArgs(...)
+            local square = findSquareFromArgs(...)
+            local spriteName = findSpriteNameFromArgs(...)
+            local isBarrelPlacement = isBarrelSpriteName(spriteName)
+
+            if item and isBarrelPlacement then
+                markPlacedBarrelAsPlayerCrafted(item)
+            end
+
+            local result = originalPlaceMoveableInternal(self, ...)
+
+            if item and isBarrelPlacement then
+                applyItemSpawnProfileToNewestPlacedBarrel(item, square)
+            end
+
+            return result
+        end)
+    end
+
+    log("Moveable pickup/place hooks installed.")
 end
 
 return BarrEx_MoveableSync

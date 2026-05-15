@@ -16,19 +16,39 @@ function BarrEx_Barrel:new(data)
     data = data or {}
 
     local instance = setmetatable({}, self)
+    local emptyType = Constant.LIQUID_TYPE.EMPTY
 
     instance.id = data.id
-    instance.liquidType = data.liquidType
-    instance.amount = data.amount or 0
-    instance.capacity = data.capacity or Constant.BARREL_DEFAULT_CAPACITY
+    instance.liquidType = data.liquidType or emptyType
+    instance.amount = tonumber(data.amount) or 0
+    instance.capacity = tonumber(data.capacity) or Constant.BARREL_DEFAULT_CAPACITY
     instance.revealed = data.revealed == true
+
+    if instance.capacity < 0 then
+        instance.capacity = 0
+    end
+
+    if Constant.LIQUID_TYPE[instance.liquidType] == nil then
+        instance.liquidType = emptyType
+    end
+
+    if instance.amount < 0 then
+        instance.amount = 0
+    end
+
+    if instance.liquidType == emptyType or instance.capacity <= 0 then
+        instance.liquidType = emptyType
+        instance.amount = 0
+    elseif instance.amount > instance.capacity then
+        instance.amount = instance.capacity
+    end
 
     return instance
 end
 
 ---@return boolean
 function BarrEx_Barrel:isEmpty()
-    return self.amount <= 0
+    return self.amount <= 0 or self.liquidType == Constant.LIQUID_TYPE.EMPTY
 end
 
 ---@return boolean
@@ -48,7 +68,7 @@ end
 
 ---@return number
 function BarrEx_Barrel:getLiquidWeightPerUnit()
-    if not self.liquidType then
+    if not self.liquidType or self.liquidType == Constant.LIQUID_TYPE.EMPTY then
         return 0
     end
 
@@ -82,6 +102,10 @@ function BarrEx_Barrel:canAcceptLiquid(liquidType)
         return false
     end
 
+    if liquidType == Constant.LIQUID_TYPE.EMPTY then
+        return self:isEmpty()
+    end
+
     if self:isEmpty() then
         return true
     end
@@ -94,6 +118,10 @@ end
 ---@return number addedAmount
 function BarrEx_Barrel:addLiquid(liquidType, amount)
     if amount <= 0 then
+        return 0
+    end
+
+    if liquidType == Constant.LIQUID_TYPE.EMPTY then
         return 0
     end
 
@@ -126,7 +154,7 @@ function BarrEx_Barrel:removeLiquid(amount)
 
     if self.amount <= 0 then
         self.amount = 0
-        self.liquidType = nil
+        self.liquidType = Constant.LIQUID_TYPE.EMPTY
     end
 
     return removedAmount
@@ -136,7 +164,7 @@ end
 function BarrEx_Barrel:toData()
     return {
         id = self.id,
-        liquidType = self.liquidType,
+        liquidType = self.liquidType or Constant.LIQUID_TYPE.EMPTY,
         amount = self.amount,
         capacity = self.capacity,
         revealed = self.revealed,
