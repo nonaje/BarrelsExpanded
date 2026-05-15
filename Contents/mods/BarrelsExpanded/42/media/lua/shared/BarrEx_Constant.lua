@@ -1,13 +1,3 @@
--- BarrEx_Constant: compatibility facade.
---
--- All consumers that do require("BarrEx_Constant") continue to work unchanged.
--- Configuration has been extracted into focused modules under shared/config/;
--- this file re-exports their values so no existing code needs to change in
--- this phase.
---
--- DO NOT add new configuration here.  Add it to the appropriate config module
--- and expose it through this facade if backward compatibility is needed.
-
 local LiquidConfig   = require("config/BarrEx_LiquidConfig")
 local ToolConfig     = require("config/BarrEx_ToolConfig")
 local TransferConfig = require("config/BarrEx_TransferConfig")
@@ -37,46 +27,6 @@ Constant.MODDATA_KEYS = {
     BARREL_WEIGHT = "BarrEx_Weight",
     BARREL_ID = "BarrEx_BarrelId",
     BARREL_SPAWN_PROFILE = "BarrEx_SpawnProfile",
-}
-
------------------------------------
------- CONTEXT MENU OPTIONS -------
------------------------------------
-Constant.CONTEXT_MENU = {
-    BARREL = "ContextMenu_BarrEx_Barrel",
-    OPEN_BARREL = "ContextMenu_BarrEx_OpenBarrel",
-    INFO = "ContextMenu_BarrEx_Info",
-    REMOVE_THE_COVER = "ContextMenu_BarrEx_RemoveCover",
-    POUR = "ContextMenu_BarrEx_Pour",
-    EXTRACT = "ContextMenu_BarrEx_Extract",
-}
-
-Constant.TOOLTIP = {
-    REQUIRED = "Tooltip_BarrEx_Required",
-    ONE_OF = "Tooltip_BarrEx_OneOf",
-    BARREL_CONTENTS = "Tooltip_BarrEx_BarrelContents",
-    LIQUID = "Tooltip_BarrEx_Liquid",
-    AMOUNT = "Tooltip_BarrEx_Amount",
-    WEIGHT = "Tooltip_BarrEx_Weight",
-    TOO_FAR = "Tooltip_BarrEx_TooFar",
-    REQUIRES_FUNNEL = "Tooltip_BarrEx_RequiresFunnel",
-    REQUIRES_HOSE = "Tooltip_BarrEx_RequiresHose",
-    BARREL_FULL = "Tooltip_BarrEx_BarrelFull",
-    BARREL_EMPTY = "Tooltip_BarrEx_BarrelEmpty",
-    BARREL_CLOSED = "Tooltip_BarrEx_BarrelClosed",
-    INCOMPATIBLE_LIQUID = "Tooltip_BarrEx_IncompatibleLiquid",
-    NO_COMPATIBLE_CONTAINER = "Tooltip_BarrEx_NoCompatibleContainer",
-    FILL_LEVEL = "Tooltip_BarrEx_FillLevel",
-    TRANSFER_AMOUNT = "Tooltip_BarrEx_TransferAmount",
-    CONTAINER_CAPACITY = "Tooltip_BarrEx_ContainerCapacity",
-}
-
-Constant.UI = {
-    EMPTY = "UI_BarrEx_Empty",
-    LIQUID_WATER = "UI_BarrEx_Liquid_WATER",
-    LIQUID_TAINTED_WATER = "UI_BarrEx_Liquid_TAINTED_WATER",
-    LIQUID_GASOLINE = "UI_BarrEx_Liquid_GASOLINE",
-    LIQUID_BLEACH = "UI_BarrEx_Liquid_BLEACH"
 }
 
 ---------------------------------------

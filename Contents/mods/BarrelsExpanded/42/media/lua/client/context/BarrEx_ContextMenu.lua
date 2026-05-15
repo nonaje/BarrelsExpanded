@@ -1,12 +1,13 @@
 local PlayerUtils = require("utils/BarrEx_PlayerUtils")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
 local Constant = require("BarrEx_Constant")
+local ContextConfig = require("config/BarrEx_ContextConfig")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
-local Text = require("BarrEx_ContextMenuText")
-local Tooltips = require("BarrEx_ContextMenuTooltips")
-local Inventory = require("BarrEx_ContextMenuInventory")
-local Actions = require("BarrEx_ContextMenuActions")
+local Text = require("context/BarrEx_ContextMenuText")
+local Tooltips = require("context/BarrEx_ContextMenuTooltips")
+local Inventory = require("context/BarrEx_ContextMenuInventory")
+local Actions = require("context/BarrEx_ContextMenuActions")
 
 local ContextMenu = {}
 
@@ -17,7 +18,7 @@ local function addBarrelInfoOption(subMenu, barrelData)
     local capacity = tonumber(barrelData.capacity) or 0
     local percent = capacity > 0 and math.floor((amount / capacity) * 100) or 0
 
-    local infoLabel = string.format("%s  %d%%", Text.translate(Constant.CONTEXT_MENU.INFO), percent)
+    local infoLabel = string.format("%s  %d%%", Text.translate(ContextConfig.CONTEXT_MENU.INFO), percent)
     local infoOption = subMenu:addOption(infoLabel, nil, nil)
     infoOption.notAvailable = true
 
@@ -64,7 +65,7 @@ local function addPourOption(subMenu, barrel, player, barrelData, inRange)
     local sourceItems = Inventory.collectSourceContainersForPour(player, barrelData)
     local canPour = inRange and hasPourTool and #sourceItems > 0
 
-    local pourLabel = Text.translate(Constant.CONTEXT_MENU.POUR)
+    local pourLabel = Text.translate(ContextConfig.CONTEXT_MENU.POUR)
     if #sourceItems == 1 and canPour then
         local item = sourceItems[1]
         local transferAmount = Inventory.getPourTransferAmount(item, barrelData)
@@ -98,13 +99,13 @@ local function addPourOption(subMenu, barrel, player, barrelData, inRange)
     if not inRange then
         Tooltips.attachTooFarTooltip(pourOption)
     elseif not hasPourTool then
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(Constant.TOOLTIP.REQUIRES_FUNNEL))
+        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.REQUIRES_FUNNEL))
     elseif barrelData:isFull() then
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(Constant.TOOLTIP.BARREL_FULL))
+        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.BARREL_FULL))
     elseif #sourceItems == 0 then
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(Constant.TOOLTIP.NO_COMPATIBLE_CONTAINER))
+        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER))
     else
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(Constant.TOOLTIP.INCOMPATIBLE_LIQUID))
+        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.INCOMPATIBLE_LIQUID))
     end
 end
 
@@ -200,11 +201,11 @@ local function addFillOption(subMenu, barrel, player, barrelData, inRange)
     if not inRange then
         Tooltips.attachTooFarTooltip(fillOption)
     elseif not hasExtractTool then
-        Tooltips.attachSimpleTooltip(fillOption, Text.translate(Constant.TOOLTIP.REQUIRES_HOSE))
+        Tooltips.attachSimpleTooltip(fillOption, Text.translate(ContextConfig.TOOLTIP.REQUIRES_HOSE))
     elseif barrelData:isEmpty() then
-        Tooltips.attachSimpleTooltip(fillOption, Text.translate(Constant.TOOLTIP.BARREL_EMPTY))
+        Tooltips.attachSimpleTooltip(fillOption, Text.translate(ContextConfig.TOOLTIP.BARREL_EMPTY))
     elseif #targetItems == 0 then
-        Tooltips.attachSimpleTooltip(fillOption, Text.translate(Constant.TOOLTIP.NO_COMPATIBLE_CONTAINER))
+        Tooltips.attachSimpleTooltip(fillOption, Text.translate(ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER))
     end
 end
 
@@ -216,7 +217,7 @@ end
 ---@param missingItems table<string>|nil
 ---@param inRange boolean
 local function addOpenBarrelOption(subMenu, barrel, player, canOpen, foundItems, missingItems, inRange)
-    local openOption = subMenu:addOption(Text.translate(Constant.CONTEXT_MENU.OPEN_BARREL), barrel, Actions.onOpenBarrel, player)
+    local openOption = subMenu:addOption(Text.translate(ContextConfig.CONTEXT_MENU.OPEN_BARREL), barrel, Actions.onOpenBarrel, player)
     openOption.notAvailable = (not canOpen) or (not inRange)
 
     if not inRange then
@@ -246,7 +247,7 @@ end
 ---@param missingItems table<string>|nil
 ---@param inRange boolean
 local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)
-    local barrelOption = context:addOption(Text.translate(Constant.CONTEXT_MENU.BARREL), nil, nil)
+    local barrelOption = context:addOption(Text.translate(ContextConfig.CONTEXT_MENU.BARREL), nil, nil)
     local subMenu = context:getNew(context)
     context:addSubMenu(barrelOption, subMenu)
 

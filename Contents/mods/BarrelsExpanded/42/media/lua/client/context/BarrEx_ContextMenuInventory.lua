@@ -1,5 +1,5 @@
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
-local Text = require("BarrEx_ContextMenuText")
+local Text = require("context/BarrEx_ContextMenuText")
 
 local Inventory = {}
 

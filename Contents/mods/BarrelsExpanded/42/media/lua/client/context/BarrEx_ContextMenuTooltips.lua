@@ -1,6 +1,6 @@
-local Constant = require("BarrEx_Constant")
+local ContextConfig = require("config/BarrEx_ContextConfig")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
-local Text = require("BarrEx_ContextMenuText")
+local Text = require("context/BarrEx_ContextMenuText")
 
 local Tooltips = {}
 
@@ -21,7 +21,7 @@ end
 
 ---@param option table|nil
 function Tooltips.attachTooFarTooltip(option)
-    Tooltips.attachSimpleTooltip(option, Text.translate(Constant.TOOLTIP.TOO_FAR))
+    Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.TOO_FAR))
 end
 
 ---@param option table|nil
@@ -44,8 +44,8 @@ end
 ---@return string
 local function buildRequiredItemsTooltipDescription(foundItems, missingItems)
     local lines = {
-        Text.translate(Constant.TOOLTIP.REQUIRED) .. " <LINE>",
-        Text.translate(Constant.TOOLTIP.ONE_OF) .. " <LINE>",
+        Text.translate(ContextConfig.TOOLTIP.REQUIRED) .. " <LINE>",
+        Text.translate(ContextConfig.TOOLTIP.ONE_OF) .. " <LINE>",
     }
 
     for _, itemType in ipairs(foundItems or {}) do
@@ -80,22 +80,22 @@ local function buildBarrelInfoTooltipDescription(barrelData)
     local percent = capacity > 0 and math.floor((amount / capacity) * 100) or 0
 
     return table.concat({
-        Text.translate(Constant.TOOLTIP.BARREL_CONTENTS) .. " <LINE>",
-        " <RGB:1,1,1> " .. Text.translate(Constant.TOOLTIP.LIQUID) .. " " .. Text.getLiquidDisplayName(barrelData.liquidType) .. " <LINE>",
+        Text.translate(ContextConfig.TOOLTIP.BARREL_CONTENTS) .. " <LINE>",
+        " <RGB:1,1,1> " .. Text.translate(ContextConfig.TOOLTIP.LIQUID) .. " " .. Text.getLiquidDisplayName(barrelData.liquidType) .. " <LINE>",
         string.format(
             " <RGB:1,1,1> %s %.1f/%.1f <LINE>",
-            Text.translate(Constant.TOOLTIP.AMOUNT),
+            Text.translate(ContextConfig.TOOLTIP.AMOUNT),
             amount,
             capacity
         ),
         string.format(
             " <RGB:1,1,1> %s %d%% <LINE>",
-            Text.translate(Constant.TOOLTIP.FILL_LEVEL),
+            Text.translate(ContextConfig.TOOLTIP.FILL_LEVEL),
             percent
         ),
         string.format(
             " <RGB:1,1,1> %s %.2f <LINE>",
-            Text.translate(Constant.TOOLTIP.WEIGHT),
+            Text.translate(ContextConfig.TOOLTIP.WEIGHT),
             barrelData:getTotalWeight()
         ),
     })
@@ -122,17 +122,17 @@ function Tooltips.attachTransferTooltip(option, item, liquidType, transferAmount
     tooltip.description = table.concat({
         string.format(
             "<RGB:1,1,1> %s %s <LINE>",
-            Text.translate(Constant.TOOLTIP.LIQUID),
+            Text.translate(ContextConfig.TOOLTIP.LIQUID),
             Text.getLiquidDisplayName(liquidType or LiquidAdapter.getLiquidType(item))
         ),
         string.format(
             "<RGB:1,1,1> %s %s <LINE>",
-            Text.translate(Constant.TOOLTIP.TRANSFER_AMOUNT),
+            Text.translate(ContextConfig.TOOLTIP.TRANSFER_AMOUNT),
             Text.formatAmount(transferAmount)
         ),
         string.format(
             "<RGB:1,1,1> %s %s/%s <LINE>",
-            Text.translate(Constant.TOOLTIP.CONTAINER_CAPACITY),
+            Text.translate(ContextConfig.TOOLTIP.CONTAINER_CAPACITY),
             Text.formatAmount(LiquidAdapter.getAmount(item)),
             Text.formatAmount(LiquidAdapter.getCapacity(item))
         ),

@@ -1,4 +1,5 @@
 local Constant = require("BarrEx_Constant")
+local ContextConfig = require("config/BarrEx_ContextConfig")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 
 local Text = {}
@@ -124,10 +125,10 @@ end
 ---@return string
 function Text.getLiquidDisplayName(liquidType)
     if not liquidType or liquidType == Constant.LIQUID_TYPE.EMPTY then
-        return Text.translate(Constant.UI.EMPTY)
+        return Text.translate(ContextConfig.UI.EMPTY)
     end
 
-    local translationKey = Constant.UI["LIQUID_" .. liquidType]
+    local translationKey = ContextConfig.UI["LIQUID_" .. liquidType]
     if translationKey then
         return Text.translate(translationKey)
     end
@@ -163,7 +164,7 @@ function Text.buildPourContainerOptionLabel(item, liquidType, transferAmount)
         Text.formatAmount(amount),
         Text.formatAmount(capacity),
         Text.formatAmount(transferAmount),
-        Text.translate(Constant.TOOLTIP.TRANSFER_AMOUNT)
+        Text.translate(ContextConfig.TOOLTIP.TRANSFER_AMOUNT)
     )
 end
 
