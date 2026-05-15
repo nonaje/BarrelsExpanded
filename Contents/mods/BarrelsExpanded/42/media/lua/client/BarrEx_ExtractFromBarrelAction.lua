@@ -2,6 +2,7 @@ local Utils = require("BarrEx_Utils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local TransferSync = require("BarrEx_TransferSync")
 
 ---@class BarrEx_ExtractFromBarrelAction : ISBaseTimedAction
 ---@field barrel IsoObject
@@ -10,7 +11,10 @@ local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 ---@field sound integer|nil
 ---@field totalAmount number
 ---@field sentAmount number
+---@field initialTargetAmount number
 local BarrEx_ExtractFromBarrelAction = ISBaseTimedAction:derive("BarrEx_ExtractFromBarrelAction")
+
+local PROGRESS_EPSILON = 0.0001
 
 local function stopSound(action)
     if action.sound and action.character and action.character:getEmitter():isPlaying(action.sound) then
@@ -81,15 +85,34 @@ function BarrEx_ExtractFromBarrelAction:new(player, barrel, targetItem)
     o.barrel = barrel
     o.targetItem = targetItem
     o.totalAmount = getEstimatedExtractAmount(barrel, targetItem)
+    o.initialTargetAmount = math.max(tonumber(LiquidAdapter.getAmount(targetItem)) or 0, 0)
     o.transferStarted = false
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = Utils.getVanillaFluidActionTime(o.totalAmount)
+    o.maxTime = Utils.getFluidTransferActionTime(o.totalAmount)
 
     setmetatable(o, self)
     self.__index = self
 
     return o
+end
+
+local function syncProgressFromTargetAmount(action)
+    if not action or not action.targetItem then return end
+    if (tonumber(action.totalAmount) or 0) <= 0 then return end
+
+    local currentAmount = math.max(tonumber(LiquidAdapter.getAmount(action.targetItem)) or 0, 0)
+    local movedAmount = math.max(currentAmount - (tonumber(action.initialTargetAmount) or 0), 0)
+    local progress = math.max(math.min(movedAmount / action.totalAmount, 1), 0)
+
+    if not action.serverProgress or progress > action.serverProgress then
+        action.serverProgress = progress
+    end
+
+    if progress >= (1 - PROGRESS_EPSILON) then
+        action.serverCompleted = true
+        action.transferStarted = false
+    end
 end
 
 function BarrEx_ExtractFromBarrelAction:isValid()
@@ -112,6 +135,9 @@ function BarrEx_ExtractFromBarrelAction:start()
 
     self.toolItem = Utils.findFirstRequiredItem(self.character, Constant.EXTRACT_REQUIRED_ITEMS)
     self.transferStarted = sendTransferCommand(self, Constant.NETWORK.START_EXTRACT_FROM_BARREL)
+    if self.transferStarted then
+        TransferSync.registerAction("extract", self, self.barrel, self.targetItem)
+    end
     local primaryHandItem, secondaryHandItem = Utils.getFluidActionHandItems(self.targetItem, self.toolItem)
 
     self:setActionAnim("MixFluids")
@@ -121,6 +147,8 @@ function BarrEx_ExtractFromBarrelAction:start()
 end
 
 function BarrEx_ExtractFromBarrelAction:update()
+    syncProgressFromTargetAmount(self)
+    TransferSync.beforeActionUpdate(self)
     ISBaseTimedAction.update(self)
     self.character:faceThisObject(self.barrel)
     self.character:setMetabolicTarget(Metabolics.LightDomestic)
@@ -128,6 +156,7 @@ end
 
 function BarrEx_ExtractFromBarrelAction:stop()
     stopSound(self)
+    TransferSync.unregisterAction("extract", self)
     if self.transferStarted then
         sendTransferCommand(self, Constant.NETWORK.STOP_EXTRACT_FROM_BARREL)
         self.transferStarted = false
@@ -137,6 +166,7 @@ end
 
 function BarrEx_ExtractFromBarrelAction:perform()
     stopSound(self)
+    TransferSync.unregisterAction("extract", self)
     if self.transferStarted then
         sendTransferCommand(self, Constant.NETWORK.COMPLETE_EXTRACT_FROM_BARREL)
         self.transferStarted = false

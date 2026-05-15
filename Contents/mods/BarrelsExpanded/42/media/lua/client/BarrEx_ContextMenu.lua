@@ -381,8 +381,9 @@ local function collectInventoryItems(inventory, predicate, found)
             found[#found + 1] = item
         end
 
-        if item and type(item.getInventory) == "function" then
-            collectInventoryItems(item:getInventory(), predicate, found)
+        local getInventory = item and item["getInventory"] or nil
+        if type(getInventory) == "function" then
+            collectInventoryItems(getInventory(item), predicate, found)
         end
     end
 
@@ -623,7 +624,6 @@ local function addGroupedFillSubSubMenu(parentMenu, groupOption, group, barrel, 
         player,
         group.items[1]
     )
-    attachInventoryItemIcon(fillOneOption, group.iconItem)
 
     local fillAllOption = groupMenu:addOption(
         getVanillaFillAllText(),
@@ -632,7 +632,6 @@ local function addGroupedFillSubSubMenu(parentMenu, groupOption, group, barrel, 
         player,
         group.items
     )
-    attachInventoryItemIcon(fillAllOption, group.iconItem)
 end
 
 ---@param parentMenu ISContextMenu

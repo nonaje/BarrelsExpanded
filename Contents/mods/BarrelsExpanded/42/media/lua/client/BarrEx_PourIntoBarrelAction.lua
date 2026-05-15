@@ -2,6 +2,7 @@ local Utils = require("BarrEx_Utils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local TransferSync = require("BarrEx_TransferSync")
 
 ---@class BarrEx_PourIntoBarrelAction : ISBaseTimedAction
 ---@field barrel IsoObject
@@ -10,7 +11,10 @@ local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 ---@field sound integer|nil
 ---@field totalAmount number
 ---@field sentAmount number
+---@field initialSourceAmount number
 local BarrEx_PourIntoBarrelAction = ISBaseTimedAction:derive("BarrEx_PourIntoBarrelAction")
+
+local PROGRESS_EPSILON = 0.0001
 
 local function stopSound(action)
     if action.sound and action.character and action.character:getEmitter():isPlaying(action.sound) then
@@ -81,15 +85,34 @@ function BarrEx_PourIntoBarrelAction:new(player, barrel, sourceItem)
     o.barrel = barrel
     o.sourceItem = sourceItem
     o.totalAmount = getEstimatedPourAmount(barrel, sourceItem)
+    o.initialSourceAmount = math.max(tonumber(LiquidAdapter.getAmount(sourceItem)) or 0, 0)
     o.transferStarted = false
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = Utils.getVanillaFluidActionTime(o.totalAmount)
+    o.maxTime = Utils.getFluidTransferActionTime(o.totalAmount)
 
     setmetatable(o, self)
     self.__index = self
 
     return o
+end
+
+local function syncProgressFromSourceAmount(action)
+    if not action or not action.sourceItem then return end
+    if (tonumber(action.totalAmount) or 0) <= 0 then return end
+
+    local currentAmount = math.max(tonumber(LiquidAdapter.getAmount(action.sourceItem)) or 0, 0)
+    local movedAmount = math.max((tonumber(action.initialSourceAmount) or 0) - currentAmount, 0)
+    local progress = math.max(math.min(movedAmount / action.totalAmount, 1), 0)
+
+    if not action.serverProgress or progress > action.serverProgress then
+        action.serverProgress = progress
+    end
+
+    if progress >= (1 - PROGRESS_EPSILON) then
+        action.serverCompleted = true
+        action.transferStarted = false
+    end
 end
 
 function BarrEx_PourIntoBarrelAction:isValid()
@@ -112,6 +135,9 @@ function BarrEx_PourIntoBarrelAction:start()
 
     self.toolItem = Utils.findFirstRequiredItem(self.character, Constant.POUR_REQUIRED_ITEMS)
     self.transferStarted = sendTransferCommand(self, Constant.NETWORK.START_POUR_INTO_BARREL)
+    if self.transferStarted then
+        TransferSync.registerAction("pour", self, self.barrel, self.sourceItem)
+    end
     if self.sourceItem and type(self.sourceItem.setJobType) == "function" then
         self.sourceItem:setJobType(getText("IGUI_JobType_PourOut"))
     end
@@ -130,6 +156,8 @@ function BarrEx_PourIntoBarrelAction:start()
 end
 
 function BarrEx_PourIntoBarrelAction:update()
+    syncProgressFromSourceAmount(self)
+    TransferSync.beforeActionUpdate(self)
     ISBaseTimedAction.update(self)
     self.character:faceThisObject(self.barrel)
     if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
@@ -140,6 +168,7 @@ end
 
 function BarrEx_PourIntoBarrelAction:stop()
     stopSound(self)
+    TransferSync.unregisterAction("pour", self)
     if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
         self.sourceItem:setJobDelta(0.0)
     end
@@ -152,6 +181,7 @@ end
 
 function BarrEx_PourIntoBarrelAction:perform()
     stopSound(self)
+    TransferSync.unregisterAction("pour", self)
     if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
         self.sourceItem:setJobDelta(0.0)
     end

@@ -1,5 +1,6 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_MoveableSync = require("BarrEx_MoveableSync")
+local BarrEx_TransferSync = require("BarrEx_TransferSync")
 
 local function log(message)
     print(Constant.LOG_PREFIX .. " - " .. message)
@@ -41,8 +42,15 @@ local function showPlayerMessage(message)
     if not player or not message then return end
 
     if HaloTextHelper and type(HaloTextHelper.addText) == "function" then
-        HaloTextHelper.addText(player, message, HaloTextHelper.getColorRed and HaloTextHelper.getColorRed() or nil)
-        return
+        local ok = pcall(
+            HaloTextHelper.addText,
+            player,
+            message,
+            HaloTextHelper.getColorRed and HaloTextHelper.getColorRed() or nil
+        )
+        if ok then
+            return
+        end
     end
 
     if type(player.Say) == "function" then
@@ -53,8 +61,19 @@ end
 local function onServerCommand(module, command, args)
     if module ~= Constant.NETWORK.MODULE then return end
 
+    if command == Constant.NETWORK.TRANSFER_STARTED then
+        BarrEx_TransferSync.onTransferStarted(args)
+        return
+    end
+
+    if command == Constant.NETWORK.TRANSFER_PROGRESS then
+        BarrEx_TransferSync.onTransferProgress(args)
+        return
+    end
+
     if command == Constant.NETWORK.TRANSFER_REJECTED then
         local reason = type(args) == "table" and args.reason or "unknown"
+        BarrEx_TransferSync.onTransferRejected(type(args) == "table" and args.mode or nil)
         showPlayerMessage(TRANSFER_REJECTION_MESSAGES[reason] or "No se pudo iniciar la transferencia.")
     end
 end

@@ -230,6 +230,21 @@ function Utils.getVanillaFluidActionTime(amount)
     return duration
 end
 
+--- Shared transfer duration used by both client actions and the server transfer loop.
+--- Keeps the visual action length aligned with the server-authoritative transfer pace.
+--- @param amount number|nil
+--- @return number
+function Utils.getFluidTransferActionTime(amount)
+    local baseDuration = Utils.getVanillaFluidActionTime(amount)
+    local multiplier = tonumber(Constant.TRANSFER_ACTION_TIME_MULTIPLIER) or 1
+
+    if multiplier <= 0 then
+        multiplier = 1
+    end
+
+    return math.max(math.floor(baseDuration * multiplier), 1)
+end
+
 --- Backward-compatible wrapper.
 function Utils.isPlayerHoldingAnyRequiredItem(player, requiredItems)
     return Utils.getRequiredItemStatus(player, requiredItems)

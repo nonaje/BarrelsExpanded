@@ -13,6 +13,8 @@ Constant.NETWORK = {
     STOP_EXTRACT_FROM_BARREL = "stopExtractFromBarrel",
     COMPLETE_EXTRACT_FROM_BARREL = "completeExtractFromBarrel",
     TRANSFER_REJECTED = "transferRejected",
+    TRANSFER_STARTED = "transferStarted",
+    TRANSFER_PROGRESS = "transferProgress",
     EMPTY_BARREL = "emptyBarrel",
 }
 
@@ -181,6 +183,7 @@ Constant.BARREL_DEFAULT_CAPACITY = 160
 Constant.BARREL_DATA_POLL_TICKS = 120
 Constant.MAX_INTERACTION_DISTANCE = 1.55
 Constant.OPEN_BARREL_ACTION_TIME = 200
+Constant.TRANSFER_ACTION_TIME_MULTIPLIER = 2
 Constant.SERVER_TRANSFER_TICK_INTERVAL = 5
 Constant.SERVER_TRANSFER_SYNC_INTERVAL = 10
 

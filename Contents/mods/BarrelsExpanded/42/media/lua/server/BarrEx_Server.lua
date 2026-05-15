@@ -31,6 +31,39 @@ local function notifyTransferRejected(player, mode, reason)
     })
 end
 
+local function notifyTransferStarted(player, transfer)
+    if not player or not transfer or type(sendServerCommand) ~= "function" then return end
+
+    sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_STARTED, {
+        mode = transfer.mode,
+        barrelId = transfer.args and transfer.args.barrelId or transfer.barrelKey,
+        itemId = transfer.args and transfer.args.itemId or nil,
+        totalAmount = tonumber(transfer.totalAmount) or 0,
+        actionTime = tonumber(transfer.totalTicks) or 0,
+    })
+end
+
+local function notifyTransferProgress(player, transfer, completed)
+    if not player or not transfer or type(sendServerCommand) ~= "function" then return end
+
+    local totalAmount = tonumber(transfer.totalAmount) or 0
+    local movedAmount = tonumber(transfer.movedAmount) or 0
+    local progress = completed and 1 or 0
+    if totalAmount > 0 then
+        progress = math.max(math.min(movedAmount / totalAmount, 1), 0)
+    end
+
+    sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_PROGRESS, {
+        mode = transfer.mode,
+        barrelId = transfer.args and transfer.args.barrelId or transfer.barrelKey,
+        itemId = transfer.args and transfer.args.itemId or nil,
+        movedAmount = movedAmount,
+        totalAmount = totalAmount,
+        progress = progress,
+        completed = completed == true,
+    })
+end
+
 local function reconcilePlacedBarrel(worldObject)
     if not Utils.isExpandableBarrel(worldObject) then return end
 
@@ -541,7 +574,7 @@ local function startTransfer(player, mode, args)
         return
     end
 
-    local totalTicks = math.max(Utils.getVanillaFluidActionTime(totalAmount), 1)
+    local totalTicks = math.max(Utils.getFluidTransferActionTime(totalAmount), 1)
     local tickInterval = math.max(Constant.SERVER_TRANSFER_TICK_INTERVAL or 1, 1)
 
     local transfer = {
@@ -554,6 +587,7 @@ local function startTransfer(player, mode, args)
         totalAmount = totalAmount,
         remainingAmount = totalAmount,
         movedAmount = 0,
+        totalTicks = totalTicks,
         amountPerTick = totalAmount / totalTicks,
         tickInterval = tickInterval,
         ticksUntilStep = 0,
@@ -562,6 +596,7 @@ local function startTransfer(player, mode, args)
 
     activeTransfersByPlayer[key] = transfer
     activeTransfersByBarrel[barrelKey] = key
+    notifyTransferStarted(player, transfer)
 
     log(string.format(
         "Transfer started: player=%s mode=%s id=%s liquid=%s total=%.3f duration=%d interval=%d",
@@ -681,6 +716,7 @@ local function onServerTick()
 
                         if transfer.remainingAmount <= 0 then
                             syncTransferBarrel(transfer)
+                            notifyTransferProgress(transfer.player, transfer, true)
                             releaseTransferLocks(key, transfer)
                             activeTransfersByPlayer[key] = nil
                             log(string.format(
@@ -692,6 +728,7 @@ local function onServerTick()
                             ))
                         elseif transfer.ticksSinceSync >= math.max(Constant.SERVER_TRANSFER_SYNC_INTERVAL or 10, 1) then
                             syncTransferBarrel(transfer)
+                            notifyTransferProgress(transfer.player, transfer, false)
                             transfer.ticksSinceSync = 0
                         end
                     end
