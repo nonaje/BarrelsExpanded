@@ -1,5 +1,5 @@
-local Constant  = require("BarrEx_Constant")
-local SafeCall  = require("utils/BarrEx_SafeCall")
+local LiquidConfig = require("config/BarrEx_LiquidConfig")
+local SafeCall     = require("utils/BarrEx_SafeCall")
 
 local Adapter = {}
 
@@ -11,12 +11,12 @@ local BARREL_TO_VANILLA_FLUID = {
 }
 
 local VANILLA_TO_BARREL_FLUID = {
-    water = Constant.LIQUID_TYPE.WATER,
-    taintedwater = Constant.LIQUID_TYPE.TAINTED_WATER,
-    petrol = Constant.LIQUID_TYPE.GASOLINE,
-    gasoline = Constant.LIQUID_TYPE.GASOLINE,
-    bleach = Constant.LIQUID_TYPE.BLEACH,
-    cleaningliquid = Constant.LIQUID_TYPE.BLEACH,
+    water = LiquidConfig.LIQUID_TYPE.WATER,
+    taintedwater = LiquidConfig.LIQUID_TYPE.TAINTED_WATER,
+    petrol = LiquidConfig.LIQUID_TYPE.GASOLINE,
+    gasoline = LiquidConfig.LIQUID_TYPE.GASOLINE,
+    bleach = LiquidConfig.LIQUID_TYPE.BLEACH,
+    cleaningliquid = LiquidConfig.LIQUID_TYPE.BLEACH,
 }
 
 local call = SafeCall.call
@@ -29,7 +29,7 @@ end
 local function isConfiguredCompatible(item, liquidType)
     if not item or not liquidType then return false end
 
-    local byLiquid = Constant.COMPATIBLE_CONTAINERS[liquidType]
+    local byLiquid = LiquidConfig.COMPATIBLE_CONTAINERS[liquidType]
     if type(byLiquid) ~= "table" then
         return false
     end
@@ -128,7 +128,7 @@ function Adapter.isLiquidContainer(item)
         return false
     end
 
-    return Constant.FULLTYPE_TO_LIQUIDS[fullType] ~= nil
+    return LiquidConfig.FULLTYPE_TO_LIQUIDS[fullType] ~= nil
 end
 
 function Adapter.getLiquidType(item)
@@ -155,19 +155,19 @@ function Adapter.getLiquidType(item)
 
         local fullType = string.lower(getItemFullType(item) or "")
         if string.find(fullType, "petrol", 1, true) or string.find(fullType, "gas", 1, true) then
-            return Constant.LIQUID_TYPE.GASOLINE
+            return LiquidConfig.LIQUID_TYPE.GASOLINE
         end
 
         if string.find(fullType, "bleach", 1, true) then
-            return Constant.LIQUID_TYPE.BLEACH
+            return LiquidConfig.LIQUID_TYPE.BLEACH
         end
 
         if string.find(fullType, "tainted", 1, true) then
-            return Constant.LIQUID_TYPE.TAINTED_WATER
+            return LiquidConfig.LIQUID_TYPE.TAINTED_WATER
         end
 
         if string.find(fullType, "water", 1, true) then
-            return Constant.LIQUID_TYPE.WATER
+            return LiquidConfig.LIQUID_TYPE.WATER
         end
     end
 
@@ -224,8 +224,8 @@ end
 
 function Adapter.canReceive(item, liquidType)
     if not item then return false end
-    if Constant.LIQUID_TYPE[liquidType] == nil then return false end
-    if liquidType == Constant.LIQUID_TYPE.EMPTY then return false end
+    if LiquidConfig.LIQUID_TYPE[liquidType] == nil then return false end
+    if liquidType == LiquidConfig.LIQUID_TYPE.EMPTY then return false end
     if not Adapter.isLiquidContainer(item) then return false end
     if not isConfiguredCompatible(item, liquidType) then return false end
 
@@ -317,8 +317,8 @@ end
 
 function Adapter.addLiquid(item, liquidType, amount)
     if not item or amount <= 0 then return 0 end
-    if Constant.LIQUID_TYPE[liquidType] == nil then return 0 end
-    if liquidType == Constant.LIQUID_TYPE.EMPTY then return 0 end
+    if LiquidConfig.LIQUID_TYPE[liquidType] == nil then return 0 end
+    if liquidType == LiquidConfig.LIQUID_TYPE.EMPTY then return 0 end
 
     local before = Adapter.getAmount(item)
     local capacity = Adapter.getCapacity(item)

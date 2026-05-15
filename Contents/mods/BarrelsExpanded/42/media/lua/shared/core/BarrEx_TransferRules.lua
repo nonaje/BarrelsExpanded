@@ -13,11 +13,33 @@
 -- IMPORTANT: barrelData parameters are already-hydrated BarrEx_Barrel
 -- objects; resolving world objects to barrel data is the caller's job.
 
-local Constant      = require("BarrEx_Constant")
-local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
-local Utils         = require("BarrEx_Utils")
+local LiquidConfig   = require("config/BarrEx_LiquidConfig")
+local TransferConfig = require("config/BarrEx_TransferConfig")
+local LiquidAdapter  = require("BarrEx_LiquidContainerAdapter")
 
 local TransferRules = {}
+
+local function getVanillaTransferTimePerUnit()
+    if ISFluidUtil and type(ISFluidUtil.getTransferActionTimePerLiter) == "function" then
+        local timePerUnit = tonumber(ISFluidUtil.getTransferActionTimePerLiter())
+        if timePerUnit and timePerUnit > 0 then
+            return timePerUnit
+        end
+    end
+
+    return 50
+end
+
+local function getVanillaMinTransferTime()
+    if ISFluidUtil and type(ISFluidUtil.getMinTransferActionTime) == "function" then
+        local minTime = tonumber(ISFluidUtil.getMinTransferActionTime())
+        if minTime and minTime > 0 then
+            return minTime
+        end
+    end
+
+    return 10
+end
 
 -- ---------------------------------------------------------------------------
 -- Compatibility helpers
@@ -93,8 +115,8 @@ function TransferRules.canExtractFromBarrel(barrelData, targetItem)
 
     local liquidType = barrelData.liquidType
     if type(liquidType) ~= "string" then return false end
-    if Constant.LIQUID_TYPE[liquidType] == nil then return false end
-    if liquidType == Constant.LIQUID_TYPE.EMPTY then return false end
+    if LiquidConfig.LIQUID_TYPE[liquidType] == nil then return false end
+    if liquidType == LiquidConfig.LIQUID_TYPE.EMPTY then return false end
 
     if not LiquidAdapter.canReceive(targetItem, liquidType) then return false end
 
@@ -120,7 +142,22 @@ end
 ---@param amount number|nil
 ---@return number
 function TransferRules.getTransferActionTime(amount)
-    return Utils.getFluidTransferActionTime(amount)
+    local normalizedAmount = tonumber(amount) or 0
+    local baseDuration = getVanillaMinTransferTime()
+
+    if normalizedAmount > 0 then
+        local vanillaDuration = normalizedAmount * getVanillaTransferTimePerUnit()
+        if vanillaDuration > baseDuration then
+            baseDuration = vanillaDuration
+        end
+    end
+
+    local multiplier = tonumber(TransferConfig.ACTION_TIME_MULTIPLIER) or 1
+    if multiplier <= 0 then
+        multiplier = 1
+    end
+
+    return math.max(math.floor(baseDuration * multiplier), 1)
 end
 
 return TransferRules

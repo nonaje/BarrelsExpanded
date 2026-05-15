@@ -1,5 +1,6 @@
-local Constant  = require("BarrEx_Constant")
-local SafeCall  = require("utils/BarrEx_SafeCall")
+local Constant       = require("BarrEx_Constant")
+local TransferConfig = require("config/BarrEx_TransferConfig")
+local SafeCall       = require("utils/BarrEx_SafeCall")
 
 local Utils = {}
 
@@ -228,7 +229,7 @@ end
 --- @return number
 function Utils.getFluidTransferActionTime(amount)
     local baseDuration = Utils.getVanillaFluidActionTime(amount)
-    local multiplier = tonumber(Constant.TRANSFER_ACTION_TIME_MULTIPLIER) or 1
+    local multiplier = tonumber(TransferConfig.ACTION_TIME_MULTIPLIER) or 1
 
     if multiplier <= 0 then
         multiplier = 1
