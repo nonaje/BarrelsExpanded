@@ -13,5 +13,8 @@
   "Tooltip_BarrEx_BarrelEmpty": "El barril está vacío.",
   "Tooltip_BarrEx_BarrelClosed": "Primero debes abrir el barril.",
   "Tooltip_BarrEx_IncompatibleLiquid": "Tipo de líquido incompatible.",
-  "Tooltip_BarrEx_NoCompatibleContainer": "No se encontró un recipiente compatible."
+  "Tooltip_BarrEx_NoCompatibleContainer": "No se encontró un recipiente compatible.",
+  "Tooltip_BarrEx_FillLevel": "Llenado:",
+  "Tooltip_BarrEx_TransferAmount": "a transferir",
+  "Tooltip_BarrEx_ContainerCapacity": "Recipiente:"
 }

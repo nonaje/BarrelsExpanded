@@ -82,11 +82,15 @@ function BarrEx_OpenBarrelAction:perform()
         return
     end
 
+    local modData = barrel:getModData()
+
     sendClientCommand(Constant.NETWORK.MODULE, Constant.NETWORK.OPEN_BARREL, {
         x = square:getX(),
         y = square:getY(),
         z = square:getZ(),
-        objectIndex = barrel:getObjectIndex()
+        objectIndex = barrel:getObjectIndex(),
+        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(barrel),
+        spriteName = Utils.getSpriteName(barrel),
     })
 
     local ticks = 0

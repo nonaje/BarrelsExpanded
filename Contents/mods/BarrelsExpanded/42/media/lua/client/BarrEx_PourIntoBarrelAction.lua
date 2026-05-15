@@ -18,6 +18,15 @@ local function stopSound(action)
     end
 end
 
+
+local function getTransferSound(liquidType)
+    if liquidType == Constant.LIQUID_TYPE.WATER or liquidType == Constant.LIQUID_TYPE.TAINTED_WATER then
+        return "PourWaterIntoObject"
+    end
+
+    return "TransferLiquid"
+end
+
 local function getEstimatedPourAmount(barrel, sourceItem)
     if not barrel or not sourceItem then return 0 end
 
@@ -45,11 +54,15 @@ local function sendTransferCommand(action, command)
         return false
     end
 
+    local modData = action.barrel:getModData()
+
     sendClientCommand(Constant.NETWORK.MODULE, command, {
         x = square:getX(),
         y = square:getY(),
         z = square:getZ(),
         objectIndex = action.barrel:getObjectIndex(),
+        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(action.barrel),
+        spriteName = Utils.getSpriteName(action.barrel),
         itemId = item:getID(),
         itemFullType = item:getFullType(),
     })
@@ -113,7 +126,7 @@ function BarrEx_PourIntoBarrelAction:start()
 
     self:setActionAnim("fill_container_tap")
     self:setOverrideHandModels(primaryHandItem, secondaryHandItem)
-    self.sound = self.character:playSound("PourWaterIntoObject")
+    self.sound = self.character:playSound(getTransferSound(LiquidAdapter.getLiquidType(self.sourceItem)))
 end
 
 function BarrEx_PourIntoBarrelAction:update()

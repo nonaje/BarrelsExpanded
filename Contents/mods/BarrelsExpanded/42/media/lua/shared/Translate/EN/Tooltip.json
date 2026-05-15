@@ -13,5 +13,8 @@
   "Tooltip_BarrEx_BarrelEmpty": "The barrel is empty.",
   "Tooltip_BarrEx_BarrelClosed": "Open the barrel first.",
   "Tooltip_BarrEx_IncompatibleLiquid": "Incompatible liquid type.",
-  "Tooltip_BarrEx_NoCompatibleContainer": "No compatible container found."
+  "Tooltip_BarrEx_NoCompatibleContainer": "No compatible container found.",
+  "Tooltip_BarrEx_FillLevel": "Fill level:",
+  "Tooltip_BarrEx_TransferAmount": "to transfer",
+  "Tooltip_BarrEx_ContainerCapacity": "Container:"
 }

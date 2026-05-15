@@ -12,6 +12,7 @@ Constant.NETWORK = {
     START_EXTRACT_FROM_BARREL = "startExtractFromBarrel",
     STOP_EXTRACT_FROM_BARREL = "stopExtractFromBarrel",
     COMPLETE_EXTRACT_FROM_BARREL = "completeExtractFromBarrel",
+    TRANSFER_REJECTED = "transferRejected",
     EMPTY_BARREL = "emptyBarrel",
 }
 
@@ -49,6 +50,9 @@ Constant.TOOLTIP = {
     BARREL_CLOSED = "Tooltip_BarrEx_BarrelClosed",
     INCOMPATIBLE_LIQUID = "Tooltip_BarrEx_IncompatibleLiquid",
     NO_COMPATIBLE_CONTAINER = "Tooltip_BarrEx_NoCompatibleContainer",
+    FILL_LEVEL = "Tooltip_BarrEx_FillLevel",
+    TRANSFER_AMOUNT = "Tooltip_BarrEx_TransferAmount",
+    CONTAINER_CAPACITY = "Tooltip_BarrEx_ContainerCapacity",
 }
 
 Constant.UI = {
@@ -177,7 +181,8 @@ Constant.BARREL_DEFAULT_CAPACITY = 160
 Constant.BARREL_DATA_POLL_TICKS = 120
 Constant.MAX_INTERACTION_DISTANCE = 1.55
 Constant.OPEN_BARREL_ACTION_TIME = 200
-Constant.SERVER_TRANSFER_TICK_INTERVAL = 1
+Constant.SERVER_TRANSFER_TICK_INTERVAL = 5
+Constant.SERVER_TRANSFER_SYNC_INTERVAL = 10
 
 Constant.BARREL_EMPTY_WEIGHT = 20
 Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = {

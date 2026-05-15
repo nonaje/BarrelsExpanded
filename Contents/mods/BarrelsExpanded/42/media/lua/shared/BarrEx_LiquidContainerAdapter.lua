@@ -289,14 +289,17 @@ function Adapter.removeLiquid(item, amount)
     if container then
         local targetAmount = math.max(before - toRemove, 0)
 
-        if type(container.adjustAmount) == "function" then
-            container:adjustAmount(targetAmount)
-        elseif type(container.removeFluid) == "function" then
+        -- Prefer semantic API calls first. In B42-like fluid containers,
+        -- adjustAmount can be ambiguous across wrappers/modded objects, so keep it
+        -- as a last-resort delta fallback instead of treating it as an absolute setter.
+        if type(container.removeFluid) == "function" then
             container:removeFluid(toRemove, false)
-        elseif targetAmount <= 0 and type(container.Empty) == "function" then
-            container:Empty()
         elseif type(container.setAmount) == "function" then
             container:setAmount(targetAmount)
+        elseif targetAmount <= 0 and type(container.Empty) == "function" then
+            container:Empty()
+        elseif type(container.adjustAmount) == "function" then
+            container:adjustAmount(-toRemove)
         end
 
         syncItem(item)
@@ -360,12 +363,13 @@ function Adapter.addLiquid(item, liquidType, amount)
         local afterAmount = Adapter.getAmount(item)
 
         -- Fallback to direct amount adjustment when addFluid did not apply.
+        -- Prefer setAmount when present; use adjustAmount only as a delta fallback.
         if afterAmount <= beforeAmount then
             local targetAmount = math.min(beforeAmount + toAdd, capacity)
-            if type(container.adjustAmount) == "function" then
-                container:adjustAmount(targetAmount)
-            elseif type(container.setAmount) == "function" then
+            if type(container.setAmount) == "function" then
                 container:setAmount(targetAmount)
+            elseif type(container.adjustAmount) == "function" then
+                container:adjustAmount(toAdd)
             end
         end
 
