@@ -1,0 +1,461 @@
+-- BarrEx_TransferService: server-authoritative transfer lifecycle orchestration.
+--
+-- Owns the active-transfer state, drives the per-tick loop, and applies
+-- the actual liquid mutations.  The server is the only authority for changing
+-- barrel or item contents; this module is the sole place that calls addLiquid /
+-- removeLiquid and writes back to modData.
+--
+-- Collaborators (injected via require, no globals):
+--   BarrelResolver   – locates IsoObjects from client args
+--   TransferLocks    – barrel lock acquire / release
+--   Notifier         – outbound sendServerCommand wrappers
+--   InteractionRules – tool and range validation
+--   TransferRules    – pure amount calculations (shared with client)
+
+local Utils             = require("BarrEx_Utils")
+local Constant          = require("BarrEx_Constant")
+local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local LiquidAdapter     = require("BarrEx_LiquidContainerAdapter")
+local TransferRules     = require("core/BarrEx_TransferRules")
+local InteractionRules  = require("core/BarrEx_InteractionRules")
+local BarrelResolver    = require("BarrEx_BarrelResolver")
+local TransferLocks     = require("BarrEx_TransferLocks")
+local Notifier          = require("BarrEx_TransferNotifier")
+
+local TransferService = {}
+
+-- playerKey → transfer object for every in-progress transfer.
+local activeTransfers = {}
+
+local function log(message)
+    print(Constant.LOG_PREFIX .. " - " .. message)
+end
+
+-- ---------------------------------------------------------------------------
+-- Internal persistence helpers
+-- ---------------------------------------------------------------------------
+
+local function persistBarrel(barrel, barrelData, shouldTransmit)
+    BarrEx_BarrelData.set(barrel, barrelData)
+    if shouldTransmit and barrel then
+        barrel:transmitModData()
+    end
+end
+
+local function syncBarrel(transfer)
+    if not transfer then return end
+
+    local barrel = transfer.lastBarrel or BarrelResolver.getBarrelFromArgs(transfer.args)
+    if barrel then
+        barrel:transmitModData()
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- Pour: validate + apply
+-- ---------------------------------------------------------------------------
+
+---@return IsoObject|nil, BarrEx_Barrel|nil, InventoryItem|nil, string|nil, string|nil
+local function resolvePour(player, args, checkTool)
+    local barrel = BarrelResolver.getBarrelFromArgs(args)
+    if not barrel then
+        return nil, nil, nil, nil, "barrel_not_found"
+    end
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData or not barrelData:isRevealed() then
+        return nil, nil, nil, nil, "barrel_unavailable"
+    end
+
+    if not InteractionRules.validateInteraction(barrel, player, Constant.POUR_REQUIRED_ITEMS, checkTool) then
+        return nil, nil, nil, nil, "interaction_invalid"
+    end
+
+    if barrelData:isFull() then
+        return nil, nil, nil, nil, "barrel_full"
+    end
+
+    local sourceItem = InteractionRules.getItemFromArgs(player, args)
+    if not sourceItem then
+        return nil, nil, nil, nil, "source_not_found"
+    end
+
+    local sourceLiquidType = LiquidAdapter.getLiquidType(sourceItem)
+    if not sourceLiquidType then
+        return nil, nil, nil, nil, "source_liquid_missing"
+    end
+
+    if not LiquidAdapter.canProvide(sourceItem, sourceLiquidType) then
+        return nil, nil, nil, nil, "source_cannot_provide"
+    end
+
+    if not barrelData:canAcceptLiquid(sourceLiquidType, 1) then
+        return nil, nil, nil, nil, "incompatible_liquid"
+    end
+
+    return barrel, barrelData, sourceItem, sourceLiquidType, nil
+end
+
+---@return number, string|nil, IsoObject|nil
+local function applyPour(barrel, barrelData, sourceItem, sourceLiquidType, requestedAmount)
+    local sourceAmount    = LiquidAdapter.getAmount(sourceItem)
+    local barrelFree      = barrelData:getFreeCapacity()
+    local transferAmount  = math.max(math.min(sourceAmount, barrelFree, requestedAmount or math.huge), 0)
+
+    if transferAmount <= 0 then
+        return 0, "no_transferable_amount", barrel
+    end
+
+    local removed = LiquidAdapter.removeLiquid(sourceItem, transferAmount)
+    if removed <= 0 then
+        return 0, "source_remove_failed", barrel
+    end
+
+    local added = barrelData:addLiquid(sourceLiquidType, removed)
+    if added <= 0 then
+        LiquidAdapter.addLiquid(sourceItem, sourceLiquidType, removed)
+        return 0, "barrel_add_failed", barrel
+    end
+
+    local overflow = removed - added
+    if overflow > 0 then
+        LiquidAdapter.addLiquid(sourceItem, sourceLiquidType, overflow)
+    end
+
+    persistBarrel(barrel, barrelData, false)
+    return added, nil, barrel
+end
+
+-- ---------------------------------------------------------------------------
+-- Extract: validate + apply
+-- ---------------------------------------------------------------------------
+
+---@return IsoObject|nil, BarrEx_Barrel|nil, InventoryItem|nil, string|nil, string|nil
+local function resolveExtract(player, args, checkTool)
+    local barrel = BarrelResolver.getBarrelFromArgs(args)
+    if not barrel then
+        return nil, nil, nil, nil, "barrel_not_found"
+    end
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData or not barrelData:isRevealed() then
+        return nil, nil, nil, nil, "barrel_unavailable"
+    end
+
+    if not InteractionRules.validateInteraction(barrel, player, Constant.EXTRACT_REQUIRED_ITEMS, checkTool) then
+        return nil, nil, nil, nil, "interaction_invalid"
+    end
+
+    if barrelData:isEmpty() then
+        return nil, nil, nil, nil, "barrel_empty"
+    end
+
+    local targetItem = InteractionRules.getItemFromArgs(player, args)
+    if not targetItem then
+        return nil, nil, nil, nil, "target_not_found"
+    end
+
+    local liquidType = barrelData.liquidType
+    if type(liquidType) ~= "string"
+        or Constant.LIQUID_TYPE[liquidType] == nil
+        or liquidType == Constant.LIQUID_TYPE.EMPTY
+    then
+        return nil, nil, nil, nil, "invalid_barrel_liquid"
+    end
+
+    if not LiquidAdapter.canReceive(targetItem, liquidType) then
+        return nil, nil, nil, nil, "target_cannot_receive"
+    end
+
+    return barrel, barrelData, targetItem, liquidType, nil
+end
+
+---@return number, string|nil, IsoObject|nil
+local function applyExtract(barrel, barrelData, targetItem, liquidType, requestedAmount)
+    local available      = barrelData.amount
+    local freeCapacity   = LiquidAdapter.getFreeCapacity(targetItem)
+    local transferAmount = math.max(math.min(available, freeCapacity, requestedAmount or math.huge), 0)
+
+    if transferAmount <= 0 then
+        return 0, "no_transferable_amount", barrel
+    end
+
+    local removed = barrelData:removeLiquid(transferAmount)
+    if removed <= 0 then
+        return 0, "barrel_remove_failed", barrel
+    end
+
+    local added = LiquidAdapter.addLiquid(targetItem, liquidType, removed)
+    if added <= 0 then
+        barrelData:addLiquid(liquidType, removed)
+        return 0, "target_add_failed", barrel
+    end
+
+    local overflow = removed - added
+    if overflow > 0 then
+        barrelData:addLiquid(liquidType, overflow)
+    end
+
+    persistBarrel(barrel, barrelData, false)
+    return added, nil, barrel
+end
+
+-- ---------------------------------------------------------------------------
+-- Tick advance
+-- ---------------------------------------------------------------------------
+
+--- Advances one step of the active transfer, routing to pour or extract.
+--- Tool ownership is checked only at start; per-tick skips it for performance.
+---@return number, string|nil, IsoObject|nil
+local function advance(transfer, requestedAmount)
+    if not transfer or not transfer.player then
+        return 0, "missing_transfer", nil
+    end
+
+    if transfer.mode == "pour" then
+        local barrel, barrelData, sourceItem, liquidType, reason =
+            resolvePour(transfer.player, transfer.args, false)
+
+        if not barrel or not barrelData or not sourceItem or not liquidType then
+            return 0, reason, barrel
+        end
+
+        transfer.lastBarrel = barrel
+        return applyPour(barrel, barrelData, sourceItem, liquidType, requestedAmount)
+    end
+
+    local barrel, barrelData, targetItem, liquidType, reason =
+        resolveExtract(transfer.player, transfer.args, false)
+
+    if not barrel or not barrelData or not targetItem or not liquidType then
+        return 0, reason, barrel
+    end
+
+    transfer.lastBarrel = barrel
+    return applyExtract(barrel, barrelData, targetItem, liquidType, requestedAmount)
+end
+
+-- ---------------------------------------------------------------------------
+-- Internal stop (step failure / lock lost)
+-- ---------------------------------------------------------------------------
+
+local function stopByKey(playerKey, transfer, reason, notify)
+    syncBarrel(transfer)
+    TransferLocks.release(playerKey, transfer.barrelKey)
+    activeTransfers[playerKey] = nil
+
+    if notify and transfer and transfer.player then
+        Notifier.rejected(transfer.player, transfer.mode or "unknown", reason or "step_failed")
+    end
+
+    log(string.format(
+        "Transfer interrupted: player=%s mode=%s moved=%.3f/%.3f reason=%s",
+        tostring(transfer and transfer.player and transfer.player:getUsername() or "unknown"),
+        transfer and transfer.mode or "unknown",
+        transfer and transfer.movedAmount or 0,
+        transfer and transfer.totalAmount or 0,
+        reason or "step_failed"
+    ))
+end
+
+-- ---------------------------------------------------------------------------
+-- Public API
+-- ---------------------------------------------------------------------------
+
+--- Validates, locks, and starts a new transfer for the player.
+---@param player IsoPlayer
+---@param mode string "pour" | "extract"
+---@param args table
+function TransferService.start(player, mode, args)
+    if not player or type(args) ~= "table" then return end
+
+    local barrel, barrelData, item, liquidType, reason
+
+    if mode == "pour" then
+        barrel, barrelData, item, liquidType, reason = resolvePour(player, args, true)
+    else
+        barrel, barrelData, item, liquidType, reason = resolveExtract(player, args, true)
+    end
+
+    if not barrel or not barrelData or not item or not liquidType then
+        log(string.format("Transfer start rejected: mode=%s reason=%s", mode, reason or "unknown"))
+        Notifier.rejected(player, mode, reason or "unknown")
+        return
+    end
+
+    local totalAmount = mode == "pour"
+        and TransferRules.getPourAmount(barrelData, item)
+        or  TransferRules.getExtractAmount(barrelData, item)
+
+    if totalAmount <= 0 then
+        log(string.format("Transfer start rejected: mode=%s reason=no_transferable_amount", mode))
+        Notifier.rejected(player, mode, "no_transferable_amount")
+        return
+    end
+
+    local playerKey = TransferLocks.getPlayerKey(player)
+    if playerKey == nil then return end
+
+    -- Replace any existing transfer for this player.
+    if activeTransfers[playerKey] then
+        TransferService.stop(player, "replaced_by_new_transfer")
+    end
+
+    local barrelKey = TransferLocks.getBarrelKey(barrel, barrelData)
+    if not barrelKey then
+        log(string.format("Transfer start rejected: mode=%s reason=barrel_id_missing", mode))
+        Notifier.rejected(player, mode, "barrel_id_missing")
+        return
+    end
+
+    if not TransferLocks.acquire(playerKey, barrelKey) then
+        log(string.format("Transfer start rejected: mode=%s reason=barrel_locked id=%s", mode, barrelKey))
+        Notifier.rejected(player, mode, "barrel_locked")
+        return
+    end
+
+    local totalTicks   = math.max(Utils.getFluidTransferActionTime(totalAmount), 1)
+    local tickInterval = math.max(Constant.SERVER_TRANSFER_TICK_INTERVAL or 1, 1)
+
+    local transfer = {
+        player          = player,
+        mode            = mode,
+        args            = args,
+        liquidType      = liquidType,
+        barrelKey       = barrelKey,
+        lastBarrel      = barrel,
+        totalAmount     = totalAmount,
+        remainingAmount = totalAmount,
+        movedAmount     = 0,
+        totalTicks      = totalTicks,
+        amountPerTick   = totalAmount / totalTicks,
+        tickInterval    = tickInterval,
+        ticksUntilStep  = 0,
+        ticksSinceSync  = 0,
+    }
+
+    activeTransfers[playerKey] = transfer
+    Notifier.started(player, transfer)
+
+    log(string.format(
+        "Transfer started: player=%s mode=%s id=%s liquid=%s total=%.3f duration=%d interval=%d",
+        tostring(player:getUsername()),
+        mode,
+        barrelData.id or "unknown",
+        liquidType,
+        totalAmount,
+        totalTicks,
+        tickInterval
+    ))
+end
+
+--- Stops the player's active transfer (client-initiated or replaced by a new one).
+---@param player IsoPlayer
+---@param reason string|nil
+function TransferService.stop(player, reason)
+    local playerKey = TransferLocks.getPlayerKey(player)
+    if playerKey == nil then return end
+
+    local transfer = activeTransfers[playerKey]
+    if not transfer then return end
+
+    syncBarrel(transfer)
+    TransferLocks.release(playerKey, transfer.barrelKey)
+    activeTransfers[playerKey] = nil
+
+    log(string.format(
+        "Transfer stopped: player=%s mode=%s moved=%.3f/%.3f reason=%s",
+        tostring(player and player:getUsername() or "unknown"),
+        transfer.mode or "unknown",
+        transfer.movedAmount or 0,
+        transfer.totalAmount or 0,
+        reason or "cleared"
+    ))
+end
+
+--- Marks a transfer as complete on the authoritative close signal from the client.
+--- Liquid has already been moved progressively; this just cleans up state.
+---@param player IsoPlayer
+---@param mode string
+function TransferService.complete(player, mode)
+    local playerKey = TransferLocks.getPlayerKey(player)
+    if playerKey == nil then return end
+
+    local transfer = activeTransfers[playerKey]
+    if not transfer or transfer.mode ~= mode then return end
+
+    syncBarrel(transfer)
+    TransferLocks.release(playerKey, transfer.barrelKey)
+    activeTransfers[playerKey] = nil
+
+    log(string.format(
+        "Transfer completed: player=%s mode=%s moved=%.3f/%.3f",
+        tostring(player:getUsername()),
+        mode,
+        transfer.movedAmount or 0,
+        transfer.totalAmount or 0
+    ))
+end
+
+--- Per-tick handler: advances all active transfers by one step interval.
+--- Registered as Events.OnTick in BarrEx_Server.
+function TransferService.onTick()
+    for playerKey, transfer in pairs(activeTransfers) do
+        -- Abort if lock was taken by another player between steps.
+        if TransferLocks.isLockedBy(transfer.barrelKey) ~= playerKey then
+            stopByKey(playerKey, transfer, "barrel_lock_lost", true)
+        else
+            transfer.ticksUntilStep = (transfer.ticksUntilStep or transfer.tickInterval or 1) - 1
+
+            if transfer.ticksUntilStep <= 0 then
+                transfer.ticksUntilStep = transfer.tickInterval
+
+                local requestedAmount = math.min(
+                    transfer.remainingAmount or 0,
+                    math.max((transfer.amountPerTick or 0) * (transfer.tickInterval or 1), 0)
+                )
+
+                if requestedAmount <= 0 then
+                    -- All liquid moved; clean up without an extra progress notification.
+                    syncBarrel(transfer)
+                    TransferLocks.release(playerKey, transfer.barrelKey)
+                    activeTransfers[playerKey] = nil
+                else
+                    local movedAmount, reason, barrel = advance(transfer, requestedAmount)
+                    if barrel then
+                        transfer.lastBarrel = barrel
+                    end
+
+                    if movedAmount <= 0 then
+                        stopByKey(playerKey, transfer, reason or "step_failed", true)
+                    else
+                        transfer.movedAmount     = transfer.movedAmount + movedAmount
+                        transfer.remainingAmount = math.max((transfer.remainingAmount or 0) - movedAmount, 0)
+                        transfer.ticksSinceSync  = (transfer.ticksSinceSync or 0) + (transfer.tickInterval or 1)
+
+                        if transfer.remainingAmount <= 0 then
+                            syncBarrel(transfer)
+                            Notifier.progress(transfer.player, transfer, true)
+                            TransferLocks.release(playerKey, transfer.barrelKey)
+                            activeTransfers[playerKey] = nil
+
+                            log(string.format(
+                                "Transfer finished: player=%s mode=%s moved=%.3f/%.3f",
+                                tostring(transfer.player and transfer.player:getUsername() or "unknown"),
+                                transfer.mode or "unknown",
+                                transfer.movedAmount or 0,
+                                transfer.totalAmount or 0
+                            ))
+                        elseif transfer.ticksSinceSync >= math.max(Constant.SERVER_TRANSFER_SYNC_INTERVAL or 10, 1) then
+                            syncBarrel(transfer)
+                            Notifier.progress(transfer.player, transfer, false)
+                            transfer.ticksSinceSync = 0
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+return TransferService
