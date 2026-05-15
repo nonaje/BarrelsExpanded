@@ -129,13 +129,13 @@ end
 --- Returns the maximum units extractable from barrelData into targetItem,
 --- or 0 when the transfer is not possible.
 ---@param barrelData BarrEx_Barrel
----@-- Defensive: verify this extract is actually allowed before calculating amount.
-    if not TransferRules.canExtractFromBarrel(barrelData, targetItem) then
-        return 0
-   
+---@param targetItem InventoryItem
 ---@return number
 function TransferRules.getExtractAmount(barrelData, targetItem)
-    if not barrelData or not targetItem then return 0 end
+    if not TransferRules.canExtractFromBarrel(barrelData, targetItem) then
+        return 0
+    end
+
     return math.max(math.min(barrelData.amount or 0, LiquidAdapter.getFreeCapacity(targetItem)), 0)
 end
 
