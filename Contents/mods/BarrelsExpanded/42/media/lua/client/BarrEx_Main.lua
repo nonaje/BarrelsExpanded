@@ -6,23 +6,25 @@ local function log(message)
     print(Constant.LOG_PREFIX .. " - " .. message)
 end
 
-local TRANSFER_REJECTION_MESSAGES = {
-    barrel_not_found = "El barril ya no está disponible.",
-    barrel_unavailable = "Primero tenés que abrir el barril.",
-    interaction_invalid = "No podés hacer eso desde esta posición o sin la herramienta requerida.",
-    barrel_full = "El barril está lleno.",
-    barrel_empty = "El barril está vacío.",
-    source_not_found = "No se encontró el recipiente de origen.",
-    target_not_found = "No se encontró el recipiente de destino.",
-    source_liquid_missing = "El recipiente no tiene líquido transferible.",
-    source_cannot_provide = "Ese recipiente no puede verter ese líquido.",
-    target_cannot_receive = "Ese recipiente no puede recibir ese líquido.",
-    incompatible_liquid = "No se pueden mezclar líquidos distintos.",
-    invalid_barrel_liquid = "El líquido del barril no es válido.",
-    no_transferable_amount = "No hay cantidad transferible.",
-    barrel_locked = "Otro jugador ya está usando este barril.",
-    barrel_id_missing = "No se pudo validar el barril.",
-    barrel_lock_lost = "La transferencia se interrumpió porque el barril cambió de estado.",
+--- Map from rejection reason to translation key for transfer error messages.
+--- All keys are defined in Translate/*/TransferMessages.json
+local TRANSFER_REJECTION_KEY_MAP = {
+    barrel_not_found = "UI_BarrEx_TransferRejection_BarrelNotFound",
+    barrel_unavailable = "UI_BarrEx_TransferRejection_BarrelUnavailable",
+    interaction_invalid = "UI_BarrEx_TransferRejection_InteractionInvalid",
+    barrel_full = "UI_BarrEx_TransferRejection_BarrelFull",
+    barrel_empty = "UI_BarrEx_TransferRejection_BarrelEmpty",
+    source_not_found = "UI_BarrEx_TransferRejection_SourceNotFound",
+    target_not_found = "UI_BarrEx_TransferRejection_TargetNotFound",
+    source_liquid_missing = "UI_BarrEx_TransferRejection_SourceLiquidMissing",
+    source_cannot_provide = "UI_BarrEx_TransferRejection_SourceCannotProvide",
+    target_cannot_receive = "UI_BarrEx_TransferRejection_TargetCannotReceive",
+    incompatible_liquid = "UI_BarrEx_TransferRejection_IncompatibleLiquid",
+    invalid_barrel_liquid = "UI_BarrEx_TransferRejection_InvalidBarrelLiquid",
+    no_transferable_amount = "UI_BarrEx_TransferRejection_NoTransferableAmount",
+    barrel_locked = "UI_BarrEx_TransferRejection_BarrelLocked",
+    barrel_id_missing = "UI_BarrEx_TransferRejection_BarrelIdMissing",
+    barrel_lock_lost = "UI_BarrEx_TransferRejection_BarrelLockLost",
 }
 
 local function getLocalPlayerSafe()
@@ -74,7 +76,10 @@ local function onServerCommand(module, command, args)
     if command == Constant.NETWORK.TRANSFER_REJECTED then
         local reason = type(args) == "table" and args.reason or "unknown"
         BarrEx_TransferSync.onTransferRejected(type(args) == "table" and args.mode or nil)
-        showPlayerMessage(TRANSFER_REJECTION_MESSAGES[reason] or "No se pudo iniciar la transferencia.")
+        -- Look up translated message from TransferMessages.json files.
+        local translationKey = TRANSFER_REJECTION_KEY_MAP[reason] or "UI_BarrEx_TransferRejection_Unknown"
+        local message = type(getText) == "function" and getText(translationKey) or nil
+        showPlayerMessage(message or getText("UI_BarrEx_TransferRejection_Unknown"))
     end
 end
 

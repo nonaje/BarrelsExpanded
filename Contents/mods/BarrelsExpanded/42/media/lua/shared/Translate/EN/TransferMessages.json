@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/UI.schema.json",
+  "UI_BarrEx_TransferRejection_BarrelNotFound": "The barrel is no longer available.",
+  "UI_BarrEx_TransferRejection_BarrelUnavailable": "The barrel must be open first.",
+  "UI_BarrEx_TransferRejection_InteractionInvalid": "You cannot do that from this position or without the required tool.",
+  "UI_BarrEx_TransferRejection_BarrelFull": "The barrel is full.",
+  "UI_BarrEx_TransferRejection_BarrelEmpty": "The barrel is empty.",
+  "UI_BarrEx_TransferRejection_SourceNotFound": "The source container was not found.",
+  "UI_BarrEx_TransferRejection_TargetNotFound": "The target container was not found.",
+  "UI_BarrEx_TransferRejection_SourceLiquidMissing": "The container has no transferable liquid.",
+  "UI_BarrEx_TransferRejection_SourceCannotProvide": "That container cannot pour that liquid.",
+  "UI_BarrEx_TransferRejection_TargetCannotReceive": "That container cannot receive that liquid.",
+  "UI_BarrEx_TransferRejection_IncompatibleLiquid": "Liquids of different types cannot be mixed.",
+  "UI_BarrEx_TransferRejection_InvalidBarrelLiquid": "The barrel's liquid is invalid.",
+  "UI_BarrEx_TransferRejection_NoTransferableAmount": "There is no transferable amount.",
+  "UI_BarrEx_TransferRejection_BarrelLocked": "Another player is already using this barrel.",
+  "UI_BarrEx_TransferRejection_BarrelIdMissing": "The barrel could not be validated.",
+  "UI_BarrEx_TransferRejection_BarrelLockLost": "The transfer was interrupted because the barrel changed state.",
+  "UI_BarrEx_TransferRejection_Unknown": "Transfer could not be started."
+}

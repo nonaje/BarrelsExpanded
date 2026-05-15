@@ -1,0 +1,292 @@
+local InventoryUtils = require("utils/BarrEx_InventoryUtils")
+local Constant = require("BarrEx_Constant")
+local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local TransferRules = require("core/BarrEx_TransferRules")
+local PlayerUtils = require("utils/BarrEx_PlayerUtils")
+local WorldUtils = require("utils/BarrEx_WorldUtils")
+local TransferSync = require("BarrEx_TransferSync")
+
+---@class BarrEx_LiquidTransferAction : ISBaseTimedAction
+---@field barrel IsoObject
+---@field liquidItem InventoryItem The source (pour) or target (extract) item
+---@field toolItem InventoryItem|nil
+---@field sound integer|nil
+---@field totalAmount number
+---@field initialLiquidAmount number
+---@field transferStarted boolean
+---@field mode string "pour" or "extract"
+local BarrEx_LiquidTransferAction = ISBaseTimedAction:derive("BarrEx_LiquidTransferAction")
+
+local PROGRESS_EPSILON = 0.0001
+
+-- ---------------------------------------------------------------------------
+-- Private helpers (shared by subclasses)
+-- ---------------------------------------------------------------------------
+
+local function stopSound(action)
+    if action.sound and action.character and action.character:getEmitter():isPlaying(action.sound) then
+        action.character:stopOrTriggerSound(action.sound)
+    end
+end
+
+local function getTransferSound(liquidType)
+    if liquidType == Constant.LIQUID_TYPE.WATER or liquidType == Constant.LIQUID_TYPE.TAINTED_WATER then
+        return "PourWaterIntoObject"
+    end
+    return "TransferLiquid"
+end
+
+local function sendTransferCommand(action, command)
+    if not action or not command then return false end
+
+    local inventory = action.character:getInventory()
+    local item = InventoryUtils.findInventoryItem(
+        inventory,
+        action.liquidItem and action.liquidItem:getID() or nil,
+        action.liquidItem and action.liquidItem:getFullType() or nil
+    )
+    if not item then
+        return false
+    end
+
+    local square = action.barrel and action.barrel:getSquare()
+    if not square then
+        return false
+    end
+
+    local modData = action.barrel:getModData()
+
+    sendClientCommand(Constant.NETWORK.MODULE, command, {
+        x = square:getX(),
+        y = square:getY(),
+        z = square:getZ(),
+        objectIndex = action.barrel:getObjectIndex(),
+        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(action.barrel),
+        spriteName = WorldUtils.getSpriteName(action.barrel),
+        itemId = item:getID(),
+        itemFullType = item:getFullType(),
+    })
+
+    return true
+end
+
+-- ---------------------------------------------------------------------------
+-- Protected API (for subclasses to override)
+-- ---------------------------------------------------------------------------
+
+--- Returns the estimated transfer amount. Subclasses must override.
+---@param barrel IsoObject
+---@param liquidItem InventoryItem
+---@return number
+function BarrEx_LiquidTransferAction:getEstimatedTransferAmount(barrel, liquidItem)
+    return 0
+end
+
+--- Returns the initial amount of the liquid item (before transfer).
+---@param liquidItem InventoryItem
+---@return number
+function BarrEx_LiquidTransferAction:getInitialLiquidAmount(liquidItem)
+    return math.max(tonumber(LiquidAdapter.getAmount(liquidItem)) or 0, 0)
+end
+
+--- Returns the start command for the network message.
+--- Subclasses must override.
+---@return string
+function BarrEx_LiquidTransferAction:getStartCommand()
+    return ""
+end
+
+--- Returns the stop command for the network message.
+--- Subclasses must override.
+---@return string
+function BarrEx_LiquidTransferAction:getStopCommand()
+    return ""
+end
+
+--- Returns the complete command for the network message.
+--- Subclasses must override.
+---@return string
+function BarrEx_LiquidTransferAction:getCompleteCommand()
+    return ""
+end
+
+--- Returns the transfer mode ("pour" or "extract").
+--- Subclasses must override.
+---@return string
+function BarrEx_LiquidTransferAction:getMode()
+    return "unknown"
+end
+
+--- Syncs progress based on the change in liquid amount.
+--- Subclasses can override to customize behavior.
+function BarrEx_LiquidTransferAction:syncProgress()
+    if not self.liquidItem then return end
+    if (tonumber(self.totalAmount) or 0) <= 0 then return end
+
+    local currentAmount = math.max(tonumber(LiquidAdapter.getAmount(self.liquidItem)) or 0, 0)
+    
+    -- For pour: movedAmount = initialAmount - currentAmount (liquid left container)
+    -- For extract: movedAmount = currentAmount - initialAmount (liquid entered container)
+    local movedAmount
+    if self.mode == "pour" then
+        movedAmount = math.max((tonumber(self.initialLiquidAmount) or 0) - currentAmount, 0)
+    else
+        movedAmount = math.max(currentAmount - (tonumber(self.initialLiquidAmount) or 0), 0)
+    end
+
+    local progress = math.max(math.min(movedAmount / self.totalAmount, 1), 0)
+
+    if not self.serverProgress or progress > self.serverProgress then
+        self.serverProgress = progress
+    end
+
+    if progress >= (1 - PROGRESS_EPSILON) then
+        self.serverCompleted = true
+        self.transferStarted = false
+    end
+end
+
+--- Returns the animation name for this action.
+---@return string
+function BarrEx_LiquidTransferAction:getAnimName()
+    return "fill_container_tap"
+end
+
+--- Returns the pour type (if any) for setting on the liquid item.
+---@return string|nil
+function BarrEx_LiquidTransferAction:getPourType()
+    return nil
+end
+
+--- Sets up job-tracking fields on the liquid item (pour-specific).
+--- Base implementation does nothing; subclasses can override.
+function BarrEx_LiquidTransferAction:setupJobTracking()
+end
+
+--- Clears job-tracking fields on the liquid item (pour-specific).
+--- Base implementation does nothing; subclasses can override.
+function BarrEx_LiquidTransferAction:clearJobTracking()
+end
+
+-- ---------------------------------------------------------------------------
+-- Public API (inherited by subclasses)
+-- ---------------------------------------------------------------------------
+
+---@param player IsoPlayer
+---@param barrel IsoObject
+---@param liquidItem InventoryItem
+---@return BarrEx_LiquidTransferAction
+function BarrEx_LiquidTransferAction:new(player, barrel, liquidItem)
+    local o = ISBaseTimedAction.new(self, player)
+    ---@cast o BarrEx_LiquidTransferAction
+
+    o.barrel = barrel
+    o.liquidItem = liquidItem
+    o.mode = o:getMode()
+    o.totalAmount = o:getEstimatedTransferAmount(barrel, liquidItem)
+    o.initialLiquidAmount = o:getInitialLiquidAmount(liquidItem)
+    o.transferStarted = false
+    o.stopOnWalk = true
+    o.stopOnRun = true
+    o.maxTime = math.max(TransferRules.getTransferActionTime(o.totalAmount), 1)
+
+    setmetatable(o, self)
+    self.__index = self
+
+    return o
+end
+
+function BarrEx_LiquidTransferAction:isValid()
+    if not self.barrel or not self.liquidItem then return false end
+    if not BarrEx_BarrelData.isRevealedRaw(self.barrel) then return false end
+    if not PlayerUtils.isPlayerInRange(self.character, self.barrel) then return false end
+
+    local inventory = self.character:getInventory()
+    if not inventory then return false end
+
+    if type(inventory.containsID) == "function" then
+        return inventory:containsID(self.liquidItem:getID())
+    end
+
+    return inventory:contains(self.liquidItem)
+end
+
+function BarrEx_LiquidTransferAction:start()
+    ISBaseTimedAction.start(self)
+
+    self.toolItem = PlayerUtils.findFirstRequiredItem(
+        self.character,
+        self.mode == "pour" and Constant.POUR_REQUIRED_ITEMS or Constant.EXTRACT_REQUIRED_ITEMS
+    )
+    self.transferStarted = sendTransferCommand(self, self:getStartCommand())
+    if self.transferStarted then
+        TransferSync.registerAction(self.mode, self, self.barrel, self.liquidItem)
+    end
+
+    self:setupJobTracking()
+
+    local barrelData = BarrEx_BarrelData.get(self.barrel)
+    local liquidType = self.mode == "pour"
+        and LiquidAdapter.getLiquidType(self.liquidItem)
+        or  (barrelData and barrelData.liquidType or nil)
+
+    local primaryHandItem, secondaryHandItem = self:getFluidActionHandItems(self.liquidItem, self.toolItem)
+    self:setActionAnim(self:getAnimName())
+    self:setOverrideHandModels(primaryHandItem, secondaryHandItem)
+    self.sound = self.character:playSound(getTransferSound(liquidType))
+end
+
+function BarrEx_LiquidTransferAction:update()
+    self:syncProgress()
+    TransferSync.beforeActionUpdate(self)
+    ISBaseTimedAction.update(self)
+    self.character:faceThisObject(self.barrel)
+    self.character:setMetabolicTarget(Metabolics.LightDomestic)
+end
+
+function BarrEx_LiquidTransferAction:stop()
+    stopSound(self)
+    TransferSync.unregisterAction(self.mode, self)
+    self:clearJobTracking()
+    if self.transferStarted then
+        sendTransferCommand(self, self:getStopCommand())
+        self.transferStarted = false
+    end
+    ISBaseTimedAction.stop(self)
+end
+
+function BarrEx_LiquidTransferAction:perform()
+    stopSound(self)
+    TransferSync.unregisterAction(self.mode, self)
+    self:clearJobTracking()
+    local container = self.liquidItem and self.liquidItem:getContainer() or nil
+    if container then
+        container:setDrawDirty(true)
+    end
+    if self.transferStarted then
+        sendTransferCommand(self, self:getCompleteCommand())
+        self.transferStarted = false
+    end
+    ISBaseTimedAction.perform(self)
+end
+
+--- Helper for subclasses to resolve hand model items.
+---@param liquidItem InventoryItem|nil
+---@param toolItem InventoryItem|nil
+---@return InventoryItem|nil primaryHand
+---@return InventoryItem|nil secondaryHand
+function BarrEx_LiquidTransferAction:getFluidActionHandItems(liquidItem, toolItem)
+    if not liquidItem then
+        return toolItem, nil
+    end
+
+    local hasEatType = type(liquidItem.getEatType) == "function" and liquidItem:getEatType() ~= nil
+    if hasEatType then
+        return toolItem, liquidItem
+    end
+
+    return liquidItem, toolItem
+end
+
+return BarrEx_LiquidTransferAction

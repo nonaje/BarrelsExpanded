@@ -1,81 +1,37 @@
-local InventoryUtils = require("utils/BarrEx_InventoryUtils")
+local LiquidTransferAction = require("BarrEx_LiquidTransferAction")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
-local FluidActionUtils = require("utils/BarrEx_FluidActionUtils")
-local PlayerUtils = require("utils/BarrEx_PlayerUtils")
-local WorldUtils = require("utils/BarrEx_WorldUtils")
-local TransferSync = require("BarrEx_TransferSync")
 local TransferRules = require("core/BarrEx_TransferRules")
 
----@class BarrEx_ExtractFromBarrelAction : ISBaseTimedAction
----@field barrel IsoObject
----@field targetItem InventoryItem
----@field toolItem InventoryItem|nil
----@field sound integer|nil
----@field totalAmount number
----@field sentAmount number
----@field initialTargetAmount number
-local BarrEx_ExtractFromBarrelAction = ISBaseTimedAction:derive("BarrEx_ExtractFromBarrelAction")
+---@class BarrEx_ExtractFromBarrelAction : BarrEx_LiquidTransferAction
+local BarrEx_ExtractFromBarrelAction = LiquidTransferAction:derive("BarrEx_ExtractFromBarrelAction")
 
-local PROGRESS_EPSILON = 0.0001
-
-local function stopSound(action)
-    if action.sound and action.character and action.character:getEmitter():isPlaying(action.sound) then
-        action.character:stopOrTriggerSound(action.sound)
-    end
-end
-
-
-local function getTransferSound(liquidType)
-    if liquidType == Constant.LIQUID_TYPE.WATER or liquidType == Constant.LIQUID_TYPE.TAINTED_WATER then
-        return "PourWaterIntoObject"
-    end
-
-    return "TransferLiquid"
-end
-
-local function getEstimatedExtractAmount(barrel, targetItem)
+function BarrEx_ExtractFromBarrelAction:getEstimatedTransferAmount(barrel, targetItem)
     if not barrel or not targetItem then return 0 end
-
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData then return 0 end
-
     return TransferRules.getExtractAmount(barrelData, targetItem)
 end
 
-local function sendTransferCommand(action, command)
-    if not action or not command then return false end
+function BarrEx_ExtractFromBarrelAction:getStartCommand()
+    return Constant.NETWORK.START_EXTRACT_FROM_BARREL
+end
 
-    local inventory = action.character:getInventory()
-    local item = InventoryUtils.findInventoryItem(
-        inventory,
-        action.targetItem and action.targetItem:getID() or nil,
-        action.targetItem and action.targetItem:getFullType() or nil
-    )
-    if not item then
-        return false
-    end
+function BarrEx_ExtractFromBarrelAction:getStopCommand()
+    return Constant.NETWORK.STOP_EXTRACT_FROM_BARREL
+end
 
-    local square = action.barrel and action.barrel:getSquare()
-    if not square then
-        return false
-    end
+function BarrEx_ExtractFromBarrelAction:getCompleteCommand()
+    return Constant.NETWORK.COMPLETE_EXTRACT_FROM_BARREL
+end
 
-    local modData = action.barrel:getModData()
+function BarrEx_ExtractFromBarrelAction:getMode()
+    return "extract"
+end
 
-    sendClientCommand(Constant.NETWORK.MODULE, command, {
-        x = square:getX(),
-        y = square:getY(),
-        z = square:getZ(),
-        objectIndex = action.barrel:getObjectIndex(),
-        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(action.barrel),
-        spriteName = WorldUtils.getSpriteName(action.barrel),
-        itemId = item:getID(),
-        itemFullType = item:getFullType(),
-    })
-
-    return true
+function BarrEx_ExtractFromBarrelAction:getAnimName()
+    return "MixFluids"
 end
 
 ---@param player IsoPlayer
@@ -83,99 +39,9 @@ end
 ---@param targetItem InventoryItem
 ---@return BarrEx_ExtractFromBarrelAction
 function BarrEx_ExtractFromBarrelAction:new(player, barrel, targetItem)
-    local o = ISBaseTimedAction.new(self, player)
+    local o = LiquidTransferAction.new(self, player, barrel, targetItem)
     ---@cast o BarrEx_ExtractFromBarrelAction
-
-    o.barrel = barrel
-    o.targetItem = targetItem
-    o.totalAmount = getEstimatedExtractAmount(barrel, targetItem)
-    o.initialTargetAmount = math.max(tonumber(LiquidAdapter.getAmount(targetItem)) or 0, 0)
-    o.transferStarted = false
-    o.stopOnWalk = true
-    o.stopOnRun = true
-    o.maxTime = FluidActionUtils.getFluidTransferActionTime(o.totalAmount)
-
-    setmetatable(o, self)
-    self.__index = self
-
     return o
-end
-
-local function syncProgressFromTargetAmount(action)
-    if not action or not action.targetItem then return end
-    if (tonumber(action.totalAmount) or 0) <= 0 then return end
-
-    local currentAmount = math.max(tonumber(LiquidAdapter.getAmount(action.targetItem)) or 0, 0)
-    local movedAmount = math.max(currentAmount - (tonumber(action.initialTargetAmount) or 0), 0)
-    local progress = math.max(math.min(movedAmount / action.totalAmount, 1), 0)
-
-    if not action.serverProgress or progress > action.serverProgress then
-        action.serverProgress = progress
-    end
-
-    if progress >= (1 - PROGRESS_EPSILON) then
-        action.serverCompleted = true
-        action.transferStarted = false
-    end
-end
-
-function BarrEx_ExtractFromBarrelAction:isValid()
-    if not self.barrel or not self.targetItem then return false end
-    if not BarrEx_BarrelData.isRevealedRaw(self.barrel) then return false end
-    if not PlayerUtils.isPlayerInRange(self.character, self.barrel) then return false end
-
-    local inventory = self.character:getInventory()
-    if not inventory then return false end
-
-    if type(inventory.containsID) == "function" then
-        return inventory:containsID(self.targetItem:getID())
-    end
-
-    return inventory:contains(self.targetItem)
-end
-
-function BarrEx_ExtractFromBarrelAction:start()
-    ISBaseTimedAction.start(self)
-
-    self.toolItem = PlayerUtils.findFirstRequiredItem(self.character, Constant.EXTRACT_REQUIRED_ITEMS)
-    self.transferStarted = sendTransferCommand(self, Constant.NETWORK.START_EXTRACT_FROM_BARREL)
-    if self.transferStarted then
-        TransferSync.registerAction("extract", self, self.barrel, self.targetItem)
-    end
-    local primaryHandItem, secondaryHandItem = FluidActionUtils.getFluidActionHandItems(self.targetItem, self.toolItem)
-
-    self:setActionAnim("MixFluids")
-    self:setOverrideHandModels(primaryHandItem, secondaryHandItem)
-    local barrelData = BarrEx_BarrelData.get(self.barrel)
-    self.sound = self.character:playSound(getTransferSound(barrelData and barrelData.liquidType or nil))
-end
-
-function BarrEx_ExtractFromBarrelAction:update()
-    syncProgressFromTargetAmount(self)
-    TransferSync.beforeActionUpdate(self)
-    ISBaseTimedAction.update(self)
-    self.character:faceThisObject(self.barrel)
-    self.character:setMetabolicTarget(Metabolics.LightDomestic)
-end
-
-function BarrEx_ExtractFromBarrelAction:stop()
-    stopSound(self)
-    TransferSync.unregisterAction("extract", self)
-    if self.transferStarted then
-        sendTransferCommand(self, Constant.NETWORK.STOP_EXTRACT_FROM_BARREL)
-        self.transferStarted = false
-    end
-    ISBaseTimedAction.stop(self)
-end
-
-function BarrEx_ExtractFromBarrelAction:perform()
-    stopSound(self)
-    TransferSync.unregisterAction("extract", self)
-    if self.transferStarted then
-        sendTransferCommand(self, Constant.NETWORK.COMPLETE_EXTRACT_FROM_BARREL)
-        self.transferStarted = false
-    end
-    ISBaseTimedAction.perform(self)
 end
 
 return BarrEx_ExtractFromBarrelAction

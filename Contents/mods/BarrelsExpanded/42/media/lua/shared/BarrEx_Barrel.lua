@@ -8,6 +8,11 @@ local Constant = require("BarrEx_Constant")
 ---@field revealed boolean
 local BarrEx_Barrel = {}
 
+-- Current schema version for barrel data persistence.
+-- Increment when changing the structure of toData() serialization.
+-- Used for migrate() to handle old saved barrel states.
+BarrEx_Barrel.BARREL_DATA_VERSION = 1
+
 BarrEx_Barrel.__index = BarrEx_Barrel
 
 ---@param data table|nil
@@ -180,6 +185,7 @@ end
 ---@return table
 function BarrEx_Barrel:toData()
     return {
+        version = BarrEx_Barrel.BARREL_DATA_VERSION,
         id = self.id,
         liquidType = self.liquidType or Constant.LIQUID_TYPE.EMPTY,
         amount = self.amount,
@@ -188,9 +194,35 @@ function BarrEx_Barrel:toData()
     }
 end
 
+---@param oldData table
+---@param fromVersion number|nil
+---@return table
+local function migrate(oldData, fromVersion)
+    fromVersion = fromVersion or 0
+    local currentVersion = BarrEx_Barrel.BARREL_DATA_VERSION
+
+    if fromVersion >= currentVersion then
+        return oldData
+    end
+
+    -- Future migrations can be chained here:
+    -- if fromVersion < 2 then
+    --     oldData.newField = oldData.newField or defaultValue
+    --     fromVersion = 2
+    -- end
+
+    return oldData
+end
+
 ---@param data table
 ---@return BarrEx_Barrel
 function BarrEx_Barrel:fromData(data)
+    if data then
+        local fromVersion = data.version or 0
+        if fromVersion < BarrEx_Barrel.BARREL_DATA_VERSION then
+            data = migrate(data, fromVersion)
+        end
+    end
     return BarrEx_Barrel:new(data)
 end
 

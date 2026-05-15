@@ -95,7 +95,10 @@ end
 ---@param sourceItem InventoryItem
 ---@return number
 function TransferRules.getPourAmount(barrelData, sourceItem)
-    if not barrelData or not sourceItem then return 0 end
+    -- Defensive: verify this pour is actually allowed before calculating amount.
+    if not TransferRules.canPourIntoBarrel(barrelData, sourceItem) then
+        return 0
+    end
     return math.max(math.min(LiquidAdapter.getAmount(sourceItem), barrelData:getFreeCapacity()), 0)
 end
 
@@ -126,7 +129,10 @@ end
 --- Returns the maximum units extractable from barrelData into targetItem,
 --- or 0 when the transfer is not possible.
 ---@param barrelData BarrEx_Barrel
----@param targetItem InventoryItem
+---@-- Defensive: verify this extract is actually allowed before calculating amount.
+    if not TransferRules.canExtractFromBarrel(barrelData, targetItem) then
+        return 0
+   
 ---@return number
 function TransferRules.getExtractAmount(barrelData, targetItem)
     if not barrelData or not targetItem then return 0 end
@@ -158,6 +164,67 @@ function TransferRules.getTransferActionTime(amount)
     end
 
     return math.max(math.floor(baseDuration * multiplier), 1)
+end
+
+-- ---------------------------------------------------------------------------
+-- Inventory item validation (shared with UI menu collection)
+-- ---------------------------------------------------------------------------
+
+--- Returns true when sourceItem is a valid liquid container for pouring into
+--- barrelData. Used by both client UI (menu inventory collection) and server
+--- validation logic to avoid duplication.
+---@param sourceItem InventoryItem
+---@param barrelData BarrEx_Barrel
+---@return boolean
+function TransferRules.isValidSourceItemForPour(sourceItem, barrelData)
+    if not sourceItem or not barrelData then return false end
+    if barrelData:isFull() then return false end
+
+    -- Determine the liquid type the source must provide.
+    -- If barrel is empty, source can provide any compatible type.
+    -- If barrel has liquid, source must match that type.
+    local expectedType = nil
+    if not barrelData:isEmpty() then
+        expectedType = barrelData.liquidType
+    end
+
+    if not LiquidAdapter.isLiquidContainer(sourceItem) then
+        return false
+    end
+
+    if not LiquidAdapter.canProvide(sourceItem, expectedType) then
+        return false
+    end
+
+    local sourceType = LiquidAdapter.getLiquidType(sourceItem)
+    if not sourceType then
+        return false
+    end
+
+    -- Verify there's actually something transferable.
+    local transferAmount = TransferRules.getPourAmount(barrelData, sourceItem)
+    if transferAmount <= 0 then
+        return false
+    end
+
+    return barrelData:canAcceptLiquid(sourceType, transferAmount)
+end
+
+--- Returns true when targetItem is a valid liquid container for extracting
+--- from barrelData. Used by both client UI (menu inventory collection) and
+--- server validation logic to avoid duplication.
+---@param targetItem InventoryItem
+---@param barrelData BarrEx_Barrel
+---@return boolean
+function TransferRules.isValidTargetItemForExtract(targetItem, barrelData)
+    if not targetItem or not barrelData then return false end
+    if barrelData:isEmpty() then return false end
+
+    if not LiquidAdapter.canReceive(targetItem, barrelData.liquidType) then
+        return false
+    end
+
+    return LiquidAdapter.getFreeCapacity(targetItem) > 0
 end
 
 return TransferRules

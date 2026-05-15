@@ -1,4 +1,4 @@
-﻿-- BarrEx_Server: entry point — event registration and command routing only.
+-- BarrEx_Server: entry point — event registration and command routing only.
 --
 -- All logic has been extracted into focused server modules:
 --   BarrEx_BarrelWorldService  – barrel initialization, reconciliation and open
