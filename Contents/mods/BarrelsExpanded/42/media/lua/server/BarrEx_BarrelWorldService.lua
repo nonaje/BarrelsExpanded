@@ -11,11 +11,12 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_BarrelFactory = require("BarrEx_BarrelFactory")
 local BarrelResolver    = require("BarrEx_BarrelResolver")
 local InteractionRules  = require("core/BarrEx_InteractionRules")
+local Logger            = require("utils/BarrEx_Logger")
 
 local BarrelWorldService = {}
 
 local function log(message)
-    print(Constant.LOG_PREFIX .. " - " .. message)
+    Logger.info(message)
 end
 
 -- ---------------------------------------------------------------------------
@@ -33,25 +34,26 @@ local function reconcile(worldObject)
     local barrelData = BarrEx_BarrelData.get(worldObject)
 
     if barrelData then
-        -- Already initialized: re-anchor the position-based ID in case coordinates changed.
-        barrelData.id = BarrEx_BarrelData.buildId(worldObject)
-        BarrEx_BarrelData.set(worldObject, barrelData)
-        worldObject:transmitModData()
-        log(string.format(
-            "Barrel world state reconciled: id=%s amount=%d/%d weight=%.2f",
-            barrelData.id or "unknown",
-            barrelData.amount or 0,
-            barrelData.capacity or 0,
-            barrelData:getTotalWeight()
-        ))
+        BarrEx_BarrelData.ensureStableId(worldObject, barrelData)
+        if BarrEx_BarrelData.set(worldObject, barrelData) then
+            worldObject:transmitModData()
+            log(string.format(
+                "Barrel world state reconciled: id=%s amount=%d/%d weight=%.2f",
+                barrelData.id or "unknown",
+                barrelData.amount or 0,
+                barrelData.capacity or 0,
+                barrelData:getTotalWeight()
+            ))
+        end
         return
     end
 
     -- New barrel: generate random contents using the placement spawn profile.
     local spawnProfile = BarrEx_BarrelData.getSpawnProfile(worldObject) or Constant.BARREL_SPAWN_PROFILE.WORLD
     barrelData = BarrEx_BarrelFactory.createRandom(worldObject, { spawnProfile = spawnProfile })
-    BarrEx_BarrelData.set(worldObject, barrelData)
-    worldObject:transmitModData()
+    if BarrEx_BarrelData.set(worldObject, barrelData) then
+        worldObject:transmitModData()
+    end
     log(string.format(
         "Barrel auto-initialized: id=%s liquid=%s amount=%d/%d weight=%.2f",
         barrelData.id or "unknown",
@@ -87,8 +89,6 @@ function BarrelWorldService.onLoadGridsquare(square)
         if WorldUtils.isExpandableBarrel(worldObject) then
             if not BarrEx_BarrelData.reapplyWeight(worldObject) then
                 reconcile(worldObject)
-            else
-                worldObject:transmitModData()
             end
         end
     end

@@ -6,6 +6,8 @@ local Constant = {}
 
 Constant.MOD_ID = "BarrelsExpanded"
 Constant.LOG_PREFIX = "[BarrelsExpanded]"
+Constant.DEBUG = false
+Constant.LOG_LEVEL = "WARN"
 
 Constant.NETWORK = {
     MODULE = "BarrEx",

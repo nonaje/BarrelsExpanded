@@ -7,16 +7,47 @@ local Constant = require("BarrEx_Constant")
 
 local Notifier = {}
 
+local function getTransferId(source)
+    if type(source) ~= "table" then return nil end
+    if source.transferId then return source.transferId end
+    if type(source.args) == "table" then
+        return source.args.transferId
+    end
+    return nil
+end
+
+local function getBarrelId(source)
+    if type(source) ~= "table" then return nil end
+    if source.barrelId then return source.barrelId end
+    if type(source.args) == "table" and source.args.barrelId then
+        return source.args.barrelId
+    end
+    return source.barrelKey
+end
+
+local function getItemId(source)
+    if type(source) ~= "table" then return nil end
+    if source.itemId then return source.itemId end
+    if type(source.args) == "table" then
+        return source.args.itemId
+    end
+    return source.itemId
+end
+
 --- Notifies the client that its transfer request was rejected.
 ---@param player IsoPlayer
 ---@param mode string
 ---@param reason string|nil
-function Notifier.rejected(player, mode, reason)
+---@param source table|nil
+function Notifier.rejected(player, mode, reason, source)
     if not player or type(sendServerCommand) ~= "function" then return end
 
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_REJECTED, {
-        mode   = mode,
-        reason = reason or "unknown",
+        transferId = getTransferId(source),
+        mode       = mode,
+        barrelId   = getBarrelId(source),
+        itemId     = getItemId(source),
+        reason     = reason or "unknown",
     })
 end
 
@@ -28,9 +59,10 @@ function Notifier.started(player, transfer)
     if not player or not transfer or type(sendServerCommand) ~= "function" then return end
 
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_STARTED, {
+        transferId   = getTransferId(transfer),
         mode        = transfer.mode,
-        barrelId    = transfer.args and transfer.args.barrelId or transfer.barrelKey,
-        itemId      = transfer.args and transfer.args.itemId or nil,
+        barrelId    = getBarrelId(transfer),
+        itemId      = getItemId(transfer),
         totalAmount = tonumber(transfer.totalAmount) or 0,
         actionTime  = tonumber(transfer.totalTicks) or 0,
     })
@@ -52,9 +84,10 @@ function Notifier.progress(player, transfer, completed)
     end
 
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_PROGRESS, {
+        transferId   = getTransferId(transfer),
         mode        = transfer.mode,
-        barrelId    = transfer.args and transfer.args.barrelId or transfer.barrelKey,
-        itemId      = transfer.args and transfer.args.itemId or nil,
+        barrelId    = getBarrelId(transfer),
+        itemId      = getItemId(transfer),
         movedAmount = movedAmount,
         totalAmount = totalAmount,
         progress    = progress,

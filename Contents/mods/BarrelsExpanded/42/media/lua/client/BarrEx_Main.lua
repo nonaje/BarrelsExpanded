@@ -1,9 +1,10 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_MoveableSync = require("BarrEx_MoveableSync")
 local BarrEx_TransferSync = require("BarrEx_TransferSync")
+local Logger = require("utils/BarrEx_Logger")
 
 local function log(message)
-    print(Constant.LOG_PREFIX .. " - " .. message)
+    Logger.info(message)
 end
 
 --- Map from rejection reason to translation key for transfer error messages.
@@ -75,7 +76,7 @@ local function onServerCommand(module, command, args)
 
     if command == Constant.NETWORK.TRANSFER_REJECTED then
         local reason = type(args) == "table" and args.reason or "unknown"
-        BarrEx_TransferSync.onTransferRejected(type(args) == "table" and args.mode or nil)
+        BarrEx_TransferSync.onTransferRejected(type(args) == "table" and args or nil)
         -- Look up translated message from TransferMessages.json files.
         local translationKey = TRANSFER_REJECTION_KEY_MAP[reason] or "UI_BarrEx_TransferRejection_Unknown"
         local message = type(getText) == "function" and getText(translationKey) or nil

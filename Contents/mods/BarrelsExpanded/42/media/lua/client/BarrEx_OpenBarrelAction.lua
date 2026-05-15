@@ -2,6 +2,7 @@ local PlayerUtils = require("utils/BarrEx_PlayerUtils")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local Logger = require("utils/BarrEx_Logger")
 
 ---@class BarrEx_OpenBarrelAction : ISBaseTimedAction
 ---@field barrel IsoObject
@@ -13,7 +14,7 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_OpenBarrelAction = ISBaseTimedAction:derive("BarrEx_OpenBarrelAction")
 
 local function log(message)
-    print(Constant.LOG_PREFIX .. " - " .. message)
+    Logger.info(message)
 end
 
 --- @param player IsoPlayer

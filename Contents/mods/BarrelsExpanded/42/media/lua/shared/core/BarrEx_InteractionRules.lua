@@ -41,6 +41,21 @@ function InteractionRules.getItemFromArgs(player, args)
     return InventoryUtils.findInventoryItem(inventory, args.itemId, args.itemFullType)
 end
 
+--- Retrieves the exact item matching args.itemId from the player's inventory.
+--- Intended for server-authoritative mutations; intentionally has no full-type fallback.
+---@param player IsoPlayer
+---@param args table|nil
+---@return InventoryItem|nil
+function InteractionRules.getItemFromArgsStrict(player, args)
+    if not player or type(args) ~= "table" then return nil end
+    if type(args.itemId) ~= "number" then return nil end
+
+    local inventory = player:getInventory()
+    if not inventory then return nil end
+
+    return InventoryUtils.findInventoryItemStrict(inventory, args.itemId)
+end
+
 --- Returns true when the player is in range of barrel and (optionally) has the required tool.
 --- checkTool defaults to true; pass false to skip the tool check (e.g. in per-tick validation).
 ---@param barrel IsoObject

@@ -21,14 +21,21 @@ local InteractionRules  = require("core/BarrEx_InteractionRules")
 local BarrelResolver    = require("BarrEx_BarrelResolver")
 local TransferLocks     = require("BarrEx_TransferLocks")
 local Notifier          = require("BarrEx_TransferNotifier")
+local Logger            = require("utils/BarrEx_Logger")
 
 local TransferService = {}
 
 -- playerKey → transfer object for every in-progress transfer.
 local activeTransfers = {}
+local TRANSFER_EPSILON = 0.0001
 
 local function log(message)
-    print(Constant.LOG_PREFIX .. " - " .. message)
+    Logger.info(message)
+end
+
+local function isValidTransferId(transferId)
+    return (type(transferId) == "string" and transferId ~= "")
+        or type(transferId) == "number"
 end
 
 -- ---------------------------------------------------------------------------
@@ -49,6 +56,40 @@ local function syncBarrel(transfer)
     if barrel then
         barrel:transmitModData()
     end
+end
+
+local function isTransferCompleted(transfer)
+    return (tonumber(transfer and transfer.remainingAmount) or 0) <= TRANSFER_EPSILON
+end
+
+local function transferMatches(transfer, mode, transferId)
+    if not transfer then return false end
+    if mode and transfer.mode ~= mode then return false end
+    if isValidTransferId(transferId) and tostring(transfer.transferId) ~= tostring(transferId) then return false end
+    return true
+end
+
+local function finishTransfer(playerKey, transfer, reason, notifyProgress)
+    syncBarrel(transfer)
+
+    if notifyProgress and transfer and transfer.player then
+        Notifier.progress(transfer.player, transfer, true)
+    end
+
+    if transfer then
+        TransferLocks.release(playerKey, transfer.barrelKey)
+    end
+    activeTransfers[playerKey] = nil
+
+    log(string.format(
+        "Transfer finished: player=%s mode=%s transferId=%s moved=%.3f/%.3f reason=%s",
+        tostring(transfer and transfer.player and transfer.player:getUsername() or "unknown"),
+        transfer and transfer.mode or "unknown",
+        transfer and transfer.transferId or "unknown",
+        transfer and transfer.movedAmount or 0,
+        transfer and transfer.totalAmount or 0,
+        reason or "server_transfer_finished"
+    ))
 end
 
 -- ---------------------------------------------------------------------------
@@ -75,7 +116,7 @@ local function resolvePour(player, args, checkTool)
         return nil, nil, nil, nil, "barrel_full"
     end
 
-    local sourceItem = InteractionRules.getItemFromArgs(player, args)
+    local sourceItem = InteractionRules.getItemFromArgsStrict(player, args)
     if not sourceItem then
         return nil, nil, nil, nil, "source_not_found"
     end
@@ -150,7 +191,7 @@ local function resolveExtract(player, args, checkTool)
         return nil, nil, nil, nil, "barrel_empty"
     end
 
-    local targetItem = InteractionRules.getItemFromArgs(player, args)
+    local targetItem = InteractionRules.getItemFromArgsStrict(player, args)
     if not targetItem then
         return nil, nil, nil, nil, "target_not_found"
     end
@@ -245,7 +286,7 @@ local function stopByKey(playerKey, transfer, reason, notify)
     activeTransfers[playerKey] = nil
 
     if notify and transfer and transfer.player then
-        Notifier.rejected(transfer.player, transfer.mode or "unknown", reason or "step_failed")
+        Notifier.rejected(transfer.player, transfer.mode or "unknown", reason or "step_failed", transfer)
     end
 
     log(string.format(
@@ -269,6 +310,12 @@ end
 function TransferService.start(player, mode, args)
     if not player or type(args) ~= "table" then return end
 
+    if not isValidTransferId(args.transferId) then
+        log(string.format("Transfer start rejected: mode=%s reason=missing_transfer_id", mode))
+        Notifier.rejected(player, mode, "missing_transfer_id", args)
+        return
+    end
+
     local barrel, barrelData, item, liquidType, reason
 
     if mode == "pour" then
@@ -279,7 +326,7 @@ function TransferService.start(player, mode, args)
 
     if not barrel or not barrelData or not item or not liquidType then
         log(string.format("Transfer start rejected: mode=%s reason=%s", mode, reason or "unknown"))
-        Notifier.rejected(player, mode, reason or "unknown")
+        Notifier.rejected(player, mode, reason or "unknown", args)
         return
     end
 
@@ -289,7 +336,7 @@ function TransferService.start(player, mode, args)
 
     if totalAmount <= 0 then
         log(string.format("Transfer start rejected: mode=%s reason=no_transferable_amount", mode))
-        Notifier.rejected(player, mode, "no_transferable_amount")
+        Notifier.rejected(player, mode, "no_transferable_amount", args)
         return
     end
 
@@ -298,19 +345,19 @@ function TransferService.start(player, mode, args)
 
     -- Replace any existing transfer for this player.
     if activeTransfers[playerKey] then
-        TransferService.stop(player, "replaced_by_new_transfer")
+        TransferService.stop(player, nil, nil, "replaced_by_new_transfer")
     end
 
     local barrelKey = TransferLocks.getBarrelKey(barrel, barrelData)
     if not barrelKey then
         log(string.format("Transfer start rejected: mode=%s reason=barrel_id_missing", mode))
-        Notifier.rejected(player, mode, "barrel_id_missing")
+        Notifier.rejected(player, mode, "barrel_id_missing", args)
         return
     end
 
     if not TransferLocks.acquire(playerKey, barrelKey) then
         log(string.format("Transfer start rejected: mode=%s reason=barrel_locked id=%s", mode, barrelKey))
-        Notifier.rejected(player, mode, "barrel_locked")
+        Notifier.rejected(player, mode, "barrel_locked", args)
         return
     end
 
@@ -319,6 +366,7 @@ function TransferService.start(player, mode, args)
 
     local transfer = {
         player          = player,
+        transferId      = tostring(args.transferId),
         mode            = mode,
         args            = args,
         liquidType      = liquidType,
@@ -351,22 +399,26 @@ end
 
 --- Stops the player's active transfer (client-initiated or replaced by a new one).
 ---@param player IsoPlayer
+---@param mode string|nil
+---@param transferId string|number|nil
 ---@param reason string|nil
-function TransferService.stop(player, reason)
+function TransferService.stop(player, mode, transferId, reason)
     local playerKey = TransferLocks.getPlayerKey(player)
     if playerKey == nil then return end
 
     local transfer = activeTransfers[playerKey]
     if not transfer then return end
+    if not transferMatches(transfer, mode, transferId) then return end
 
     syncBarrel(transfer)
     TransferLocks.release(playerKey, transfer.barrelKey)
     activeTransfers[playerKey] = nil
 
     log(string.format(
-        "Transfer stopped: player=%s mode=%s moved=%.3f/%.3f reason=%s",
+        "Transfer stopped: player=%s mode=%s transferId=%s moved=%.3f/%.3f reason=%s",
         tostring(player and player:getUsername() or "unknown"),
         transfer.mode or "unknown",
+        transfer.transferId or "unknown",
         transfer.movedAmount or 0,
         transfer.totalAmount or 0,
         reason or "cleared"
@@ -374,27 +426,33 @@ function TransferService.stop(player, reason)
 end
 
 --- Marks a transfer as complete on the authoritative close signal from the client.
---- Liquid has already been moved progressively; this just cleans up state.
+--- The client only reports animation completion; the server still decides when
+--- the liquid movement has actually finished.
 ---@param player IsoPlayer
 ---@param mode string
-function TransferService.complete(player, mode)
+---@param transferId string|number|nil
+function TransferService.complete(player, mode, transferId)
     local playerKey = TransferLocks.getPlayerKey(player)
     if playerKey == nil then return end
 
     local transfer = activeTransfers[playerKey]
-    if not transfer or transfer.mode ~= mode then return end
+    if not transferMatches(transfer, mode, transferId) then return end
 
-    syncBarrel(transfer)
-    TransferLocks.release(playerKey, transfer.barrelKey)
-    activeTransfers[playerKey] = nil
+    if not isTransferCompleted(transfer) then
+        transfer.clientAnimationFinished = true
+        log(string.format(
+            "Transfer client animation finished: player=%s mode=%s transferId=%s moved=%.3f/%.3f remaining=%.3f",
+            tostring(player:getUsername()),
+            mode,
+            transfer.transferId or "unknown",
+            transfer.movedAmount or 0,
+            transfer.totalAmount or 0,
+            transfer.remainingAmount or 0
+        ))
+        return
+    end
 
-    log(string.format(
-        "Transfer completed: player=%s mode=%s moved=%.3f/%.3f",
-        tostring(player:getUsername()),
-        mode,
-        transfer.movedAmount or 0,
-        transfer.totalAmount or 0
-    ))
+    finishTransfer(playerKey, transfer, "client_complete_after_server_finished", false)
 end
 
 --- Per-tick handler: advances all active transfers by one step interval.
@@ -416,10 +474,11 @@ function TransferService.onTick()
                 )
 
                 if requestedAmount <= 0 then
-                    -- All liquid moved; clean up without an extra progress notification.
-                    syncBarrel(transfer)
-                    TransferLocks.release(playerKey, transfer.barrelKey)
-                    activeTransfers[playerKey] = nil
+                    if isTransferCompleted(transfer) then
+                        finishTransfer(playerKey, transfer, "server_transfer_finished", true)
+                    else
+                        stopByKey(playerKey, transfer, "no_requested_amount", true)
+                    end
                 else
                     local movedAmount, reason, barrel = advance(transfer, requestedAmount)
                     if barrel then
@@ -433,19 +492,8 @@ function TransferService.onTick()
                         transfer.remainingAmount = math.max((transfer.remainingAmount or 0) - movedAmount, 0)
                         transfer.ticksSinceSync  = (transfer.ticksSinceSync or 0) + (transfer.tickInterval or 1)
 
-                        if transfer.remainingAmount <= 0 then
-                            syncBarrel(transfer)
-                            Notifier.progress(transfer.player, transfer, true)
-                            TransferLocks.release(playerKey, transfer.barrelKey)
-                            activeTransfers[playerKey] = nil
-
-                            log(string.format(
-                                "Transfer finished: player=%s mode=%s moved=%.3f/%.3f",
-                                tostring(transfer.player and transfer.player:getUsername() or "unknown"),
-                                transfer.mode or "unknown",
-                                transfer.movedAmount or 0,
-                                transfer.totalAmount or 0
-                            ))
+                        if isTransferCompleted(transfer) then
+                            finishTransfer(playerKey, transfer, "server_transfer_finished", true)
                         elseif transfer.ticksSinceSync >= math.max(Constant.SERVER_TRANSFER_SYNC_INTERVAL or 10, 1) then
                             syncBarrel(transfer)
                             Notifier.progress(transfer.player, transfer, false)

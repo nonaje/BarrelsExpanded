@@ -5,6 +5,7 @@
 -- so that the rest of the transfer logic never has to touch raw lock tables.
 
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local Constant = require("BarrEx_Constant")
 
 local TransferLocks = {}
 
@@ -37,7 +38,13 @@ function TransferLocks.getBarrelKey(barrel, barrelData)
         return barrelData.id
     end
 
-    return BarrEx_BarrelData.buildId(barrel)
+    local modData = barrel and barrel:getModData() or nil
+    local storedId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
+    if type(storedId) == "string" and storedId ~= "" then
+        return storedId
+    end
+
+    return BarrEx_BarrelData.buildLocatorId(barrel)
 end
 
 --- Tries to acquire the barrel lock for playerKey.

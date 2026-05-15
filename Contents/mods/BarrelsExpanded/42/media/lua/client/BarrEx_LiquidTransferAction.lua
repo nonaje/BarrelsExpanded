@@ -37,14 +37,47 @@ local function getTransferSound(liquidType)
     return "TransferLiquid"
 end
 
+local function getCurrentTimestamp()
+    if type(getTimestampMs) == "function" then
+        return getTimestampMs()
+    end
+
+    if type(getTimestamp) == "function" then
+        return getTimestamp()
+    end
+
+    return os and os.time and os.time() or 0
+end
+
+local function getRandomSuffix()
+    if type(ZombRand) == "function" then
+        return ZombRand(1000000)
+    end
+
+    return math.random(1000000)
+end
+
+local function buildTransferId(player, barrel, item, mode)
+    local modData = barrel and barrel:getModData() or nil
+    local barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(barrel) or "nobarrel"
+    local itemId = item and item:getID() or "noitem"
+    local playerId = player and type(player.getOnlineID) == "function" and player:getOnlineID() or "local"
+
+    return tostring(mode)
+        .. ":" .. tostring(playerId)
+        .. ":" .. tostring(barrelId)
+        .. ":" .. tostring(itemId)
+        .. ":" .. tostring(getCurrentTimestamp())
+        .. ":" .. tostring(getRandomSuffix())
+end
+
 local function sendTransferCommand(action, command)
     if not action or not command then return false end
 
     local inventory = action.character:getInventory()
-    local item = InventoryUtils.findInventoryItem(
+    local item = InventoryUtils.findInventoryItemStrict(
         inventory,
-        action.liquidItem and action.liquidItem:getID() or nil,
-        action.liquidItem and action.liquidItem:getFullType() or nil
+        action.liquidItem and action.liquidItem:getID() or nil
     )
     if not item then
         return false
@@ -58,6 +91,7 @@ local function sendTransferCommand(action, command)
     local modData = action.barrel:getModData()
 
     sendClientCommand(Constant.NETWORK.MODULE, command, {
+        transferId = action.transferId,
         x = square:getX(),
         y = square:getY(),
         z = square:getZ(),
@@ -184,6 +218,7 @@ function BarrEx_LiquidTransferAction:new(player, barrel, liquidItem)
     o.barrel = barrel
     o.liquidItem = liquidItem
     o.mode = o:getMode()
+    o.transferId = buildTransferId(player, barrel, liquidItem, o.mode)
     o.totalAmount = o:getEstimatedTransferAmount(barrel, liquidItem)
     o.initialLiquidAmount = o:getInitialLiquidAmount(liquidItem)
     o.transferStarted = false
@@ -221,7 +256,7 @@ function BarrEx_LiquidTransferAction:start()
     )
     self.transferStarted = sendTransferCommand(self, self:getStartCommand())
     if self.transferStarted then
-        TransferSync.registerAction(self.mode, self, self.barrel, self.liquidItem)
+        TransferSync.registerAction(self.transferId, self.mode, self, self.barrel, self.liquidItem)
     end
 
     self:setupJobTracking()
@@ -247,7 +282,7 @@ end
 
 function BarrEx_LiquidTransferAction:stop()
     stopSound(self)
-    TransferSync.unregisterAction(self.mode, self)
+    TransferSync.unregisterAction(self.transferId, self)
     self:clearJobTracking()
     if self.transferStarted then
         sendTransferCommand(self, self:getStopCommand())
@@ -258,7 +293,7 @@ end
 
 function BarrEx_LiquidTransferAction:perform()
     stopSound(self)
-    TransferSync.unregisterAction(self.mode, self)
+    TransferSync.unregisterAction(self.transferId, self)
     self:clearJobTracking()
     local container = self.liquidItem and self.liquidItem:getContainer() or nil
     if container then

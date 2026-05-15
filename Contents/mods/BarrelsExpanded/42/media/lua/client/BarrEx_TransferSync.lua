@@ -3,8 +3,8 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 
 local TransferSync = {}
 
-local activeTransfersByMode = {}
-local pendingStartsByMode = {}
+local activeTransfersById = {}
+local pendingStartsById = {}
 
 local function clamp01(value)
     local numericValue = tonumber(value) or 0
@@ -23,6 +23,14 @@ end
 local function matchesTransfer(entry, args)
     if not entry or not args then return false end
 
+    if args.transferId and entry.transferId and args.transferId ~= entry.transferId then
+        return false
+    end
+
+    if args.mode and entry.mode and args.mode ~= entry.mode then
+        return false
+    end
+
     if args.barrelId and entry.barrelId and args.barrelId ~= entry.barrelId then
         return false
     end
@@ -34,33 +42,56 @@ local function matchesTransfer(entry, args)
     return true
 end
 
-function TransferSync.registerAction(mode, action, barrel, item)
-    if not mode or not action then return end
+local function findEntry(args)
+    if type(args) ~= "table" then return nil end
 
-    activeTransfersByMode[mode] = {
+    if args.transferId then
+        local entry = activeTransfersById[args.transferId]
+        if entry and matchesTransfer(entry, args) then
+            return entry
+        end
+    end
+
+    for _, entry in pairs(activeTransfersById) do
+        if matchesTransfer(entry, args) then
+            return entry
+        end
+    end
+
+    return nil
+end
+
+function TransferSync.registerAction(transferId, mode, action, barrel, item)
+    if not transferId or not action then return end
+
+    local entry = {
         action = action,
+        transferId = transferId,
+        mode = mode,
         barrelId = getBarrelId(barrel),
         itemId = item and item:getID() or nil,
     }
 
+    activeTransfersById[transferId] = entry
+
     action.serverProgress = 0
     action.serverCompleted = false
 
-    local pendingStart = pendingStartsByMode[mode]
-    if pendingStart and matchesTransfer(activeTransfersByMode[mode], pendingStart) then
-        pendingStartsByMode[mode] = nil
+    local pendingStart = pendingStartsById[transferId]
+    if pendingStart and matchesTransfer(entry, pendingStart) then
+        pendingStartsById[transferId] = nil
         TransferSync.onTransferStarted(pendingStart)
     end
 end
 
-function TransferSync.unregisterAction(mode, action)
-    if not mode then return end
+function TransferSync.unregisterAction(transferId, action)
+    if not transferId then return end
 
-    local entry = activeTransfersByMode[mode]
+    local entry = activeTransfersById[transferId]
     if not entry then return end
     if action and entry.action ~= action then return end
 
-    activeTransfersByMode[mode] = nil
+    activeTransfersById[transferId] = nil
 
     if action then
         action.serverProgress = nil
@@ -71,9 +102,8 @@ end
 function TransferSync.onTransferProgress(args)
     if type(args) ~= "table" then return end
 
-    local mode = args.mode
-    local entry = mode and activeTransfersByMode[mode] or nil
-    if not entry or not matchesTransfer(entry, args) then return end
+    local entry = findEntry(args)
+    if not entry then return end
 
     local action = entry.action
     if not action then return end
@@ -88,17 +118,19 @@ end
 function TransferSync.onTransferStarted(args)
     if type(args) ~= "table" then return end
 
-    local mode = args.mode
-    local entry = mode and activeTransfersByMode[mode] or nil
+    local transferId = args.transferId
+    local entry = findEntry(args)
     if not entry then
-        if mode then
-            pendingStartsByMode[mode] = args
+        if transferId then
+            pendingStartsById[transferId] = args
         end
         return
     end
 
     if not matchesTransfer(entry, args) then
-        pendingStartsByMode[mode] = args
+        if transferId then
+            pendingStartsById[transferId] = args
+        end
         return
     end
 
@@ -116,11 +148,12 @@ function TransferSync.onTransferStarted(args)
     end
 end
 
-function TransferSync.onTransferRejected(mode)
-    local entry = mode and activeTransfersByMode[mode] or nil
+function TransferSync.onTransferRejected(args)
+    local entry = findEntry(args)
     if not entry or not entry.action then return end
 
     entry.action.serverCompleted = true
+    entry.action.serverRejected = true
     entry.action.transferStarted = false
 end
 

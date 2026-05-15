@@ -3,6 +3,7 @@ require "Moveables/ISMoveableSpriteProps"
 local Constant = require("BarrEx_Constant")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local Logger = require("utils/BarrEx_Logger")
 
 local BarrEx_MoveableSync = {}
 
@@ -13,7 +14,7 @@ local originalPickUpMoveableInternal = nil
 local originalPlaceMoveableInternal = nil
 
 local function log(message)
-    print(Constant.LOG_PREFIX .. " [MoveableSync] " .. message)
+    Logger.info("[MoveableSync] " .. tostring(message))
 end
 
 local function isBarrelMoveable(worldObject)

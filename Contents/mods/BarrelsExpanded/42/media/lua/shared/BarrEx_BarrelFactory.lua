@@ -112,7 +112,7 @@ function BarrEx_BarrelFactory.createRandom(barrel, options)
     local amount = liquidType == Constant.LIQUID_TYPE.EMPTY and 0 or ZombRand(1, capacity + 1)
 
     return BarrEx_Barrel:new({
-        id = BarrEx_BarrelData.buildId(barrel),
+        id = BarrEx_BarrelData.ensureStableId(barrel, nil),
         liquidType = liquidType,
         amount = amount,
         capacity = capacity,

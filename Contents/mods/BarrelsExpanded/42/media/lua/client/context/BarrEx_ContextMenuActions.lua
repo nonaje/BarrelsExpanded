@@ -3,12 +3,13 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_OpenBarrelAction = require("BarrEx_OpenBarrelAction")
 local BarrEx_PourIntoBarrelAction = require("BarrEx_PourIntoBarrelAction")
 local BarrEx_ExtractFromBarrelAction = require("BarrEx_ExtractFromBarrelAction")
+local Logger = require("utils/BarrEx_Logger")
 
 local Actions = {}
 
 ---@param message string
 local function log(message)
-    print(Constant.LOG_PREFIX .. " - " .. message)
+    Logger.info(message)
 end
 
 ---@param barrel IsoObject

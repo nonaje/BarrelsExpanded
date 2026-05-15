@@ -107,10 +107,10 @@ function BarrEx_BarrelData.applyWeightToItem(item, barrelData)
     call(item, "setWeight", weight)
 end
 
---- Builds a stable ID for a barrel based on world position and object index.
+--- Builds a legacy locator ID for a barrel based on world position and object index.
 --- @param barrel IsoObject|nil
 --- @return string|nil
-function BarrEx_BarrelData.buildId(barrel)
+function BarrEx_BarrelData.buildLocatorId(barrel)
     if not barrel then return nil end
 
     local square = barrel:getSquare()
@@ -120,6 +120,69 @@ function BarrEx_BarrelData.buildId(barrel)
     local x, y, z = square:getX(), square:getY(), square:getZ()
 
     return tostring(x) .. ":" .. tostring(y) .. ":" .. tostring(z) .. ":" .. tostring(objectIndex)
+end
+
+--- Legacy locator id helper. Use only as a temporary fallback, not as persistent identity.
+--- @param barrel IsoObject|nil
+--- @return string|nil
+function BarrEx_BarrelData.buildId(barrel)
+    return BarrEx_BarrelData.buildLocatorId(barrel)
+end
+
+local function buildStableId(barrel)
+    local square = barrel and barrel:getSquare() or nil
+    local x = square and square:getX() or "x"
+    local y = square and square:getY() or "y"
+    local z = square and square:getZ() or "z"
+    local timestamp = type(getTimestampMs) == "function" and getTimestampMs()
+        or (type(getTimestamp) == "function" and getTimestamp() or (os and os.time and os.time() or 0))
+    local random = type(ZombRand) == "function" and ZombRand(1000000000)
+        or math.random(1000000000)
+
+    return "BARR_" .. tostring(x) .. "_" .. tostring(y) .. "_" .. tostring(z)
+        .. "_" .. tostring(timestamp) .. "_" .. tostring(random)
+end
+
+local function isLegacyLocatorId(barrelId)
+    return type(barrelId) == "string"
+        and string.match(barrelId, "^%-?%d+:%-?%d+:%-?%d+:%-?%d+$") ~= nil
+end
+
+--- Ensures barrelData.id / modData[BARREL_ID] are a persistent barrel identity.
+--- Coordinate/objectIndex IDs remain available through buildLocatorId for legacy lookup only.
+--- @param barrel IsoObject|nil
+--- @param barrelData BarrEx_Barrel|table|nil
+--- @return string|nil
+--- @return boolean changed
+function BarrEx_BarrelData.ensureStableId(barrel, barrelData)
+    local modData = barrel and barrel:getModData() or nil
+    local storedId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
+    local dataId = barrelData and type(barrelData.id) == "string" and barrelData.id ~= "" and barrelData.id or nil
+
+    local stableId = nil
+    if type(storedId) == "string" and storedId ~= "" and not isLegacyLocatorId(storedId) then
+        stableId = storedId
+    elseif dataId and not isLegacyLocatorId(dataId) then
+        stableId = dataId
+    end
+    local changed = false
+
+    if not stableId then
+        stableId = buildStableId(barrel)
+        changed = true
+    end
+
+    if barrelData and barrelData.id ~= stableId then
+        barrelData.id = stableId
+        changed = true
+    end
+
+    if modData and modData[Constant.MODDATA_KEYS.BARREL_ID] ~= stableId then
+        modData[Constant.MODDATA_KEYS.BARREL_ID] = stableId
+        changed = true
+    end
+
+    return stableId, changed
 end
 
 --- Reads the barrel data stored in modData.
@@ -137,7 +200,7 @@ function BarrEx_BarrelData.get(barrel)
     -- Only compute the expensive buildId (4 Java calls) when the stored id is
     -- absent or invalid. In normal operation the id is always present, so this
     -- avoids 4 redundant Java bridge calls on the hot get() path.
-    local fallbackId = type(raw.id) ~= "string" and BarrEx_BarrelData.buildId(barrel) or nil
+    local fallbackId = type(raw.id) ~= "string" and BarrEx_BarrelData.buildLocatorId(barrel) or nil
     return BarrEx_BarrelData.fromRawData(raw, fallbackId)
 end
 
@@ -171,20 +234,29 @@ end
 --- computation that the split call-chain would otherwise produce.
 --- @param barrel IsoObject|nil
 --- @param barrelData BarrEx_Barrel|nil
+--- @return boolean changed
 function BarrEx_BarrelData.set(barrel, barrelData)
-    if not barrel or not barrelData then return end
+    if not barrel or not barrelData then return false end
 
     local modData = barrel:getModData()
-    if not modData then return end
+    if not modData then return false end
 
-    -- Only compute the expensive buildId (4 Java calls) when barrelData.id is
-    -- absent or invalid. In the common path the id is already set by the caller.
-    local fallbackId = type(barrelData.id) ~= "string" and BarrEx_BarrelData.buildId(barrel) or nil
-    local normalized = normalizeBarrelData(barrelData, fallbackId)
-    if not normalized then return end
+    local stableId, idChanged = BarrEx_BarrelData.ensureStableId(barrel, barrelData)
+    local normalized = normalizeBarrelData(barrelData, stableId)
+    if not normalized then return false end
 
     local serialized = normalized:toData()
     local weight = normalized:getTotalWeight()
+    local existing = modData[Constant.MODDATA_KEYS.BARREL]
+    local changed = idChanged == true
+        or type(existing) ~= "table"
+        or existing.id ~= serialized.id
+        or existing.liquidType ~= serialized.liquidType
+        or tonumber(existing.amount) ~= tonumber(serialized.amount)
+        or tonumber(existing.capacity) ~= tonumber(serialized.capacity)
+        or existing.revealed ~= serialized.revealed
+        or modData[Constant.MODDATA_KEYS.BARREL_ID] ~= serialized.id
+        or modData[Constant.MODDATA_KEYS.BARREL_WEIGHT] ~= weight
 
     modData[Constant.MODDATA_KEYS.BARREL] = serialized
     modData[Constant.MODDATA_KEYS.BARREL_ID] = serialized.id
@@ -192,6 +264,8 @@ function BarrEx_BarrelData.set(barrel, barrelData)
 
     call(barrel, "setCustomWeight", true)
     call(barrel, "setWeight", weight)
+
+    return changed
 end
 
 --- Re-applies the cached weight to the Java world object without deserializing barrel data.

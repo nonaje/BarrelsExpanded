@@ -111,6 +111,29 @@ local function findVanillaFluidObject(vanillaFluidName)
     return nil
 end
 
+local function restoreContainerAmount(container, amount)
+    if not container then return end
+
+    local targetAmount = math.max(tonumber(amount) or 0, 0)
+    if type(container.setAmount) == "function" then
+        container:setAmount(targetAmount)
+        return
+    end
+
+    if type(container.getAmount) == "function" and type(container.adjustAmount) == "function" then
+        local currentAmount = math.max(tonumber(container:getAmount()) or 0, 0)
+        container:adjustAmount(targetAmount - currentAmount)
+    end
+end
+
+local function restoreDrainableAmount(item, amount)
+    local capacity = Adapter.getCapacity(item)
+    if capacity <= 0 then return end
+
+    local usedDelta = math.max(math.min((tonumber(amount) or 0) / capacity, 1), 0)
+    call(item, "setUsedDelta", usedDelta)
+end
+
 function Adapter.isLiquidContainer(item)
     if not item then return false end
 
@@ -321,6 +344,11 @@ function Adapter.addLiquid(item, liquidType, amount)
     if liquidType == LiquidConfig.LIQUID_TYPE.EMPTY then return 0 end
 
     local before = Adapter.getAmount(item)
+    local beforeType = Adapter.getLiquidType(item)
+    if beforeType and beforeType ~= liquidType then
+        return 0
+    end
+
     local capacity = Adapter.getCapacity(item)
     if capacity <= 0 then return 0 end
 
@@ -328,10 +356,6 @@ function Adapter.addLiquid(item, liquidType, amount)
     if free <= 0 then return 0 end
 
     local toAdd = math.min(amount, free)
-    local currentType = Adapter.getLiquidType(item)
-    if currentType and currentType ~= liquidType then
-        return 0
-    end
 
     if not isConfiguredCompatible(item, liquidType) then
         return 0
@@ -341,6 +365,9 @@ function Adapter.addLiquid(item, liquidType, amount)
     if container then
         local vanillaFluidName = BARREL_TO_VANILLA_FLUID[liquidType]
         local vanillaFluidObject = findVanillaFluidObject(vanillaFluidName)
+        if not vanillaFluidName and not beforeType then
+            return 0
+        end
 
         local beforeAmount = Adapter.getAmount(item)
 
@@ -352,11 +379,23 @@ function Adapter.addLiquid(item, liquidType, amount)
             end
         end
 
+        syncItem(item)
         local afterAmount = Adapter.getAmount(item)
+        local afterType = Adapter.getLiquidType(item)
+
+        if afterAmount > beforeAmount and afterType == liquidType then
+            return math.max(afterAmount - beforeAmount, 0)
+        end
+
+        if afterAmount > beforeAmount and afterType ~= liquidType then
+            restoreContainerAmount(container, beforeAmount)
+            syncItem(item)
+            return 0
+        end
 
         -- Fallback to direct amount adjustment when addFluid did not apply.
-        -- Prefer setAmount when present; use adjustAmount only as a delta fallback.
-        if afterAmount <= beforeAmount then
+        -- Only use it after the liquid type is already established or confirmed.
+        if afterAmount <= beforeAmount and (afterType == liquidType or beforeType == liquidType) then
             local targetAmount = math.min(beforeAmount + toAdd, capacity)
             if type(container.setAmount) == "function" then
                 container:setAmount(targetAmount)
@@ -367,6 +406,13 @@ function Adapter.addLiquid(item, liquidType, amount)
 
         syncItem(item)
         local after = Adapter.getAmount(item)
+        local finalType = Adapter.getLiquidType(item)
+        if finalType ~= liquidType then
+            restoreContainerAmount(container, before)
+            syncItem(item)
+            return 0
+        end
+
         return math.max(after - before, 0)
     end
 
@@ -377,6 +423,13 @@ function Adapter.addLiquid(item, liquidType, amount)
         syncItem(item)
 
         local after = Adapter.getAmount(item)
+        local finalType = Adapter.getLiquidType(item)
+        if finalType ~= liquidType then
+            restoreDrainableAmount(item, before)
+            syncItem(item)
+            return 0
+        end
+
         return math.max(after - before, 0)
     end
 

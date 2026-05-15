@@ -24,12 +24,14 @@ local function onClientCommand(module, command, player, args)
     end
 
     if command == Constant.NETWORK.STOP_POUR_INTO_BARREL then
-        TransferService.stop(player, "client_stop")
+        if not args or not args.transferId then return end
+        TransferService.stop(player, "pour", args and args.transferId, "client_stop")
         return
     end
 
     if command == Constant.NETWORK.COMPLETE_POUR_INTO_BARREL then
-        TransferService.complete(player, "pour")
+        if not args or not args.transferId then return end
+        TransferService.complete(player, "pour", args and args.transferId)
         return
     end
 
@@ -39,12 +41,14 @@ local function onClientCommand(module, command, player, args)
     end
 
     if command == Constant.NETWORK.STOP_EXTRACT_FROM_BARREL then
-        TransferService.stop(player, "client_stop")
+        if not args or not args.transferId then return end
+        TransferService.stop(player, "extract", args and args.transferId, "client_stop")
         return
     end
 
     if command == Constant.NETWORK.COMPLETE_EXTRACT_FROM_BARREL then
-        TransferService.complete(player, "extract")
+        if not args or not args.transferId then return end
+        TransferService.complete(player, "extract", args and args.transferId)
     end
 end
 
