@@ -64,9 +64,8 @@ On the UI side, a rich **tooltip** is attached to the context menu option showin
 - [ ] **Remove Cover action** — Physically remove the barrel lid as a separate step before accessing contents
 - [ ] **Transfer liquid** — Pour the barrel's contents into cans, bottles, or other containers
 - [ ] **Fill barrels** — Fill an empty barrel with liquid from containers or other sources
-- [ ] **More liquid types** — Bleach, alcohol, oil, and other liquids that make sense in the game world
+- [x] **More liquid types** — Bleach, alcohol, oil, and other liquids that make sense in the game world
 - [ ] **Barrel condition** — Barrels can be rusty or damaged, affecting the quality of their contents
-- [ ] **Crafted barrels** — Place and configure your own barrels in the world
 - [ ] **Expanded tool list** — Additional tools that can be used to open barrels
 
 ---

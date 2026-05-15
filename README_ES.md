@@ -64,9 +64,8 @@ En la interfaz, se muestra un **tooltip detallado** en la opción del menú cont
 - [ ] **Acción "Quitar tapa"** — Quitar físicamente la tapa del barril como paso previo antes de acceder al contenido
 - [ ] **Transferir líquido** — Verter el contenido del barril en bidones, botellas u otros recipientes
 - [ ] **Llenar barriles** — Rellenar un barril vacío con líquido proveniente de recipientes u otras fuentes
-- [ ] **Más tipos de líquido** — Lejía, alcohol, aceite y otros líquidos con sentido en el mundo del juego
+- [x] **Más tipos de líquido** — Lejía, alcohol, aceite y otros líquidos con sentido en el mundo del juego
 - [ ] **Condición del barril** — Los barriles pueden estar oxidados o dañados, afectando la calidad de su contenido
-- [ ] **Barriles artesanales** — Colocar y configurar tus propios barriles en el mundo
 - [ ] **Lista de herramientas ampliada** — Herramientas adicionales que puedan usarse para abrir barriles
 
 ---
