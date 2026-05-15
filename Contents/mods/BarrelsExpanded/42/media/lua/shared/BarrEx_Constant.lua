@@ -6,8 +6,12 @@ Constant.LOG_PREFIX = "[BarrelsExpanded]"
 Constant.NETWORK = {
     MODULE = "BarrEx",
     OPEN_BARREL = "openBarrel",
-    POUR_INTO_BARREL = "pourIntoBarrel",
-    EXTRACT_FROM_BARREL = "extractFromBarrel",
+    START_POUR_INTO_BARREL = "startPourIntoBarrel",
+    STOP_POUR_INTO_BARREL = "stopPourIntoBarrel",
+    COMPLETE_POUR_INTO_BARREL = "completePourIntoBarrel",
+    START_EXTRACT_FROM_BARREL = "startExtractFromBarrel",
+    STOP_EXTRACT_FROM_BARREL = "stopExtractFromBarrel",
+    COMPLETE_EXTRACT_FROM_BARREL = "completeExtractFromBarrel",
     EMPTY_BARREL = "emptyBarrel",
 }
 
@@ -92,6 +96,7 @@ Constant.COMPATIBLE_CONTAINERS = {
         ["Base.JerryCan"] = true,
     },
     WATER = {
+        ["Base.WaterDispenserBottle"] = true,
         ["Base.WaterBottle"] = true,
         ["Base.WaterBottleEmpty"] = true,
         ["Base.WaterBottleFull"] = true,
@@ -100,6 +105,7 @@ Constant.COMPATIBLE_CONTAINERS = {
         ["Base.JarCrafted"] = true,
         ["Base.Pot"] = true,
         ["Base.PotForged"] = true,
+        ["Base.Bucket"] = true,
         ["Base.BucketEmpty"] = true,
         ["Base.BucketWaterFull"] = true,
         ["Base.PaintbucketEmpty"] = true,
@@ -120,6 +126,7 @@ Constant.COMPATIBLE_CONTAINERS = {
         ["Base.FeedingBottle"] = true,
     },
     TAINTED_WATER = {
+        ["Base.WaterDispenserBottle"] = true,
         ["Base.WaterBottle"] = true,
         ["Base.WaterBottleEmpty"] = true,
         ["Base.WaterBottleFull"] = true,
@@ -128,6 +135,7 @@ Constant.COMPATIBLE_CONTAINERS = {
         ["Base.JarCrafted"] = true,
         ["Base.Pot"] = true,
         ["Base.PotForged"] = true,
+        ["Base.Bucket"] = true,
         ["Base.BucketEmpty"] = true,
         ["Base.BucketWaterFull"] = true,
         ["Base.PaintbucketEmpty"] = true,
@@ -169,8 +177,7 @@ Constant.BARREL_DEFAULT_CAPACITY = 160
 Constant.BARREL_DATA_POLL_TICKS = 120
 Constant.MAX_INTERACTION_DISTANCE = 1.55
 Constant.OPEN_BARREL_ACTION_TIME = 200
-Constant.POUR_BARREL_ACTION_TIME = 200
-Constant.EXTRACT_BARREL_ACTION_TIME = 150
+Constant.SERVER_TRANSFER_TICK_INTERVAL = 1
 
 Constant.BARREL_EMPTY_WEIGHT = 20
 Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = {

@@ -8,12 +8,53 @@ local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 ---@field sourceItem InventoryItem
 ---@field toolItem InventoryItem|nil
 ---@field sound integer|nil
+---@field totalAmount number
+---@field sentAmount number
 local BarrEx_PourIntoBarrelAction = ISBaseTimedAction:derive("BarrEx_PourIntoBarrelAction")
 
 local function stopSound(action)
     if action.sound and action.character and action.character:getEmitter():isPlaying(action.sound) then
         action.character:stopOrTriggerSound(action.sound)
     end
+end
+
+local function getEstimatedPourAmount(barrel, sourceItem)
+    if not barrel or not sourceItem then return 0 end
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData then return 0 end
+
+    return math.max(math.min(LiquidAdapter.getAmount(sourceItem), barrelData:getFreeCapacity()), 0)
+end
+
+local function sendTransferCommand(action, command)
+    if not action or not command then return false end
+
+    local inventory = action.character:getInventory()
+    local item = Utils.findInventoryItem(
+        inventory,
+        action.sourceItem and action.sourceItem:getID() or nil,
+        action.sourceItem and action.sourceItem:getFullType() or nil
+    )
+    if not item then
+        return false
+    end
+
+    local square = action.barrel and action.barrel:getSquare()
+    if not square then
+        return false
+    end
+
+    sendClientCommand(Constant.NETWORK.MODULE, command, {
+        x = square:getX(),
+        y = square:getY(),
+        z = square:getZ(),
+        objectIndex = action.barrel:getObjectIndex(),
+        itemId = item:getID(),
+        itemFullType = item:getFullType(),
+    })
+
+    return true
 end
 
 ---@param player IsoPlayer
@@ -26,9 +67,11 @@ function BarrEx_PourIntoBarrelAction:new(player, barrel, sourceItem)
 
     o.barrel = barrel
     o.sourceItem = sourceItem
+    o.totalAmount = getEstimatedPourAmount(barrel, sourceItem)
+    o.transferStarted = false
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = Constant.POUR_BARREL_ACTION_TIME
+    o.maxTime = Utils.getVanillaFluidActionTime(o.totalAmount)
 
     setmetatable(o, self)
     self.__index = self
@@ -55,6 +98,13 @@ function BarrEx_PourIntoBarrelAction:start()
     ISBaseTimedAction.start(self)
 
     self.toolItem = Utils.findFirstRequiredItem(self.character, Constant.POUR_REQUIRED_ITEMS)
+    self.transferStarted = sendTransferCommand(self, Constant.NETWORK.START_POUR_INTO_BARREL)
+    if self.sourceItem and type(self.sourceItem.setJobType) == "function" then
+        self.sourceItem:setJobType(getText("IGUI_JobType_PourOut"))
+    end
+    if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
+        self.sourceItem:setJobDelta(0.0)
+    end
     local primaryHandItem, secondaryHandItem = Utils.getFluidActionHandItems(self.sourceItem, self.toolItem)
 
     if type(self.sourceItem.getPourType) == "function" then
@@ -69,44 +119,37 @@ end
 function BarrEx_PourIntoBarrelAction:update()
     ISBaseTimedAction.update(self)
     self.character:faceThisObject(self.barrel)
+    if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
+        self.sourceItem:setJobDelta(self:getJobDelta())
+    end
+    self.character:setMetabolicTarget(Metabolics.LightDomestic)
 end
 
 function BarrEx_PourIntoBarrelAction:stop()
     stopSound(self)
+    if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
+        self.sourceItem:setJobDelta(0.0)
+    end
+    if self.transferStarted then
+        sendTransferCommand(self, Constant.NETWORK.STOP_POUR_INTO_BARREL)
+        self.transferStarted = false
+    end
     ISBaseTimedAction.stop(self)
 end
 
 function BarrEx_PourIntoBarrelAction:perform()
     stopSound(self)
-
-    local inventory = self.character:getInventory()
-    if not Utils.findInventoryItem(inventory, self.sourceItem and self.sourceItem:getID() or nil, self.sourceItem and self.sourceItem:getFullType() or nil) then
-        ISBaseTimedAction.perform(self)
-        return
+    if self.sourceItem and type(self.sourceItem.setJobDelta) == "function" then
+        self.sourceItem:setJobDelta(0.0)
     end
-
-    local square = self.barrel and self.barrel:getSquare()
-    if not square then
-        ISBaseTimedAction.perform(self)
-        return
+    local container = self.sourceItem and self.sourceItem:getContainer() or nil
+    if container then
+        container:setDrawDirty(true)
     end
-
-    local barrelData = BarrEx_BarrelData.get(self.barrel)
-    local suggestedAmount = 0
-    if barrelData then
-        suggestedAmount = math.min(LiquidAdapter.getAmount(self.sourceItem), barrelData:getFreeCapacity())
+    if self.transferStarted then
+        sendTransferCommand(self, Constant.NETWORK.COMPLETE_POUR_INTO_BARREL)
+        self.transferStarted = false
     end
-
-    sendClientCommand(Constant.NETWORK.MODULE, Constant.NETWORK.POUR_INTO_BARREL, {
-        x = square:getX(),
-        y = square:getY(),
-        z = square:getZ(),
-        objectIndex = self.barrel:getObjectIndex(),
-        itemId = self.sourceItem:getID(),
-        itemFullType = self.sourceItem:getFullType(),
-        suggestedAmount = suggestedAmount,
-    })
-
     ISBaseTimedAction.perform(self)
 end
 

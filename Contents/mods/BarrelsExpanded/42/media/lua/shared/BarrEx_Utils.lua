@@ -188,6 +188,48 @@ function Utils.getFluidActionHandItems(mainItem, supportItem)
     return mainItem, supportItem
 end
 
+local function getVanillaTransferTimePerUnit()
+    if ISFluidUtil and type(ISFluidUtil.getTransferActionTimePerLiter) == "function" then
+        local timePerUnit = tonumber(ISFluidUtil.getTransferActionTimePerLiter())
+        if timePerUnit and timePerUnit > 0 then
+            return timePerUnit
+        end
+    end
+
+    return 50
+end
+
+local function getVanillaMinTransferTime()
+    if ISFluidUtil and type(ISFluidUtil.getMinTransferActionTime) == "function" then
+        local minTime = tonumber(ISFluidUtil.getMinTransferActionTime())
+        if minTime and minTime > 0 then
+            return minTime
+        end
+    end
+
+    return 10
+end
+
+--- Mirrors vanilla fluid transfer duration.
+--- Formula: amount * ISFluidUtil.getTransferActionTimePerLiter(), clamped by the vanilla minimum.
+--- @param amount number|nil
+--- @return number
+function Utils.getVanillaFluidActionTime(amount)
+    local normalizedAmount = tonumber(amount) or 0
+    local resolvedMinTime = getVanillaMinTransferTime()
+
+    if normalizedAmount <= 0 then
+        return resolvedMinTime
+    end
+
+    local duration = normalizedAmount * getVanillaTransferTimePerUnit()
+    if duration < resolvedMinTime then
+        return resolvedMinTime
+    end
+
+    return duration
+end
+
 --- Backward-compatible wrapper.
 function Utils.isPlayerHoldingAnyRequiredItem(player, requiredItems)
     return Utils.getRequiredItemStatus(player, requiredItems)

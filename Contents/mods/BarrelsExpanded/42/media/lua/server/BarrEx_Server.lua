@@ -4,6 +4,8 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_BarrelFactory = require("BarrEx_BarrelFactory")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 
+local activeTransfers = {}
+
 local function log(message)
     print(Constant.LOG_PREFIX .. " - " .. message)
 end
@@ -186,74 +188,117 @@ local function persistBarrel(barrel, barrelData)
     barrel:transmitModData()
 end
 
+local function getPlayerTransferKey(player)
+    if not player then return nil end
+
+    if type(player.getOnlineID) == "function" then
+        local onlineId = player:getOnlineID()
+        if type(onlineId) == "number" and onlineId >= 0 then
+            return onlineId
+        end
+    end
+
+    return player
+end
+
+local function clearActiveTransfer(player, reason)
+    local key = getPlayerTransferKey(player)
+    if key == nil then return end
+
+    local transfer = key and activeTransfers[key] or nil
+    if not transfer then return end
+
+    activeTransfers[key] = nil
+
+    log(string.format(
+        "Transfer stopped: player=%s mode=%s moved=%.3f/%.3f reason=%s",
+        tostring(player and player:getUsername() or "unknown"),
+        transfer.mode or "unknown",
+        transfer.movedAmount or 0,
+        transfer.totalAmount or 0,
+        reason or "cleared"
+    ))
+end
+
 ---@param player IsoPlayer
 ---@param args table
-local function onPourIntoBarrel(player, args)
+---@return IsoObject|nil
+---@return BarrEx_Barrel|nil
+---@return InventoryItem|nil
+---@return string|nil
+---@return string|nil
+local function resolvePourTransfer(player, args)
     local barrel = getBarrelFromArgs(args)
     if not barrel then
-        log("Pour rejected; barrel was not found from command args.")
-        return
+        return nil, nil, nil, nil, "barrel_not_found"
     end
 
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData or not barrelData:isRevealed() then
-        log("Pour rejected; barrel is closed or missing data.")
-        return
+        return nil, nil, nil, nil, "barrel_unavailable"
     end
 
     if not validateSharedInteraction(barrel, player, Constant.POUR_REQUIRED_ITEMS) then
-        log("Pour rejected; failed shared interaction validation.")
-        return
+        return nil, nil, nil, nil, "interaction_invalid"
     end
 
     if barrelData:isFull() then
-        log("Pour rejected; barrel is full.")
-        return
+        return nil, nil, nil, nil, "barrel_full"
     end
 
     local sourceItem = getItemFromArgs(player, args)
     if not sourceItem then
-        log("Pour rejected; source item not found in player inventory.")
-        return
+        return nil, nil, nil, nil, "source_not_found"
     end
 
     local sourceLiquidType = LiquidAdapter.getLiquidType(sourceItem)
     if not sourceLiquidType then
-        log("Pour rejected; source item has no recognized liquid.")
-        return
+        return nil, nil, nil, nil, "source_liquid_missing"
     end
 
     if not LiquidAdapter.canProvide(sourceItem, sourceLiquidType) then
-        log("Pour rejected; source item cannot provide the requested liquid.")
-        return
+        return nil, nil, nil, nil, "source_cannot_provide"
     end
 
     if not barrelData:canAcceptLiquid(sourceLiquidType, 1) then
-        log("Pour rejected; liquid type is incompatible with barrel contents.")
-        return
+        return nil, nil, nil, nil, "incompatible_liquid"
     end
 
+    return barrel, barrelData, sourceItem, sourceLiquidType, nil
+end
+
+---@param barrelData BarrEx_Barrel
+---@param sourceItem InventoryItem
+---@return number
+local function getMaxPourAmount(barrelData, sourceItem)
+    return math.max(math.min(LiquidAdapter.getAmount(sourceItem), barrelData:getFreeCapacity()), 0)
+end
+
+---@param barrel IsoObject
+---@param barrelData BarrEx_Barrel
+---@param sourceItem InventoryItem
+---@param sourceLiquidType string
+---@param requestedAmount number|nil
+---@return number
+---@return string|nil
+local function applyPourTransfer(barrel, barrelData, sourceItem, sourceLiquidType, requestedAmount)
     local sourceAmount = LiquidAdapter.getAmount(sourceItem)
     local barrelFree = barrelData:getFreeCapacity()
-    local transferAmount = math.max(math.min(sourceAmount, barrelFree), 0)
+    local transferAmount = math.max(math.min(sourceAmount, barrelFree, requestedAmount or math.huge), 0)
 
     if transferAmount <= 0 then
-        log("Pour rejected; no transferable amount.")
-        return
+        return 0, "no_transferable_amount"
     end
 
     local removed = LiquidAdapter.removeLiquid(sourceItem, transferAmount)
     if removed <= 0 then
-        log("Pour rejected; could not remove liquid from source item.")
-        return
+        return 0, "source_remove_failed"
     end
 
     local added = barrelData:addLiquid(sourceLiquidType, removed)
     if added <= 0 then
-        -- Restore source item when barrel add fails unexpectedly.
         LiquidAdapter.addLiquid(sourceItem, sourceLiquidType, removed)
-        log("Pour rejected; barrel add returned zero.")
-        return
+        return 0, "barrel_add_failed"
     end
 
     local overflow = removed - added
@@ -262,80 +307,84 @@ local function onPourIntoBarrel(player, args)
     end
 
     persistBarrel(barrel, barrelData)
-    log(string.format(
-        "Pour applied: id=%s liquid=%s moved=%.3f amount=%.3f/%.3f weight=%.2f",
-        barrelData.id or "unknown",
-        sourceLiquidType,
-        added,
-        barrelData.amount or 0,
-        barrelData.capacity or 0,
-        BarrEx_BarrelData.getWeight(barrelData)
-    ))
+    return added, nil
 end
 
 ---@param player IsoPlayer
 ---@param args table
-local function onExtractFromBarrel(player, args)
+---@return IsoObject|nil
+---@return BarrEx_Barrel|nil
+---@return InventoryItem|nil
+---@return string|nil
+---@return string|nil
+local function resolveExtractTransfer(player, args)
     local barrel = getBarrelFromArgs(args)
     if not barrel then
-        log("Extract rejected; barrel was not found from command args.")
-        return
+        return nil, nil, nil, nil, "barrel_not_found"
     end
 
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData or not barrelData:isRevealed() then
-        log("Extract rejected; barrel is closed or missing data.")
-        return
+        return nil, nil, nil, nil, "barrel_unavailable"
     end
 
     if not validateSharedInteraction(barrel, player, Constant.EXTRACT_REQUIRED_ITEMS) then
-        log("Extract rejected; failed shared interaction validation.")
-        return
+        return nil, nil, nil, nil, "interaction_invalid"
     end
 
     if barrelData:isEmpty() then
-        log("Extract rejected; barrel is empty.")
-        return
+        return nil, nil, nil, nil, "barrel_empty"
     end
 
     local targetItem = getItemFromArgs(player, args)
     if not targetItem then
-        log("Extract rejected; target item not found in player inventory.")
-        return
+        return nil, nil, nil, nil, "target_not_found"
     end
 
     local liquidType = barrelData.liquidType
     if type(liquidType) ~= "string" or Constant.LIQUID_TYPE[liquidType] == nil or liquidType == Constant.LIQUID_TYPE.EMPTY then
-        log("Extract rejected; barrel liquid type is invalid.")
-        return
+        return nil, nil, nil, nil, "invalid_barrel_liquid"
     end
 
     if not LiquidAdapter.canReceive(targetItem, liquidType) then
-        log("Extract rejected; target item cannot receive this liquid type.")
-        return
+        return nil, nil, nil, nil, "target_cannot_receive"
     end
 
+    return barrel, barrelData, targetItem, liquidType, nil
+end
+
+---@param barrelData BarrEx_Barrel
+---@param targetItem InventoryItem
+---@return number
+local function getMaxExtractAmount(barrelData, targetItem)
+    return math.max(math.min(barrelData.amount or 0, LiquidAdapter.getFreeCapacity(targetItem)), 0)
+end
+
+---@param barrel IsoObject
+---@param barrelData BarrEx_Barrel
+---@param targetItem InventoryItem
+---@param liquidType string
+---@param requestedAmount number|nil
+---@return number
+---@return string|nil
+local function applyExtractTransfer(barrel, barrelData, targetItem, liquidType, requestedAmount)
     local available = barrelData.amount
     local freeCapacity = LiquidAdapter.getFreeCapacity(targetItem)
-    local transferAmount = math.max(math.min(available, freeCapacity), 0)
+    local transferAmount = math.max(math.min(available, freeCapacity, requestedAmount or math.huge), 0)
 
     if transferAmount <= 0 then
-        log("Extract rejected; no transferable amount.")
-        return
+        return 0, "no_transferable_amount"
     end
 
     local removed = barrelData:removeLiquid(transferAmount)
     if removed <= 0 then
-        log("Extract rejected; could not remove liquid from barrel.")
-        return
+        return 0, "barrel_remove_failed"
     end
 
     local added = LiquidAdapter.addLiquid(targetItem, liquidType, removed)
     if added <= 0 then
-        -- Restore barrel when item add fails unexpectedly.
         barrelData:addLiquid(liquidType, removed)
-        log("Extract rejected; could not add liquid to target item.")
-        return
+        return 0, "target_add_failed"
     end
 
     local overflow = removed - added
@@ -344,15 +393,162 @@ local function onExtractFromBarrel(player, args)
     end
 
     persistBarrel(barrel, barrelData)
+    return added, nil
+end
+
+---@param player IsoPlayer
+---@param mode string
+---@param args table
+local function startTransfer(player, mode, args)
+    if not player or type(args) ~= "table" then return end
+
+    local barrel, barrelData, item, liquidType, reason
+    if mode == "pour" then
+        barrel, barrelData, item, liquidType, reason = resolvePourTransfer(player, args)
+    else
+        barrel, barrelData, item, liquidType, reason = resolveExtractTransfer(player, args)
+    end
+
+    if not barrel or not barrelData or not item or not liquidType then
+        log(string.format("Transfer start rejected: mode=%s reason=%s", mode, reason or "unknown"))
+        return
+    end
+
+    local totalAmount = 0
+    if mode == "pour" then
+        totalAmount = getMaxPourAmount(barrelData, item)
+    else
+        totalAmount = getMaxExtractAmount(barrelData, item)
+    end
+    if totalAmount <= 0 then
+        log(string.format("Transfer start rejected: mode=%s reason=no_transferable_amount", mode))
+        return
+    end
+
+    local key = getPlayerTransferKey(player)
+    if key == nil then return end
+
+    local totalTicks = math.max(Utils.getVanillaFluidActionTime(totalAmount), 1)
+    local tickInterval = math.max(Constant.SERVER_TRANSFER_TICK_INTERVAL or 1, 1)
+
+    activeTransfers[key] = {
+        player = player,
+        mode = mode,
+        args = args,
+        liquidType = liquidType,
+        totalAmount = totalAmount,
+        remainingAmount = totalAmount,
+        movedAmount = 0,
+        amountPerTick = totalAmount / totalTicks,
+        tickInterval = tickInterval,
+        ticksUntilStep = 0,
+    }
+
     log(string.format(
-        "Extract applied: id=%s liquid=%s moved=%.3f amount=%.3f/%.3f weight=%.2f",
+        "Transfer started: player=%s mode=%s id=%s liquid=%s total=%.3f duration=%d interval=%d",
+        tostring(player:getUsername()),
+        mode,
         barrelData.id or "unknown",
         liquidType,
-        added,
-        barrelData.amount or 0,
-        barrelData.capacity or 0,
-        BarrEx_BarrelData.getWeight(barrelData)
+        totalAmount,
+        totalTicks,
+        tickInterval
     ))
+end
+
+---@param transfer table
+---@param requestedAmount number|nil
+---@return number
+---@return string|nil
+local function advanceTransfer(transfer, requestedAmount)
+    if not transfer or not transfer.player then
+        return 0, "missing_transfer"
+    end
+
+    if transfer.mode == "pour" then
+        local barrel, barrelData, sourceItem, liquidType, reason = resolvePourTransfer(transfer.player, transfer.args)
+        if not barrel or not barrelData or not sourceItem or not liquidType then
+            return 0, reason
+        end
+
+        return applyPourTransfer(barrel, barrelData, sourceItem, liquidType, requestedAmount)
+    end
+
+    local barrel, barrelData, targetItem, liquidType, reason = resolveExtractTransfer(transfer.player, transfer.args)
+    if not barrel or not barrelData or not targetItem or not liquidType then
+        return 0, reason
+    end
+
+    return applyExtractTransfer(barrel, barrelData, targetItem, liquidType, requestedAmount)
+end
+
+---@param player IsoPlayer
+---@param mode string
+local function completeTransfer(player, mode)
+    local key = getPlayerTransferKey(player)
+    if key == nil then return end
+
+    local transfer = key and activeTransfers[key] or nil
+    if not transfer or transfer.mode ~= mode then return end
+
+    local movedAmount, reason = advanceTransfer(transfer, transfer.remainingAmount)
+    transfer.movedAmount = transfer.movedAmount + movedAmount
+    transfer.remainingAmount = math.max(transfer.remainingAmount - movedAmount, 0)
+
+    activeTransfers[key] = nil
+
+    log(string.format(
+        "Transfer completed: player=%s mode=%s moved=%.3f/%.3f reason=%s",
+        tostring(player:getUsername()),
+        mode,
+        transfer.movedAmount or 0,
+        transfer.totalAmount or 0,
+        reason or "finished"
+    ))
+end
+
+local function onServerTick()
+    for key, transfer in pairs(activeTransfers) do
+        transfer.ticksUntilStep = (transfer.ticksUntilStep or transfer.tickInterval or 1) - 1
+        if transfer.ticksUntilStep <= 0 then
+            transfer.ticksUntilStep = transfer.tickInterval
+
+            local requestedAmount = math.min(
+                transfer.remainingAmount or 0,
+                math.max((transfer.amountPerTick or 0) * (transfer.tickInterval or 1), 0)
+            )
+            if requestedAmount <= 0 then
+                activeTransfers[key] = nil
+            else
+                local movedAmount, reason = advanceTransfer(transfer, requestedAmount)
+                if movedAmount <= 0 then
+                    activeTransfers[key] = nil
+                    log(string.format(
+                        "Transfer interrupted: player=%s mode=%s moved=%.3f/%.3f reason=%s",
+                        tostring(transfer.player and transfer.player:getUsername() or "unknown"),
+                        transfer.mode or "unknown",
+                        transfer.movedAmount or 0,
+                        transfer.totalAmount or 0,
+                        reason or "step_failed"
+                    ))
+                else
+                    transfer.movedAmount = transfer.movedAmount + movedAmount
+                    transfer.remainingAmount = math.max((transfer.remainingAmount or 0) - movedAmount, 0)
+
+                    if transfer.remainingAmount <= 0 then
+                        activeTransfers[key] = nil
+                        log(string.format(
+                            "Transfer finished: player=%s mode=%s moved=%.3f/%.3f",
+                            tostring(transfer.player and transfer.player:getUsername() or "unknown"),
+                            transfer.mode or "unknown",
+                            transfer.movedAmount or 0,
+                            transfer.totalAmount or 0
+                        ))
+                    end
+                end
+            end
+        end
+    end
 end
 
 local function onClientCommand(module, command, player, args)
@@ -363,13 +559,33 @@ local function onClientCommand(module, command, player, args)
         return
     end
 
-    if command == Constant.NETWORK.POUR_INTO_BARREL then
-        onPourIntoBarrel(player, args)
+    if command == Constant.NETWORK.START_POUR_INTO_BARREL then
+        startTransfer(player, "pour", args)
         return
     end
 
-    if command == Constant.NETWORK.EXTRACT_FROM_BARREL then
-        onExtractFromBarrel(player, args)
+    if command == Constant.NETWORK.STOP_POUR_INTO_BARREL then
+        clearActiveTransfer(player, "client_stop")
+        return
+    end
+
+    if command == Constant.NETWORK.COMPLETE_POUR_INTO_BARREL then
+        completeTransfer(player, "pour")
+        return
+    end
+
+    if command == Constant.NETWORK.START_EXTRACT_FROM_BARREL then
+        startTransfer(player, "extract", args)
+        return
+    end
+
+    if command == Constant.NETWORK.STOP_EXTRACT_FROM_BARREL then
+        clearActiveTransfer(player, "client_stop")
+        return
+    end
+
+    if command == Constant.NETWORK.COMPLETE_EXTRACT_FROM_BARREL then
+        completeTransfer(player, "extract")
     end
 end
 
@@ -403,3 +619,4 @@ end
 Events.OnClientCommand.Add(onClientCommand)
 Events.OnObjectAdded.Add(reconcilePlacedBarrel)
 Events.LoadGridsquare.Add(onLoadGridsquare)
+Events.OnTick.Add(onServerTick)
