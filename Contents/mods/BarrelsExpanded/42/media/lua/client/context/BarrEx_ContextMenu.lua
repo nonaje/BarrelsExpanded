@@ -13,27 +13,7 @@ local Actions = require("context/BarrEx_ContextMenuActions")
 local ContextMenu = {}
 
 local function attachReasonTooltip(option, reason)
-    if not option or not reason then return end
-
-    if reason == "too_far" then
-        Tooltips.attachTooFarTooltip(option)
-    elseif reason == "barrel_empty" then
-        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.BARREL_EMPTY))
-    elseif reason == "barrel_full" then
-        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.BARREL_FULL))
-    elseif reason == "missing_tool" then
-        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.REQUIRES_FUNNEL))
-    elseif reason == "no_target_items" or reason == "no_source_items" then
-        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER))
-    elseif reason == "not_drinkable" then
-        Tooltips.attachSimpleTooltip(option, "This liquid cannot be drunk.")
-    elseif reason == "not_washable" then
-        Tooltips.attachSimpleTooltip(option, "This liquid cannot be used for washing.")
-    elseif reason == "not_thirsty" then
-        Tooltips.attachSimpleTooltip(option, "You are not thirsty.")
-    elseif reason == "nothing_to_wash" then
-        Tooltips.attachSimpleTooltip(option, "Nothing needs washing.")
-    end
+    Tooltips.attachReasonTooltip(option, reason)
 end
 
 ---@param subMenu ISContextMenu
@@ -43,7 +23,11 @@ local function addBarrelInfoOption(subMenu, barrelData)
     local capacity = tonumber(barrelData.capacity) or 0
     local percent = capacity > 0 and math.floor((amount / capacity) * 100) or 0
 
-    local infoLabel = string.format("%s  %d%%", Text.getVanillaInfoText(), percent)
+    local infoLabel = Text.translate(
+        ContextConfig.CONTEXT_MENU.INFO_PERCENT,
+        Text.getVanillaInfoText(),
+        tostring(percent)
+    )
     local infoOption = subMenu:addOption(infoLabel, nil, nil)
     infoOption.notAvailable = true
 

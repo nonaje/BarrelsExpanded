@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/Tooltip.schema.json",
   "Tooltip_BarrEx_Required": "Requires:",
+  "Tooltip_BarrEx_ItemRequirement": "%1 %2/%3",
   "Tooltip_BarrEx_OneOf": "One of:",
   "Tooltip_BarrEx_BarrelContents": "Barrel contents:",
   "Tooltip_BarrEx_Liquid": "Liquid:",
@@ -14,6 +15,12 @@
   "Tooltip_BarrEx_BarrelClosed": "Open the barrel first.",
   "Tooltip_BarrEx_IncompatibleLiquid": "Incompatible liquid type.",
   "Tooltip_BarrEx_NoCompatibleContainer": "No compatible container found.",
+  "Tooltip_BarrEx_BarrelUnavailable": "The barrel is unavailable.",
+  "Tooltip_BarrEx_NotDrinkable": "This liquid cannot be drunk.",
+  "Tooltip_BarrEx_NotWashable": "This liquid cannot be used for washing.",
+  "Tooltip_BarrEx_NotThirsty": "You are not thirsty.",
+  "Tooltip_BarrEx_NothingToWash": "Nothing needs washing.",
+  "Tooltip_BarrEx_TaintedWater": "Tainted water.",
   "Tooltip_BarrEx_FillLevel": "Fill level:",
   "Tooltip_BarrEx_TransferAmount": "to transfer",
   "Tooltip_BarrEx_ContainerCapacity": "Container:"

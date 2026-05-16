@@ -5,5 +5,18 @@
   "ContextMenu_BarrEx_Info": "Información",
   "ContextMenu_BarrEx_RemoveCover": "Quitar la tapa",
   "ContextMenu_BarrEx_Pour": "Verter líquido",
-  "ContextMenu_BarrEx_Extract": "Retirar líquido"
+  "ContextMenu_BarrEx_Extract": "Retirar líquido",
+  "ContextMenu_BarrEx_InfoPercent": "%1  %2%",
+  "ContextMenu_BarrEx_GroupedContainer": "%1 (%2)",
+  "ContextMenu_BarrEx_PourContainer": "%1 - %2",
+  "ContextMenu_BarrEx_FallbackFill": "Llenar",
+  "ContextMenu_BarrEx_FallbackFillOne": "Llenar uno",
+  "ContextMenu_BarrEx_FallbackFillAll": "Llenar todo",
+  "ContextMenu_BarrEx_FallbackTakeGas": "Llenar gasolina",
+  "ContextMenu_BarrEx_FallbackDrink": "Beber",
+  "ContextMenu_BarrEx_FallbackWash": "Lavar",
+  "ContextMenu_BarrEx_FallbackYourself": "A ti mismo",
+  "ContextMenu_BarrEx_FallbackWashAllClothing": "Toda la ropa",
+  "ContextMenu_BarrEx_FallbackEmpty": "Vaciar",
+  "ContextMenu_BarrEx_FallbackInfo": "Información del barril"
 }

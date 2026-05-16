@@ -17,23 +17,23 @@ local VANILLA_TEXT_KEYS = {
     INFO = { "Fluid_Show_Info" },
 }
 
-local FALLBACK_TEXT = {
-    FILL = "Llenar",
-    FILL_ONE = "Llenar uno",
-    FILL_ALL = "Llenar todo",
-    TAKE_GAS = "Llenar gasolina",
-    DRINK = "Beber",
-    WASH = "Lavar",
-    YOURSELF = "A ti mismo",
-    WASH_ALL_CLOTHING = "Toda la ropa",
-    EMPTY = "Vaciar",
-    INFO = "Informacion del barril",
+local FALLBACK_TEXT_KEYS = {
+    FILL = ContextConfig.CONTEXT_MENU.FALLBACK_FILL,
+    FILL_ONE = ContextConfig.CONTEXT_MENU.FALLBACK_FILL_ONE,
+    FILL_ALL = ContextConfig.CONTEXT_MENU.FALLBACK_FILL_ALL,
+    TAKE_GAS = ContextConfig.CONTEXT_MENU.FALLBACK_TAKE_GAS,
+    DRINK = ContextConfig.CONTEXT_MENU.FALLBACK_DRINK,
+    WASH = ContextConfig.CONTEXT_MENU.FALLBACK_WASH,
+    YOURSELF = ContextConfig.CONTEXT_MENU.FALLBACK_YOURSELF,
+    WASH_ALL_CLOTHING = ContextConfig.CONTEXT_MENU.FALLBACK_WASH_ALL_CLOTHING,
+    EMPTY = ContextConfig.CONTEXT_MENU.FALLBACK_EMPTY,
+    INFO = ContextConfig.CONTEXT_MENU.FALLBACK_INFO,
 }
 
 ---@param key string
 ---@return string
-function Text.translate(key)
-    return getText(key)
+function Text.translate(key, ...)
+    return getText(key, ...)
 end
 
 ---@param key string
@@ -57,67 +57,68 @@ local function getTextIfExists(key)
 end
 
 ---@param keys table<integer, string>
----@param fallback string
+---@param fallbackKey string
 ---@return string
-local function getFirstAvailableText(keys, fallback)
-    for _, key in ipairs(keys or {}) do
+local function getFirstAvailableText(keys, fallbackKey)
+    for i = 1, #(keys or {}) do
+        local key = keys[i]
         local text = getTextIfExists(key)
         if text then
             return text
         end
     end
 
-    return fallback
+    return Text.translate(fallbackKey)
 end
 
 ---@return string
 function Text.getVanillaFillText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL, FALLBACK_TEXT.FILL)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL, FALLBACK_TEXT_KEYS.FILL)
 end
 
 ---@return string
 function Text.getVanillaFillOneText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL_ONE, FALLBACK_TEXT.FILL_ONE)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL_ONE, FALLBACK_TEXT_KEYS.FILL_ONE)
 end
 
 ---@return string
 function Text.getVanillaFillAllText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL_ALL, FALLBACK_TEXT.FILL_ALL)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL_ALL, FALLBACK_TEXT_KEYS.FILL_ALL)
 end
 
 ---@return string
 function Text.getVanillaTakeGasText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.TAKE_GAS, FALLBACK_TEXT.TAKE_GAS)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.TAKE_GAS, FALLBACK_TEXT_KEYS.TAKE_GAS)
 end
 
 ---@return string
 function Text.getVanillaDrinkText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.DRINK, FALLBACK_TEXT.DRINK)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.DRINK, FALLBACK_TEXT_KEYS.DRINK)
 end
 
 ---@return string
 function Text.getVanillaWashText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.WASH, FALLBACK_TEXT.WASH)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.WASH, FALLBACK_TEXT_KEYS.WASH)
 end
 
 ---@return string
 function Text.getVanillaYourselfText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.YOURSELF, FALLBACK_TEXT.YOURSELF)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.YOURSELF, FALLBACK_TEXT_KEYS.YOURSELF)
 end
 
 ---@return string
 function Text.getVanillaWashAllClothingText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.WASH_ALL_CLOTHING, FALLBACK_TEXT.WASH_ALL_CLOTHING)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.WASH_ALL_CLOTHING, FALLBACK_TEXT_KEYS.WASH_ALL_CLOTHING)
 end
 
 ---@return string
 function Text.getVanillaEmptyText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.EMPTY, FALLBACK_TEXT.EMPTY)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.EMPTY, FALLBACK_TEXT_KEYS.EMPTY)
 end
 
 ---@return string
 function Text.getVanillaInfoText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.INFO, FALLBACK_TEXT.INFO)
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.INFO, FALLBACK_TEXT_KEYS.INFO)
 end
 
 ---@param amount number|nil
@@ -191,7 +192,7 @@ function Text.buildGroupedContainerLabel(group)
     local count = #(group.items or {})
 
     if count > 1 then
-        return string.format("%s (%d)", group.label, count)
+        return Text.translate(ContextConfig.CONTEXT_MENU.GROUPED_CONTAINER, group.label, tostring(count))
     end
 
     return group.label
@@ -203,8 +204,8 @@ end
 function Text.buildPourContainerOptionLabel(item, liquidType)
     local liquidName = Text.getLiquidDisplayName(liquidType or LiquidAdapter.getLiquidType(item))
 
-    return string.format(
-        "%s - %s",
+    return Text.translate(
+        ContextConfig.CONTEXT_MENU.POUR_CONTAINER,
         Text.getInventoryItemDisplayName(item),
         liquidName
     )
