@@ -27,7 +27,7 @@ El mod agrega comportamiento interactivo a barriles vanilla del mundo. Puedes:
 - Extraer liquido del barril.
 - Vaciar barriles.
 
-El contenido del barril se genera en la primera apertura:
+El contenido del barril se revela en la primera apertura:
 
 - Tipo de liquido: Agua, Agua Contaminada, Gasolina o Lejia.
 - Cantidad: entre 1 y 160 unidades.
@@ -65,7 +65,8 @@ El mod sigue una arquitectura cliente-servidor:
 9. **Estado persistente** guardado en `modData`.
 10. **Multijugador server-authoritative** con locks de transferencia para evitar solapamientos en el mismo barril.
 11. **Peso dinamico del barril** segun tipo y cantidad de liquido.
-12. **Soporte singleplayer y multijugador**.
+12. **Sincronizacion al levantar/colocar** para conservar contenido, ID y peso del barril abierto.
+13. **Soporte singleplayer y multijugador**.
 
 ### Datos de juego
 

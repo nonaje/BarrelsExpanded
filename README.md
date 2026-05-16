@@ -27,7 +27,7 @@ The mod adds interactive behavior to existing vanilla world barrels. You can:
 - Extract liquid from barrels.
 - Empty barrels.
 
-Barrel contents are generated the first time a barrel is opened:
+Barrel contents are revealed the first time a barrel is opened:
 
 - Liquid type: Water, Tainted Water, Gasoline, or Bleach.
 - Amount: between 1 and 160 units.
@@ -65,7 +65,8 @@ The mod follows a client-server architecture:
 9. **Persistent state** stored in `modData`.
 10. **Server-authoritative multiplayer** with transfer locks to avoid overlap on the same barrel.
 11. **Dynamic barrel weight** based on liquid type and amount.
-12. **Singleplayer and multiplayer support**.
+12. **Pickup/place sync** that preserves opened barrel contents, ID, and weight.
+13. **Singleplayer and multiplayer support**.
 
 ### Gameplay Data
 

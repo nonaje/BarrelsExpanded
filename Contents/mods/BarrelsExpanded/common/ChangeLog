@@ -1,0 +1,7 @@
+Version 1.0.0
+- Initial public release for Project Zomboid Build 42.
+- Added interactive world barrels with persistent liquid contents.
+- Added multiplayer-safe open, inspect, drink, wash, pour, extract, empty, pickup and place flows.
+- Added server-authoritative validation, transfer locks, transfer timeout recovery and modData synchronization.
+- Added dynamic barrel weight based on liquid type and amount.
+- Added English, Spanish and Argentine Spanish UI translations.
