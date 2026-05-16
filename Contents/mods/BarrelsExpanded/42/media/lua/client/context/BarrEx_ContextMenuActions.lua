@@ -31,8 +31,9 @@ end
 
 local function queueWalkToBarrel(player, barrel)
     if not player or not barrel then return false end
-    if luautils and type(luautils.walkAdjObject) == "function" then
-        return luautils.walkAdjObject(player, barrel, true, true)
+    local walkAdjObject = luautils and luautils["walkAdjObject"]
+    if type(walkAdjObject) == "function" then
+        return walkAdjObject(player, barrel, true, true)
     end
     return true
 end
