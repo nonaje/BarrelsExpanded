@@ -1,4 +1,5 @@
 version=1
+id=3727387302
 title=Barrels Expanded [MP + SP]
 description=[h1]Special mention / Mencion especial[/h1]
 description=
@@ -113,5 +114,5 @@ description=
 description=The mod's saved modData may remain in the save but becomes inactive. It should not break the save, but barrel contents managed by the mod will not be usable while the mod is disabled. Before removing it, place any carried barrels back into the world, save, shut down the game/server, and then disable the mod.
 description=
 description=Version 1.0.0 is the first public release. If you find a sync issue, a broken barrel tile, or a container that should be supported, drop a report with the item/barrel name and what happened.
-tags=Build 42,Items,Misc,Multiplayer,QOL,Realistic
+tags=Build 42;Items;Misc;Multiplayer;Realistic;QoL;WIP
 visibility=public
