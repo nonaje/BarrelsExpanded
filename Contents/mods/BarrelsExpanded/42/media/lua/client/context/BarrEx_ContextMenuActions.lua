@@ -3,6 +3,9 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_OpenBarrelAction = require("BarrEx_OpenBarrelAction")
 local BarrEx_PourIntoBarrelAction = require("BarrEx_PourIntoBarrelAction")
 local BarrEx_ExtractFromBarrelAction = require("BarrEx_ExtractFromBarrelAction")
+local BarrEx_DrinkFromBarrelAction = require("BarrEx_DrinkFromBarrelAction")
+local BarrEx_WashFromBarrelAction = require("BarrEx_WashFromBarrelAction")
+local BarrEx_EmptyBarrelAction = require("BarrEx_EmptyBarrelAction")
 local Logger = require("utils/BarrEx_Logger")
 
 local Actions = {}
@@ -64,6 +67,52 @@ function Actions.onExtractAllFromBarrel(barrel, player, targetItems)
             ISTimedActionQueue.add(BarrEx_ExtractFromBarrelAction:new(player, barrel, item))
         end
     end
+end
+
+---@param barrel IsoObject
+---@param player IsoPlayer
+function Actions.onDrinkFromBarrel(barrel, player)
+    if not barrel or not player then return end
+
+    ISTimedActionQueue.add(BarrEx_DrinkFromBarrelAction:new(player, barrel))
+end
+
+---@param barrel IsoObject
+---@param player IsoPlayer
+function Actions.onWashSelfFromBarrel(barrel, player)
+    if not barrel or not player then return end
+
+    ISTimedActionQueue.add(BarrEx_WashFromBarrelAction:new(player, barrel, "self", nil))
+end
+
+---@param barrel IsoObject
+---@param player IsoPlayer
+---@param item InventoryItem
+function Actions.onWashItemFromBarrel(barrel, player, item)
+    if not barrel or not player or not item then return end
+
+    ISTimedActionQueue.add(BarrEx_WashFromBarrelAction:new(player, barrel, "item", item))
+end
+
+---@param barrel IsoObject
+---@param player IsoPlayer
+---@param items table<integer, InventoryItem>
+function Actions.onWashAllFromBarrel(barrel, player, items)
+    if not barrel or not player or not items then return end
+
+    for _, item in ipairs(items) do
+        if item then
+            ISTimedActionQueue.add(BarrEx_WashFromBarrelAction:new(player, barrel, "item", item))
+        end
+    end
+end
+
+---@param barrel IsoObject
+---@param player IsoPlayer
+function Actions.onEmptyBarrel(barrel, player)
+    if not barrel or not player then return end
+
+    ISTimedActionQueue.add(BarrEx_EmptyBarrelAction:new(player, barrel))
 end
 
 return Actions

@@ -71,7 +71,14 @@ local function buildTransferId(player, barrel, item, mode)
         .. ":" .. tostring(getRandomSuffix())
 end
 
-local function sendTransferCommand(action, command)
+local function clamp01(value)
+    local numericValue = tonumber(value) or 0
+    if numericValue < 0 then return 0 end
+    if numericValue > 1 then return 1 end
+    return numericValue
+end
+
+local function sendTransferCommand(action, command, extraArgs)
     if not action or not command then return false end
 
     local inventory = action.character:getInventory()
@@ -90,8 +97,9 @@ local function sendTransferCommand(action, command)
 
     local modData = action.barrel:getModData()
 
-    sendClientCommand(Constant.NETWORK.MODULE, command, {
+    local payload = {
         transferId = action.transferId,
+        mode = action.mode,
         x = square:getX(),
         y = square:getY(),
         z = square:getZ(),
@@ -100,7 +108,15 @@ local function sendTransferCommand(action, command)
         spriteName = WorldUtils.getSpriteName(action.barrel),
         itemId = item:getID(),
         itemFullType = item:getFullType(),
-    })
+    }
+
+    if type(extraArgs) == "table" then
+        for key, value in pairs(extraArgs) do
+            payload[key] = value
+        end
+    end
+
+    sendClientCommand(Constant.NETWORK.MODULE, command, payload)
 
     return true
 end
@@ -252,11 +268,14 @@ function BarrEx_LiquidTransferAction:start()
 
     self.toolItem = PlayerUtils.findFirstRequiredItem(
         self.character,
-        self.mode == "pour" and Constant.POUR_REQUIRED_ITEMS or Constant.EXTRACT_REQUIRED_ITEMS
+        self.mode == "pour" and Constant.POUR_REQUIRED_ITEMS or {}
     )
     self.transferStarted = sendTransferCommand(self, self:getStartCommand())
     if self.transferStarted then
         TransferSync.registerAction(self.transferId, self.mode, self, self.barrel, self.liquidItem)
+        self.lastSentAnimationProgress = 0
+        self.progressTicksSinceSync = 0
+        sendTransferCommand(self, Constant.NETWORK.UPDATE_TRANSFER_PROGRESS, { progress = 0 })
     end
 
     self:setupJobTracking()
@@ -275,6 +294,24 @@ end
 function BarrEx_LiquidTransferAction:update()
     self:syncProgress()
     TransferSync.beforeActionUpdate(self)
+    if self.transferStarted then
+        local progress = clamp01(self:getJobDelta())
+        self.progressTicksSinceSync = (self.progressTicksSinceSync or 0) + 1
+
+        local interval = math.max(tonumber(Constant.CLIENT_TRANSFER_PROGRESS_INTERVAL) or 5, 1)
+        local epsilon = math.max(tonumber(Constant.CLIENT_TRANSFER_PROGRESS_EPSILON) or 0.01, 0)
+        local lastProgress = tonumber(self.lastSentAnimationProgress) or 0
+        local shouldSendProgress = self.progressTicksSinceSync >= interval
+            or progress >= 1
+            or progress - lastProgress >= epsilon
+
+        if shouldSendProgress then
+            if sendTransferCommand(self, Constant.NETWORK.UPDATE_TRANSFER_PROGRESS, { progress = progress }) then
+                self.lastSentAnimationProgress = progress
+                self.progressTicksSinceSync = 0
+            end
+        end
+    end
     ISBaseTimedAction.update(self)
     self.character:faceThisObject(self.barrel)
     self.character:setMetabolicTarget(Metabolics.LightDomestic)
@@ -285,7 +322,7 @@ function BarrEx_LiquidTransferAction:stop()
     TransferSync.unregisterAction(self.transferId, self)
     self:clearJobTracking()
     if self.transferStarted then
-        sendTransferCommand(self, self:getStopCommand())
+        sendTransferCommand(self, self:getStopCommand(), { progress = clamp01(self:getJobDelta()) })
         self.transferStarted = false
     end
     ISBaseTimedAction.stop(self)
@@ -300,7 +337,7 @@ function BarrEx_LiquidTransferAction:perform()
         container:setDrawDirty(true)
     end
     if self.transferStarted then
-        sendTransferCommand(self, self:getCompleteCommand())
+        sendTransferCommand(self, self:getCompleteCommand(), { progress = 1 })
         self.transferStarted = false
     end
     ISBaseTimedAction.perform(self)

@@ -9,6 +9,7 @@
 local Constant           = require("BarrEx_Constant")
 local TransferService    = require("BarrEx_TransferService")
 local BarrelWorldService = require("BarrEx_BarrelWorldService")
+local BarrelUseService   = require("BarrEx_BarrelUseService")
 
 local function onClientCommand(module, command, player, args)
     if module ~= Constant.NETWORK.MODULE then return end
@@ -35,6 +36,11 @@ local function onClientCommand(module, command, player, args)
         return
     end
 
+    if command == Constant.NETWORK.UPDATE_TRANSFER_PROGRESS then
+        TransferService.updateProgress(player, args)
+        return
+    end
+
     if command == Constant.NETWORK.START_EXTRACT_FROM_BARREL then
         TransferService.start(player, "extract", args)
         return
@@ -49,6 +55,21 @@ local function onClientCommand(module, command, player, args)
     if command == Constant.NETWORK.COMPLETE_EXTRACT_FROM_BARREL then
         if not args or not args.transferId then return end
         TransferService.complete(player, "extract", args and args.transferId)
+        return
+    end
+
+    if command == Constant.NETWORK.DRINK_FROM_BARREL then
+        BarrelUseService.drink(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.WASH_FROM_BARREL then
+        BarrelUseService.wash(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.EMPTY_BARREL then
+        BarrelUseService.empty(player, args)
     end
 end
 

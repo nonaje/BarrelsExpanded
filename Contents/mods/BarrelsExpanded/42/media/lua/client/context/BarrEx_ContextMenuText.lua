@@ -8,12 +8,26 @@ local VANILLA_TEXT_KEYS = {
     FILL = { "ContextMenu_Fill" },
     FILL_ONE = { "ContextMenu_Fill_one", "ContextMenu_Fill_One", "ContextMenu_FillOne" },
     FILL_ALL = { "ContextMenu_Fill_all", "ContextMenu_Fill_All", "ContextMenu_FillAll" },
+    TAKE_GAS = { "ContextMenu_TakeGasFromPump" },
+    DRINK = { "ContextMenu_Drink" },
+    WASH = { "ContextMenu_Wash" },
+    YOURSELF = { "ContextMenu_Yourself" },
+    WASH_ALL_CLOTHING = { "ContextMenu_WashAllClothing" },
+    EMPTY = { "Fluid_Empty" },
+    INFO = { "Fluid_Show_Info" },
 }
 
 local FALLBACK_TEXT = {
     FILL = "Llenar",
     FILL_ONE = "Llenar uno",
     FILL_ALL = "Llenar todo",
+    TAKE_GAS = "Llenar gasolina",
+    DRINK = "Beber",
+    WASH = "Lavar",
+    YOURSELF = "A ti mismo",
+    WASH_ALL_CLOTHING = "Toda la ropa",
+    EMPTY = "Vaciar",
+    INFO = "Informacion del barril",
 }
 
 ---@param key string
@@ -69,6 +83,41 @@ end
 ---@return string
 function Text.getVanillaFillAllText()
     return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL_ALL, FALLBACK_TEXT.FILL_ALL)
+end
+
+---@return string
+function Text.getVanillaTakeGasText()
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.TAKE_GAS, FALLBACK_TEXT.TAKE_GAS)
+end
+
+---@return string
+function Text.getVanillaDrinkText()
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.DRINK, FALLBACK_TEXT.DRINK)
+end
+
+---@return string
+function Text.getVanillaWashText()
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.WASH, FALLBACK_TEXT.WASH)
+end
+
+---@return string
+function Text.getVanillaYourselfText()
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.YOURSELF, FALLBACK_TEXT.YOURSELF)
+end
+
+---@return string
+function Text.getVanillaWashAllClothingText()
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.WASH_ALL_CLOTHING, FALLBACK_TEXT.WASH_ALL_CLOTHING)
+end
+
+---@return string
+function Text.getVanillaEmptyText()
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.EMPTY, FALLBACK_TEXT.EMPTY)
+end
+
+---@return string
+function Text.getVanillaInfoText()
+    return getFirstAvailableText(VANILLA_TEXT_KEYS.INFO, FALLBACK_TEXT.INFO)
 end
 
 ---@param amount number|nil

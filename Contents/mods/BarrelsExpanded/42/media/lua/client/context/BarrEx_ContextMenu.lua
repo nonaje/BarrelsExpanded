@@ -7,9 +7,34 @@ local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 local Text = require("context/BarrEx_ContextMenuText")
 local Tooltips = require("context/BarrEx_ContextMenuTooltips")
 local Inventory = require("context/BarrEx_ContextMenuInventory")
+local Availability = require("context/BarrEx_ContextMenuAvailability")
 local Actions = require("context/BarrEx_ContextMenuActions")
 
 local ContextMenu = {}
+
+local function attachReasonTooltip(option, reason)
+    if not option or not reason then return end
+
+    if reason == "too_far" then
+        Tooltips.attachTooFarTooltip(option)
+    elseif reason == "barrel_empty" then
+        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.BARREL_EMPTY))
+    elseif reason == "barrel_full" then
+        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.BARREL_FULL))
+    elseif reason == "missing_tool" then
+        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.REQUIRES_FUNNEL))
+    elseif reason == "no_target_items" or reason == "no_source_items" then
+        Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER))
+    elseif reason == "not_drinkable" then
+        Tooltips.attachSimpleTooltip(option, "This liquid cannot be drunk.")
+    elseif reason == "not_washable" then
+        Tooltips.attachSimpleTooltip(option, "This liquid cannot be used for washing.")
+    elseif reason == "not_thirsty" then
+        Tooltips.attachSimpleTooltip(option, "You are not thirsty.")
+    elseif reason == "nothing_to_wash" then
+        Tooltips.attachSimpleTooltip(option, "Nothing needs washing.")
+    end
+end
 
 ---@param subMenu ISContextMenu
 ---@param barrelData BarrEx_Barrel
@@ -18,7 +43,7 @@ local function addBarrelInfoOption(subMenu, barrelData)
     local capacity = tonumber(barrelData.capacity) or 0
     local percent = capacity > 0 and math.floor((amount / capacity) * 100) or 0
 
-    local infoLabel = string.format("%s  %d%%", Text.translate(ContextConfig.CONTEXT_MENU.INFO), percent)
+    local infoLabel = string.format("%s  %d%%", Text.getVanillaInfoText(), percent)
     local infoOption = subMenu:addOption(infoLabel, nil, nil)
     infoOption.notAvailable = true
 
@@ -59,17 +84,15 @@ end
 ---@param barrel IsoObject
 ---@param player IsoPlayer
 ---@param barrelData BarrEx_Barrel
----@param inRange boolean
-local function addPourOption(subMenu, barrel, player, barrelData, inRange)
-    local hasPourTool = PlayerUtils.isPlayerHoldingAnyRequiredItem(player, Constant.POUR_REQUIRED_ITEMS)
-    local sourceItems = Inventory.collectSourceContainersForPour(player, barrelData)
-    local canPour = inRange and hasPourTool and #sourceItems > 0
+---@param availability table
+local function addPourOption(subMenu, barrel, player, barrelData, availability)
+    local sourceItems = availability.sourceItems or {}
+    local canPour = availability.canPour == true
 
     local pourLabel = Text.translate(ContextConfig.CONTEXT_MENU.POUR)
     if #sourceItems == 1 and canPour then
         local item = sourceItems[1]
         local transferAmount = Inventory.getPourTransferAmount(item, barrelData)
-
         pourLabel = Text.buildPourContainerOptionLabel(item, LiquidAdapter.getLiquidType(item), transferAmount)
     elseif #sourceItems > 1 then
         pourLabel = pourLabel .. " >"
@@ -79,7 +102,6 @@ local function addPourOption(subMenu, barrel, player, barrelData, inRange)
     if #sourceItems == 1 and canPour then
         local item = sourceItems[1]
         local transferAmount = Inventory.getPourTransferAmount(item, barrelData)
-
         pourOption = subMenu:addOption(pourLabel, barrel, Actions.onPourIntoBarrel, player, item)
         Tooltips.attachInventoryItemIcon(pourOption, item)
         Tooltips.attachTransferTooltip(pourOption, item, LiquidAdapter.getLiquidType(item), transferAmount)
@@ -91,21 +113,8 @@ local function addPourOption(subMenu, barrel, player, barrelData, inRange)
 
     if canPour and #sourceItems > 1 then
         addPourContainerSubMenu(subMenu, pourOption, sourceItems, barrel, player, barrelData)
-        return
-    end
-
-    if canPour then return end
-
-    if not inRange then
-        Tooltips.attachTooFarTooltip(pourOption)
-    elseif not hasPourTool then
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.REQUIRES_FUNNEL))
-    elseif barrelData:isFull() then
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.BARREL_FULL))
-    elseif #sourceItems == 0 then
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER))
-    else
-        Tooltips.attachSimpleTooltip(pourOption, Text.translate(ContextConfig.TOOLTIP.INCOMPATIBLE_LIQUID))
+    elseif not canPour then
+        attachReasonTooltip(pourOption, availability.pourReason)
     end
 end
 
@@ -121,21 +130,8 @@ local function addGroupedFillSubSubMenu(parentMenu, groupOption, group, barrel, 
     local groupMenu = parentMenu:getNew(parentMenu)
     parentMenu:addSubMenu(groupOption, groupMenu)
 
-    groupMenu:addOption(
-        Text.getVanillaFillOneText(),
-        barrel,
-        Actions.onExtractFromBarrel,
-        player,
-        group.items[1]
-    )
-
-    groupMenu:addOption(
-        Text.getVanillaFillAllText(),
-        barrel,
-        Actions.onExtractAllFromBarrel,
-        player,
-        group.items
-    )
+    groupMenu:addOption(Text.getVanillaFillOneText(), barrel, Actions.onExtractFromBarrel, player, group.items[1])
+    groupMenu:addOption(Text.getVanillaFillAllText(), barrel, Actions.onExtractAllFromBarrel, player, group.items)
 end
 
 ---@param parentMenu ISContextMenu
@@ -143,35 +139,33 @@ end
 ---@param targetItems table<integer, InventoryItem>
 ---@param barrel IsoObject
 ---@param player IsoPlayer
-local function addVanillaLikeFillSubMenu(parentMenu, parentOption, targetItems, barrel, player)
+---@param isGasoline boolean
+local function addVanillaLikeFillSubMenu(parentMenu, parentOption, targetItems, barrel, player, isGasoline)
     if not parentMenu or not parentOption then return end
     if not targetItems or #targetItems == 0 then return end
 
     local fillMenu = parentMenu:getNew(parentMenu)
     parentMenu:addSubMenu(parentOption, fillMenu)
 
-    fillMenu:addOption(
-        Text.getVanillaFillAllText(),
-        barrel,
-        Actions.onExtractAllFromBarrel,
-        player,
-        targetItems
-    )
+    if #targetItems > 1 then
+        fillMenu:addOption(Text.getVanillaFillAllText(), barrel, Actions.onExtractAllFromBarrel, player, targetItems)
+    end
 
     for _, group in ipairs(Inventory.groupInventoryItemsByFullType(targetItems)) do
         local itemCount = #(group.items or {})
         local label = Text.buildGroupedContainerLabel(group)
 
         if itemCount == 1 then
-            local itemOption = fillMenu:addOption(
-                label,
-                barrel,
-                Actions.onExtractFromBarrel,
-                player,
-                group.items[1]
-            )
-
+            local item = group.items[1]
+            local itemOption = fillMenu:addOption(label, barrel, Actions.onExtractFromBarrel, player, item)
             Tooltips.attachInventoryItemIcon(itemOption, group.iconItem)
+            if isGasoline then
+                Tooltips.attachFuelCapacityTooltip(
+                    itemOption,
+                    LiquidAdapter.getFreeCapacity(item),
+                    LiquidAdapter.getCapacity(item)
+                )
+            end
         else
             local groupOption = fillMenu:addOption(label, nil, nil)
             Tooltips.attachInventoryItemIcon(groupOption, group.iconItem)
@@ -183,29 +177,92 @@ end
 ---@param subMenu ISContextMenu
 ---@param barrel IsoObject
 ---@param player IsoPlayer
----@param barrelData BarrEx_Barrel
----@param inRange boolean
-local function addFillOption(subMenu, barrel, player, barrelData, inRange)
-    local hasExtractTool = PlayerUtils.isPlayerHoldingAnyRequiredItem(player, Constant.EXTRACT_REQUIRED_ITEMS)
-    local targetItems = Inventory.collectTargetContainersForExtract(player, barrelData)
-    local canExtract = inRange and hasExtractTool and #targetItems > 0
+---@param availability table
+local function addFillOption(subMenu, barrel, player, availability)
+    local fillLabel = availability.isGasoline and Text.getVanillaTakeGasText() or Text.getVanillaFillText()
+    local fillOption = subMenu:addOption(fillLabel, nil, nil)
+    fillOption.notAvailable = not availability.canFill
 
-    local fillOption = subMenu:addOption(Text.getVanillaFillText(), nil, nil)
-    fillOption.notAvailable = not canExtract
-
-    if canExtract then
-        addVanillaLikeFillSubMenu(subMenu, fillOption, targetItems, barrel, player)
+    if availability.canFill then
+        addVanillaLikeFillSubMenu(
+            subMenu,
+            fillOption,
+            availability.targetItems,
+            barrel,
+            player,
+            availability.isGasoline
+        )
         return
     end
 
-    if not inRange then
-        Tooltips.attachTooFarTooltip(fillOption)
-    elseif not hasExtractTool then
-        Tooltips.attachSimpleTooltip(fillOption, Text.translate(ContextConfig.TOOLTIP.REQUIRES_HOSE))
-    elseif barrelData:isEmpty() then
-        Tooltips.attachSimpleTooltip(fillOption, Text.translate(ContextConfig.TOOLTIP.BARREL_EMPTY))
-    elseif #targetItems == 0 then
-        Tooltips.attachSimpleTooltip(fillOption, Text.translate(ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER))
+    attachReasonTooltip(fillOption, availability.fillReason)
+end
+
+local function addDrinkOption(subMenu, barrel, player, availability)
+    local drinkOption = subMenu:addOption(Text.getVanillaDrinkText(), barrel, Actions.onDrinkFromBarrel, player)
+    drinkOption.notAvailable = not availability.canDrink
+
+    if availability.isTaintedWater then
+        Tooltips.attachTaintedWaterTooltip(drinkOption)
+    elseif not availability.canDrink then
+        attachReasonTooltip(drinkOption, availability.drinkReason)
+    end
+end
+
+local function addWashItemOption(washMenu, barrel, player, item, isTaintedWater)
+    local label = getText("ContextMenu_WashClothing", Text.getInventoryItemDisplayName(item))
+    local option = washMenu:addOption(label, barrel, Actions.onWashItemFromBarrel, player, item)
+    Tooltips.attachInventoryItemIcon(option, item)
+
+    if isTaintedWater and Inventory.isCleanableBandageLikeItem(item) then
+        option.notAvailable = true
+        Tooltips.attachTaintedWaterTooltip(option)
+    end
+
+    return option
+end
+
+local function addWashOption(subMenu, barrel, player, availability)
+    local washOption = subMenu:addOption(Text.getVanillaWashText(), nil, nil)
+    washOption.notAvailable = not availability.canWash
+
+    if not availability.canWash then
+        attachReasonTooltip(washOption, availability.washReason)
+        return
+    end
+
+    local washMenu = subMenu:getNew(subMenu)
+    subMenu:addSubMenu(washOption, washMenu)
+
+    if (tonumber(availability.washSelfWaterRequired) or 0) > 0 then
+        washMenu:addOption(Text.getVanillaYourselfText(), barrel, Actions.onWashSelfFromBarrel, player)
+    end
+
+    local washableItems = availability.washItems or {}
+    if #washableItems > 1 then
+        local allowedItems = {}
+        for _, item in ipairs(washableItems) do
+            if not (availability.isTaintedWater and Inventory.isCleanableBandageLikeItem(item)) then
+                allowedItems[#allowedItems + 1] = item
+            end
+        end
+
+        if #allowedItems > 1 then
+            washMenu:addOption(Text.getVanillaWashAllClothingText(), barrel, Actions.onWashAllFromBarrel, player, allowedItems)
+        end
+    end
+
+    for _, item in ipairs(washableItems) do
+        addWashItemOption(washMenu, barrel, player, item, availability.isTaintedWater)
+    end
+end
+
+local function addEmptyOption(subMenu, barrel, player, availability)
+    local emptyOption = subMenu:addOption(Text.getVanillaEmptyText(), barrel, Actions.onEmptyBarrel, player)
+    emptyOption.notAvailable = not availability.canEmpty
+
+    if not availability.canEmpty then
+        attachReasonTooltip(emptyOption, availability.emptyReason)
     end
 end
 
@@ -257,9 +314,13 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
         return
     end
 
+    local availability = Availability.build(player, barrelData, inRange)
     addBarrelInfoOption(subMenu, barrelData)
-    addPourOption(subMenu, barrel, player, barrelData, inRange)
-    addFillOption(subMenu, barrel, player, barrelData, inRange)
+    addFillOption(subMenu, barrel, player, availability)
+    addDrinkOption(subMenu, barrel, player, availability)
+    addWashOption(subMenu, barrel, player, availability)
+    addEmptyOption(subMenu, barrel, player, availability)
+    addPourOption(subMenu, barrel, player, barrelData, availability)
 end
 
 ---@param playerIndex integer

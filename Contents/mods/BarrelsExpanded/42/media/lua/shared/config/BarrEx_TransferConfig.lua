@@ -20,4 +20,11 @@ TransferConfig.SERVER_TICK_INTERVAL = 5
 -- client-side progress feedback.
 TransferConfig.SERVER_SYNC_INTERVAL = 10
 
+-- Number of timed-action update ticks between client animation progress reports.
+-- The server uses this only as a throttle for authoritative liquid movement.
+TransferConfig.CLIENT_PROGRESS_SYNC_INTERVAL = 5
+
+-- Minimum job-delta change before the client sends another progress report.
+TransferConfig.CLIENT_PROGRESS_SYNC_EPSILON = 0.01
+
 return TransferConfig

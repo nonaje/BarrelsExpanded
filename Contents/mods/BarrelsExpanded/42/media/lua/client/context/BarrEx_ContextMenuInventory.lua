@@ -67,6 +67,83 @@ function Inventory.collectTargetContainersForExtract(player, barrelData)
     end)
 end
 
+---@param item InventoryItem|nil
+---@return boolean
+local function itemHasBloodOrDirt(item)
+    if not item then return false end
+
+    if type(item.getItemAfterCleaning) == "function" and item:getItemAfterCleaning() then
+        return true
+    end
+
+    if type(item.getBloodLevel) == "function" and (tonumber(item:getBloodLevel()) or 0) > 0 then
+        return true
+    end
+
+    if type(item.getDirtiness) == "function" and (tonumber(item:getDirtiness()) or 0) > 0 then
+        return true
+    end
+
+    if instanceof and BloodClothingType and instanceof(item, "Clothing") and type(item.getBloodClothingType) == "function" then
+        local coveredParts = BloodClothingType.getCoveredParts(item:getBloodClothingType())
+        if coveredParts then
+            for i = 0, coveredParts:size() - 1 do
+                local part = coveredParts:get(i)
+                if (tonumber(item:getBlood(part)) or 0) > 0
+                    or (tonumber(item:getDirt(part)) or 0) > 0
+                then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+---@param item InventoryItem|nil
+---@return boolean
+function Inventory.isCleanableBandageLikeItem(item)
+    return item ~= nil
+        and type(item.getItemAfterCleaning) == "function"
+        and item:getItemAfterCleaning() ~= nil
+end
+
+---@param item InventoryItem|nil
+---@return number
+function Inventory.getWashWaterRequired(item)
+    if not item then return 0 end
+
+    if ISWashClothing and type(ISWashClothing.GetRequiredWater) == "function" then
+        return math.max(tonumber(ISWashClothing.GetRequiredWater(item)) or 0, 1)
+    end
+
+    return 1
+end
+
+---@param player IsoPlayer|nil
+---@return number
+function Inventory.getWashSelfWaterRequired(player)
+    if not player then return 0 end
+
+    if ISWashYourself and type(ISWashYourself.GetRequiredWater) == "function" then
+        return math.max(tonumber(ISWashYourself.GetRequiredWater(player)) or 0, 0)
+    end
+
+    return 0
+end
+
+---@param player IsoPlayer|nil
+---@return table<integer, InventoryItem>
+function Inventory.collectWashableItems(player)
+    local inventory = player and player:getInventory()
+    if not inventory then return {} end
+
+    return collectInventoryItems(inventory, function(item)
+        return itemHasBloodOrDirt(item)
+    end)
+end
+
 ---@param items table<integer, InventoryItem>
 ---@return table<integer, table>
 function Inventory.groupInventoryItemsByFullType(items)

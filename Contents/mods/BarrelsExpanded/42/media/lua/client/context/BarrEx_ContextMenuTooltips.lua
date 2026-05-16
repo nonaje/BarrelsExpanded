@@ -29,6 +29,8 @@ end
 function Tooltips.attachInventoryItemIcon(option, item)
     if not option or not item then return end
 
+    option.itemForTexture = item
+
     if type(item.getTex) == "function" then
         option.iconTexture = item:getTex()
         return
@@ -108,6 +110,24 @@ function Tooltips.attachBarrelInfoTooltip(option, barrelData)
 
     local tooltip = newTooltip()
     tooltip.description = (tooltip.description or "") .. buildBarrelInfoTooltipDescription(barrelData)
+    option.toolTip = tooltip
+end
+
+---@param option table|nil
+function Tooltips.attachTaintedWaterTooltip(option)
+    Tooltips.attachSimpleTooltip(option, " <RGB:1,0.5,0.5> " .. Text.translate("Tooltip_item_TaintedWater"))
+end
+
+---@param option table|nil
+---@param freeCapacity number|nil
+---@param capacity number|nil
+function Tooltips.attachFuelCapacityTooltip(option, freeCapacity, capacity)
+    if not option then return end
+
+    local tooltip = newTooltip()
+    tooltip.maxLineWidth = 512
+    tooltip.description = Text.translate("ContextMenu_FuelCapacity")
+        .. string.format("%d / %d", tonumber(freeCapacity) or 0, tonumber(capacity) or 0)
     option.toolTip = tooltip
 end
 

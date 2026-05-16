@@ -18,9 +18,12 @@ Constant.NETWORK = {
     START_EXTRACT_FROM_BARREL = "startExtractFromBarrel",
     STOP_EXTRACT_FROM_BARREL = "stopExtractFromBarrel",
     COMPLETE_EXTRACT_FROM_BARREL = "completeExtractFromBarrel",
+    UPDATE_TRANSFER_PROGRESS = "updateTransferProgress",
     TRANSFER_REJECTED = "transferRejected",
     TRANSFER_STARTED = "transferStarted",
     TRANSFER_PROGRESS = "transferProgress",
+    DRINK_FROM_BARREL = "drinkFromBarrel",
+    WASH_FROM_BARREL = "washFromBarrel",
     EMPTY_BARREL = "emptyBarrel",
 }
 
@@ -53,11 +56,16 @@ Constant.BARREL_DATA_POLL_TICKS    = 120
 Constant.MAX_INTERACTION_DISTANCE  = 1.55
 Constant.OPEN_BARREL_ACTION_TIME   = 200
 Constant.BARREL_EMPTY_WEIGHT       = 20
+Constant.BARREL_DRINK_AMOUNT       = 0.12
+Constant.BARREL_DRINK_THIRST       = 0.10
+Constant.BARREL_WASH_UNIT_AMOUNT   = 1
 
 -- Delegated to TransferConfig.  Names kept for backward compatibility.
 Constant.TRANSFER_ACTION_TIME_MULTIPLIER = TransferConfig.ACTION_TIME_MULTIPLIER
 Constant.SERVER_TRANSFER_TICK_INTERVAL   = TransferConfig.SERVER_TICK_INTERVAL
 Constant.SERVER_TRANSFER_SYNC_INTERVAL   = TransferConfig.SERVER_SYNC_INTERVAL
+Constant.CLIENT_TRANSFER_PROGRESS_INTERVAL = TransferConfig.CLIENT_PROGRESS_SYNC_INTERVAL
+Constant.CLIENT_TRANSFER_PROGRESS_EPSILON  = TransferConfig.CLIENT_PROGRESS_SYNC_EPSILON
 
 Constant.BARREL_SPAWN_PROFILE = {
     WORLD = "WORLD",

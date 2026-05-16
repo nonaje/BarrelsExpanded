@@ -13,6 +13,38 @@ local function clamp01(value)
     return numericValue
 end
 
+local function getActionCurrentTime(action)
+    if action and action.action and type(action.action.getCurrentTime) == "function" then
+        return tonumber(action.action:getCurrentTime()) or 0
+    end
+
+    return tonumber(action and action.currentTime) or 0
+end
+
+local function setActionCurrentTime(action, time)
+    if not action then return end
+
+    if type(action.setCurrentTime) == "function" and action.action then
+        action:setCurrentTime(time)
+    else
+        action.currentTime = time
+    end
+end
+
+local function setActionMaxTime(action, time)
+    if not action then return end
+
+    local adjustedTime = tonumber(time) or 0
+    if type(action.adjustMaxTime) == "function" and adjustedTime > 1 then
+        adjustedTime = action:adjustMaxTime(adjustedTime)
+    end
+
+    action.maxTime = adjustedTime
+    if action.action and type(action.action.setTime) == "function" then
+        action.action:setTime(adjustedTime)
+    end
+end
+
 local function getBarrelId(barrel)
     if not barrel then return nil end
 
@@ -144,7 +176,7 @@ function TransferSync.onTransferStarted(args)
 
     local actionTime = tonumber(args.actionTime)
     if actionTime and actionTime > 0 then
-        action.maxTime = actionTime
+        setActionMaxTime(action, actionTime)
     end
 end
 
@@ -161,10 +193,10 @@ function TransferSync.beforeActionUpdate(action)
     if not action then return end
 
     local maxTime = math.max(tonumber(action.maxTime) or 0, 1)
-    local currentTime = tonumber(action.currentTime) or 0
+    local currentTime = getActionCurrentTime(action)
 
     if action.serverCompleted then
-        action.currentTime = maxTime
+        setActionCurrentTime(action, maxTime)
         return
     end
 
@@ -173,7 +205,7 @@ function TransferSync.beforeActionUpdate(action)
 
     local syncedTime = maxTime * clamp01(serverProgress)
     if syncedTime > currentTime then
-        action.currentTime = syncedTime
+        setActionCurrentTime(action, syncedTime)
     end
 end
 

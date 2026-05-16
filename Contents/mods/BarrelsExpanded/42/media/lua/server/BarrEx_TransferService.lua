@@ -38,6 +38,13 @@ local function isValidTransferId(transferId)
         or type(transferId) == "number"
 end
 
+local function clamp01(value)
+    local numericValue = tonumber(value) or 0
+    if numericValue < 0 then return 0 end
+    if numericValue > 1 then return 1 end
+    return numericValue
+end
+
 -- ---------------------------------------------------------------------------
 -- Internal persistence helpers
 -- ---------------------------------------------------------------------------
@@ -321,7 +328,7 @@ function TransferService.start(player, mode, args)
     if mode == "pour" then
         barrel, barrelData, item, liquidType, reason = resolvePour(player, args, true)
     else
-        barrel, barrelData, item, liquidType, reason = resolveExtract(player, args, true)
+        barrel, barrelData, item, liquidType, reason = resolveExtract(player, args, false)
     end
 
     if not barrel or not barrelData or not item or not liquidType then
@@ -376,7 +383,8 @@ function TransferService.start(player, mode, args)
         remainingAmount = totalAmount,
         movedAmount     = 0,
         totalTicks      = totalTicks,
-        amountPerTick   = totalAmount / totalTicks,
+        clientProgress  = clamp01(args.progress),
+        serverTicksElapsed = 0,
         tickInterval    = tickInterval,
         ticksUntilStep  = 0,
         ticksSinceSync  = 0,
@@ -395,6 +403,23 @@ function TransferService.start(player, mode, args)
         totalTicks,
         tickInterval
     ))
+end
+
+--- Updates the latest client animation progress for an active transfer.
+--- This throttles liquid movement to the visual timed action; server elapsed time,
+--- validation and mutation remain authoritative.
+---@param player IsoPlayer
+---@param args table|nil
+function TransferService.updateProgress(player, args)
+    if not player or type(args) ~= "table" then return end
+
+    local playerKey = TransferLocks.getPlayerKey(player)
+    if playerKey == nil then return end
+
+    local transfer = activeTransfers[playerKey]
+    if not transferMatches(transfer, args.mode, args.transferId) then return end
+
+    transfer.clientProgress = math.max(tonumber(transfer.clientProgress) or 0, clamp01(args.progress))
 end
 
 --- Stops the player's active transfer (client-initiated or replaced by a new one).
@@ -438,6 +463,8 @@ function TransferService.complete(player, mode, transferId)
     local transfer = activeTransfers[playerKey]
     if not transferMatches(transfer, mode, transferId) then return end
 
+    transfer.clientProgress = 1
+
     if not isTransferCompleted(transfer) then
         transfer.clientAnimationFinished = true
         log(string.format(
@@ -459,6 +486,8 @@ end
 --- Registered as Events.OnTick in BarrEx_Server.
 function TransferService.onTick()
     for playerKey, transfer in pairs(activeTransfers) do
+        transfer.serverTicksElapsed = (transfer.serverTicksElapsed or 0) + 1
+
         -- Abort if lock was taken by another player between steps.
         if TransferLocks.isLockedBy(transfer.barrelKey) ~= playerKey then
             stopByKey(playerKey, transfer, "barrel_lock_lost", true)
@@ -468,16 +497,17 @@ function TransferService.onTick()
             if transfer.ticksUntilStep <= 0 then
                 transfer.ticksUntilStep = transfer.tickInterval
 
+                local serverProgress = clamp01((transfer.serverTicksElapsed or 0) / math.max(transfer.totalTicks or 1, 1))
+                local targetProgress = math.min(clamp01(transfer.clientProgress), serverProgress)
+                local targetMovedAmount = (transfer.totalAmount or 0) * targetProgress
                 local requestedAmount = math.min(
                     transfer.remainingAmount or 0,
-                    math.max((transfer.amountPerTick or 0) * (transfer.tickInterval or 1), 0)
+                    math.max(targetMovedAmount - (transfer.movedAmount or 0), 0)
                 )
 
-                if requestedAmount <= 0 then
+                if requestedAmount <= TRANSFER_EPSILON then
                     if isTransferCompleted(transfer) then
                         finishTransfer(playerKey, transfer, "server_transfer_finished", true)
-                    else
-                        stopByKey(playerKey, transfer, "no_requested_amount", true)
                     end
                 else
                     local movedAmount, reason, barrel = advance(transfer, requestedAmount)
