@@ -199,21 +199,14 @@ end
 
 ---@param item InventoryItem
 ---@param liquidType string|nil
----@param transferAmount number
 ---@return string
-function Text.buildPourContainerOptionLabel(item, liquidType, transferAmount)
-    local amount = LiquidAdapter.getAmount(item)
-    local capacity = LiquidAdapter.getCapacity(item)
+function Text.buildPourContainerOptionLabel(item, liquidType)
     local liquidName = Text.getLiquidDisplayName(liquidType or LiquidAdapter.getLiquidType(item))
 
     return string.format(
-        "%s - %s %s/%s (%s %s)",
+        "%s - %s",
         Text.getInventoryItemDisplayName(item),
-        liquidName,
-        Text.formatAmount(amount),
-        Text.formatAmount(capacity),
-        Text.formatAmount(transferAmount),
-        Text.translate(ContextConfig.TOOLTIP.TRANSFER_AMOUNT)
+        liquidName
     )
 end
 

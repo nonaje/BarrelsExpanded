@@ -4,7 +4,6 @@
 -- This module owns the lock state tables and all acquire/release operations
 -- so that the rest of the transfer logic never has to touch raw lock tables.
 
-local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local Constant = require("BarrEx_Constant")
 
 local TransferLocks = {}
@@ -44,7 +43,7 @@ function TransferLocks.getBarrelKey(barrel, barrelData)
         return storedId
     end
 
-    return BarrEx_BarrelData.buildLocatorId(barrel)
+    return nil
 end
 
 --- Tries to acquire the barrel lock for playerKey.

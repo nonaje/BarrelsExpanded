@@ -1,5 +1,4 @@
 local Constant = require("BarrEx_Constant")
-local BarrEx_BarrelData = require("BarrEx_BarrelData")
 
 local TransferSync = {}
 
@@ -49,7 +48,7 @@ local function getBarrelId(barrel)
     if not barrel then return nil end
 
     local modData = barrel:getModData()
-    return modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(barrel)
+    return modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
 end
 
 local function matchesTransfer(entry, args)

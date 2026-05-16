@@ -68,7 +68,7 @@ local function addPourContainerSubMenu(parentMenu, parentOption, sourceItems, ba
         local transferAmount = Inventory.getPourTransferAmount(item, barrelData)
 
         local itemOption = itemMenu:addOption(
-            Text.buildPourContainerOptionLabel(item, liquidType, transferAmount),
+            Text.buildPourContainerOptionLabel(item, liquidType),
             barrel,
             Actions.onPourIntoBarrel,
             player,
@@ -76,7 +76,7 @@ local function addPourContainerSubMenu(parentMenu, parentOption, sourceItems, ba
         )
 
         Tooltips.attachInventoryItemIcon(itemOption, item)
-        Tooltips.attachTransferTooltip(itemOption, item, liquidType, transferAmount)
+        Tooltips.attachTransferTooltip(itemOption, item, liquidType)
     end
 end
 
@@ -92,8 +92,7 @@ local function addPourOption(subMenu, barrel, player, barrelData, availability)
     local pourLabel = Text.translate(ContextConfig.CONTEXT_MENU.POUR)
     if #sourceItems == 1 and canPour then
         local item = sourceItems[1]
-        local transferAmount = Inventory.getPourTransferAmount(item, barrelData)
-        pourLabel = Text.buildPourContainerOptionLabel(item, LiquidAdapter.getLiquidType(item), transferAmount)
+        pourLabel = Text.buildPourContainerOptionLabel(item, LiquidAdapter.getLiquidType(item))
     elseif #sourceItems > 1 then
         pourLabel = pourLabel .. " >"
     end
@@ -101,10 +100,9 @@ local function addPourOption(subMenu, barrel, player, barrelData, availability)
     local pourOption
     if #sourceItems == 1 and canPour then
         local item = sourceItems[1]
-        local transferAmount = Inventory.getPourTransferAmount(item, barrelData)
         pourOption = subMenu:addOption(pourLabel, barrel, Actions.onPourIntoBarrel, player, item)
         Tooltips.attachInventoryItemIcon(pourOption, item)
-        Tooltips.attachTransferTooltip(pourOption, item, LiquidAdapter.getLiquidType(item), transferAmount)
+        Tooltips.attachTransferTooltip(pourOption, item, LiquidAdapter.getLiquidType(item))
     else
         pourOption = subMenu:addOption(pourLabel, nil, nil)
     end

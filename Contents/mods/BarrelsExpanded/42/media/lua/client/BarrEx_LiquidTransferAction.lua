@@ -59,7 +59,7 @@ end
 
 local function buildTransferId(player, barrel, item, mode)
     local modData = barrel and barrel:getModData() or nil
-    local barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(barrel) or "nobarrel"
+    local barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or "nobarrel"
     local itemId = item and item:getID() or "noitem"
     local playerId = player and type(player.getOnlineID) == "function" and player:getOnlineID() or "local"
 
@@ -104,7 +104,7 @@ local function sendTransferCommand(action, command, extraArgs)
         y = square:getY(),
         z = square:getZ(),
         objectIndex = action.barrel:getObjectIndex(),
-        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(action.barrel),
+        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil,
         spriteName = WorldUtils.getSpriteName(action.barrel),
         itemId = item:getID(),
         itemFullType = item:getFullType(),

@@ -13,10 +13,6 @@ local BarrelResolver = {}
 
 local call = SafeCall.call
 
-local function isStableBarrelId(barrelId)
-    return type(barrelId) == "string" and string.sub(barrelId, 1, 5) == "BARR_"
-end
-
 --- Returns true when the barrel matches the id / sprite constraints in args.
 ---@param barrel IsoObject
 ---@param args table
@@ -43,11 +39,7 @@ local function barrelMatchesArgs(barrel, args)
             return true
         end
 
-        if BarrEx_BarrelData.buildLocatorId(barrel) == args.barrelId then
-            return true
-        end
-
-        return not isStableBarrelId(args.barrelId)
+        return false
     end
 
     return true

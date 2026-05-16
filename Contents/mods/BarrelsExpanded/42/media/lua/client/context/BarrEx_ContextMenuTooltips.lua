@@ -134,8 +134,7 @@ end
 ---@param option table|nil
 ---@param item InventoryItem
 ---@param liquidType string|nil
----@param transferAmount number
-function Tooltips.attachTransferTooltip(option, item, liquidType, transferAmount)
+function Tooltips.attachTransferTooltip(option, item, liquidType)
     if not option or not item then return end
 
     local tooltip = newTooltip()
@@ -144,11 +143,6 @@ function Tooltips.attachTransferTooltip(option, item, liquidType, transferAmount
             "<RGB:1,1,1> %s %s <LINE>",
             Text.translate(ContextConfig.TOOLTIP.LIQUID),
             Text.getLiquidDisplayName(liquidType or LiquidAdapter.getLiquidType(item))
-        ),
-        string.format(
-            "<RGB:1,1,1> %s %s <LINE>",
-            Text.translate(ContextConfig.TOOLTIP.TRANSFER_AMOUNT),
-            Text.formatAmount(transferAmount)
         ),
         string.format(
             "<RGB:1,1,1> %s %s/%s <LINE>",

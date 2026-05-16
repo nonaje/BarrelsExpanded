@@ -28,7 +28,7 @@ local function buildBarrelPayload(barrel)
         y = square:getY(),
         z = square:getZ(),
         objectIndex = barrel:getObjectIndex(),
-        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(barrel),
+        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil,
         spriteName = WorldUtils.getSpriteName(barrel),
     }
 end

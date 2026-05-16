@@ -40,7 +40,7 @@ end
 function BarrEx_OpenBarrelAction:isValid()
     -- Allow nil barrelData: the barrel may not have synced from the server yet
     -- (race condition on multiplayer chunk load). The server handles lazy init.
-    -- isRevealedRaw avoids full deserialization (no buildId + table alloc) every tick.
+    -- isRevealedRaw avoids full deserialization every tick.
     if BarrEx_BarrelData.isRevealedRaw(self.barrel) then return false end
     if not PlayerUtils.isPlayerInRange(self.character, self.barrel) then return false end
     return true
@@ -91,7 +91,7 @@ function BarrEx_OpenBarrelAction:perform()
         y = square:getY(),
         z = square:getZ(),
         objectIndex = barrel:getObjectIndex(),
-        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or BarrEx_BarrelData.buildId(barrel),
+        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil,
         spriteName = WorldUtils.getSpriteName(barrel),
     })
 

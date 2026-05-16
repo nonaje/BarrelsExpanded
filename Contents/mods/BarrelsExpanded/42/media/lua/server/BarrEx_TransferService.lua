@@ -12,7 +12,6 @@
 --   InteractionRules – tool and range validation
 --   TransferRules    – pure amount calculations (shared with client)
 
-local FluidActionUtils  = require("utils/BarrEx_FluidActionUtils")
 local Constant          = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter     = require("BarrEx_LiquidContainerAdapter")
@@ -368,7 +367,7 @@ function TransferService.start(player, mode, args)
         return
     end
 
-    local totalTicks   = math.max(FluidActionUtils.getFluidTransferActionTime(totalAmount), 1)
+    local totalTicks   = math.max(TransferRules.getTransferActionTime(totalAmount), 1)
     local tickInterval = math.max(Constant.SERVER_TRANSFER_TICK_INTERVAL or 1, 1)
 
     local transfer = {

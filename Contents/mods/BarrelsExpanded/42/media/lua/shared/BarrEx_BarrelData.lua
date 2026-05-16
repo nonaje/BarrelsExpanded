@@ -7,9 +7,8 @@ local BarrEx_BarrelData = {}
 local call = SafeCall.call
 
 --- @param rawData table|nil
---- @param fallbackId string|nil
 --- @return BarrEx_Barrel|nil
-function BarrEx_BarrelData.fromRawData(rawData, fallbackId)
+function BarrEx_BarrelData.fromRawData(rawData)
     if type(rawData) ~= "table" then return nil end
 
     local emptyType = Constant.LIQUID_TYPE.EMPTY
@@ -30,16 +29,8 @@ function BarrEx_BarrelData.fromRawData(rawData, fallbackId)
         amount = capacity
     end
 
-    local barrelId = type(rawData.id) == "string" and rawData.id or fallbackId
-
-    -- Backward compat: if 'revealed' is absent the data was written by the old system,
-    -- which only stored data for already-opened barrels. Treat nil as true.
-    local revealed
-    if rawData.revealed == nil then
-        revealed = true
-    else
-        revealed = rawData.revealed == true
-    end
+    local barrelId = type(rawData.id) == "string" and rawData.id or nil
+    local revealed = rawData.revealed == true
 
     return BarrEx_Barrel:new({
         id = barrelId,
@@ -51,13 +42,12 @@ function BarrEx_BarrelData.fromRawData(rawData, fallbackId)
 end
 
 --- @param barrelData BarrEx_Barrel|table|nil
---- @param fallbackId string|nil
 --- @return BarrEx_Barrel|nil
-local function normalizeBarrelData(barrelData, fallbackId)
+local function normalizeBarrelData(barrelData)
     if not barrelData then return nil end
 
     local data = barrelData.toData and barrelData:toData() or barrelData
-    return BarrEx_BarrelData.fromRawData(data, fallbackId)
+    return BarrEx_BarrelData.fromRawData(data)
 end
 
 --- @param modData table|nil
@@ -107,28 +97,6 @@ function BarrEx_BarrelData.applyWeightToItem(item, barrelData)
     call(item, "setWeight", weight)
 end
 
---- Builds a legacy locator ID for a barrel based on world position and object index.
---- @param barrel IsoObject|nil
---- @return string|nil
-function BarrEx_BarrelData.buildLocatorId(barrel)
-    if not barrel then return nil end
-
-    local square = barrel:getSquare()
-    if not square then return nil end
-
-    local objectIndex = barrel:getObjectIndex()
-    local x, y, z = square:getX(), square:getY(), square:getZ()
-
-    return tostring(x) .. ":" .. tostring(y) .. ":" .. tostring(z) .. ":" .. tostring(objectIndex)
-end
-
---- Legacy locator id helper. Use only as a temporary fallback, not as persistent identity.
---- @param barrel IsoObject|nil
---- @return string|nil
-function BarrEx_BarrelData.buildId(barrel)
-    return BarrEx_BarrelData.buildLocatorId(barrel)
-end
-
 local function buildStableId(barrel)
     local square = barrel and barrel:getSquare() or nil
     local x = square and square:getX() or "x"
@@ -143,13 +111,7 @@ local function buildStableId(barrel)
         .. "_" .. tostring(timestamp) .. "_" .. tostring(random)
 end
 
-local function isLegacyLocatorId(barrelId)
-    return type(barrelId) == "string"
-        and string.match(barrelId, "^%-?%d+:%-?%d+:%-?%d+:%-?%d+$") ~= nil
-end
-
 --- Ensures barrelData.id / modData[BARREL_ID] are a persistent barrel identity.
---- Coordinate/objectIndex IDs remain available through buildLocatorId for legacy lookup only.
 --- @param barrel IsoObject|nil
 --- @param barrelData BarrEx_Barrel|table|nil
 --- @return string|nil
@@ -160,9 +122,9 @@ function BarrEx_BarrelData.ensureStableId(barrel, barrelData)
     local dataId = barrelData and type(barrelData.id) == "string" and barrelData.id ~= "" and barrelData.id or nil
 
     local stableId = nil
-    if type(storedId) == "string" and storedId ~= "" and not isLegacyLocatorId(storedId) then
+    if type(storedId) == "string" and storedId ~= "" then
         stableId = storedId
-    elseif dataId and not isLegacyLocatorId(dataId) then
+    elseif dataId then
         stableId = dataId
     end
     local changed = false
@@ -197,11 +159,7 @@ function BarrEx_BarrelData.get(barrel)
     local raw = modData[Constant.MODDATA_KEYS.BARREL]
     if type(raw) ~= "table" then return nil end
 
-    -- Only compute the expensive buildId (4 Java calls) when the stored id is
-    -- absent or invalid. In normal operation the id is always present, so this
-    -- avoids 4 redundant Java bridge calls on the hot get() path.
-    local fallbackId = type(raw.id) ~= "string" and BarrEx_BarrelData.buildLocatorId(barrel) or nil
-    return BarrEx_BarrelData.fromRawData(raw, fallbackId)
+    return BarrEx_BarrelData.fromRawData(raw)
 end
 
 --- Returns whether the barrel's contents have been revealed to the player.
@@ -214,8 +172,7 @@ end
 
 --- Fast check of the revealed flag without full deserialization.
 --- Use this in hot paths (called every game tick or every cursor frame)
---- instead of isRevealed() to avoid the buildId + table allocation overhead.
---- Backward compat: absent 'revealed' key means old opened barrel data.
+--- instead of isRevealed() to avoid table allocation overhead.
 --- @param barrel IsoObject|nil
 --- @return boolean
 function BarrEx_BarrelData.isRevealedRaw(barrel)
@@ -224,7 +181,6 @@ function BarrEx_BarrelData.isRevealedRaw(barrel)
     if not modData then return false end
     local raw = modData[Constant.MODDATA_KEYS.BARREL]
     if type(raw) ~= "table" then return false end
-    if raw.revealed == nil then return true end
     return raw.revealed == true
 end
 
@@ -242,7 +198,7 @@ function BarrEx_BarrelData.set(barrel, barrelData)
     if not modData then return false end
 
     local stableId, idChanged = BarrEx_BarrelData.ensureStableId(barrel, barrelData)
-    local normalized = normalizeBarrelData(barrelData, stableId)
+    local normalized = normalizeBarrelData(barrelData)
     if not normalized then return false end
 
     local serialized = normalized:toData()

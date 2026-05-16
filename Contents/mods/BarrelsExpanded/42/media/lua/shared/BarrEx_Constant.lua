@@ -37,7 +37,7 @@ Constant.MODDATA_KEYS = {
 ---------------------------------------
 --- REQUIRED ITEMS FOR INTERACTIONS ---
 ---------------------------------------
--- Delegated to ToolConfig.  Names kept for backward compatibility.
+-- Delegated to ToolConfig.
 Constant.OPEN_BARREL_REQUIRED_ITEMS = ToolConfig.OPEN_BARREL_REQUIRED_ITEMS
 Constant.POUR_REQUIRED_ITEMS        = ToolConfig.POUR_REQUIRED_ITEMS
 Constant.EXTRACT_REQUIRED_ITEMS     = ToolConfig.EXTRACT_REQUIRED_ITEMS
@@ -45,7 +45,7 @@ Constant.EXTRACT_REQUIRED_ITEMS     = ToolConfig.EXTRACT_REQUIRED_ITEMS
 -----------------------------------
 ---- AVAILABLE LIQUID TYPES   -----
 -----------------------------------
--- Delegated to LiquidConfig.  Names kept for backward compatibility.
+-- Delegated to LiquidConfig.
 Constant.LIQUID_TYPE                  = LiquidConfig.LIQUID_TYPE
 Constant.COMPATIBLE_CONTAINERS        = LiquidConfig.COMPATIBLE_CONTAINERS
 Constant.FULLTYPE_TO_LIQUIDS          = LiquidConfig.FULLTYPE_TO_LIQUIDS
@@ -60,7 +60,7 @@ Constant.BARREL_DRINK_AMOUNT       = 0.12
 Constant.BARREL_DRINK_THIRST       = 0.10
 Constant.BARREL_WASH_UNIT_AMOUNT   = 1
 
--- Delegated to TransferConfig.  Names kept for backward compatibility.
+-- Delegated to TransferConfig.
 Constant.TRANSFER_ACTION_TIME_MULTIPLIER = TransferConfig.ACTION_TIME_MULTIPLIER
 Constant.SERVER_TRANSFER_TICK_INTERVAL   = TransferConfig.SERVER_TICK_INTERVAL
 Constant.SERVER_TRANSFER_SYNC_INTERVAL   = TransferConfig.SERVER_SYNC_INTERVAL

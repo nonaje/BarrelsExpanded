@@ -7,11 +7,7 @@ local Constant = require("BarrEx_Constant")
 ---@field capacity number
 ---@field revealed boolean
 local BarrEx_Barrel = {}
-
--- Current schema version for barrel data persistence.
--- Increment when changing the structure of toData() serialization.
--- Used for migrate() to handle old saved barrel states.
-BarrEx_Barrel.BARREL_DATA_VERSION = 1
+local EMPTY_AMOUNT_EPSILON = 0.0001
 
 BarrEx_Barrel.__index = BarrEx_Barrel
 
@@ -41,7 +37,10 @@ function BarrEx_Barrel:new(data)
         instance.amount = 0
     end
 
-    if instance.liquidType == emptyType or instance.capacity <= 0 then
+    if instance.amount <= EMPTY_AMOUNT_EPSILON then
+        instance.liquidType = emptyType
+        instance.amount = 0
+    elseif instance.liquidType == emptyType or instance.capacity <= 0 then
         instance.liquidType = emptyType
         instance.amount = 0
     elseif instance.amount > instance.capacity then
@@ -53,7 +52,7 @@ end
 
 ---@return boolean
 function BarrEx_Barrel:isEmpty()
-    return self.amount <= 0 or self.liquidType == Constant.LIQUID_TYPE.EMPTY
+    return self.amount <= EMPTY_AMOUNT_EPSILON or self.liquidType == Constant.LIQUID_TYPE.EMPTY
 end
 
 ---@return boolean
@@ -87,7 +86,7 @@ end
 
 ---@return number
 function BarrEx_Barrel:getLiquidWeight()
-    if self.amount <= 0 then
+    if self:isEmpty() then
         return 0
     end
 
@@ -174,7 +173,7 @@ function BarrEx_Barrel:removeLiquid(amount)
 
     self.amount = self.amount - removedAmount
 
-    if self.amount <= 0 then
+    if self.amount <= EMPTY_AMOUNT_EPSILON then
         self.amount = 0
         self.liquidType = Constant.LIQUID_TYPE.EMPTY
     end
@@ -184,45 +183,20 @@ end
 
 ---@return table
 function BarrEx_Barrel:toData()
+    local isEmpty = self:isEmpty()
+
     return {
-        version = BarrEx_Barrel.BARREL_DATA_VERSION,
         id = self.id,
-        liquidType = self.liquidType or Constant.LIQUID_TYPE.EMPTY,
-        amount = self.amount,
+        liquidType = isEmpty and Constant.LIQUID_TYPE.EMPTY or self.liquidType,
+        amount = isEmpty and 0 or self.amount,
         capacity = self.capacity,
         revealed = self.revealed,
     }
 end
 
----@param oldData table
----@param fromVersion number|nil
----@return table
-local function migrate(oldData, fromVersion)
-    fromVersion = fromVersion or 0
-    local currentVersion = BarrEx_Barrel.BARREL_DATA_VERSION
-
-    if fromVersion >= currentVersion then
-        return oldData
-    end
-
-    -- Future migrations can be chained here:
-    -- if fromVersion < 2 then
-    --     oldData.newField = oldData.newField or defaultValue
-    --     fromVersion = 2
-    -- end
-
-    return oldData
-end
-
----@param data table
+---@param data table|nil
 ---@return BarrEx_Barrel
 function BarrEx_Barrel:fromData(data)
-    if data then
-        local fromVersion = data.version or 0
-        if fromVersion < BarrEx_Barrel.BARREL_DATA_VERSION then
-            data = migrate(data, fromVersion)
-        end
-    end
     return BarrEx_Barrel:new(data)
 end
 

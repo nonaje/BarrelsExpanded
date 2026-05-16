@@ -1,6 +1,3 @@
-local TransferConfig  = require("config/BarrEx_TransferConfig")
-local TransferRules   = require("core/BarrEx_TransferRules")
-
 local FluidActionUtils = {}
 
 local function getVanillaTransferTimePerUnit()
@@ -42,15 +39,6 @@ function FluidActionUtils.getVanillaFluidActionTime(amount)
     end
 
     return duration
-end
-
---- Transfer duration scaled by ACTION_TIME_MULTIPLIER.
---- DEPRECATED: Use TransferRules.getTransferActionTime() directly (same logic, no duplication).
---- Kept for backward compatibility only.
----@param amount number|nil
----@return number
-function FluidActionUtils.getFluidTransferActionTime(amount)
-    return TransferRules.getTransferActionTime(amount)
 end
 
 --- Resolves primary/secondary hand assignment for vanilla-like pour animations.
