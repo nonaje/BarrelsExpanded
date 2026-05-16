@@ -25,7 +25,7 @@ local function addBarrelInfoOption(subMenu, barrelData)
 
     local infoLabel = Text.translate(
         ContextConfig.CONTEXT_MENU.INFO_PERCENT,
-        Text.translate(ContextConfig.CONTEXT_MENU.BARREL_INFO),
+        Text.getLiquidDisplayName(barrelData.liquidType),
         tostring(percent)
     )
     local infoOption = subMenu:addOption(infoLabel, nil, nil)
@@ -73,26 +73,11 @@ local function addPourOption(subMenu, barrel, player, barrelData, availability)
     local canPour = availability.canPour == true
 
     local pourLabel = Text.translate(ContextConfig.CONTEXT_MENU.POUR)
-    if #sourceItems == 1 and canPour then
-        local item = sourceItems[1]
-        pourLabel = Text.buildPourContainerOptionLabel(item, LiquidAdapter.getLiquidType(item))
-    elseif #sourceItems > 1 then
-        pourLabel = pourLabel .. " >"
-    end
-
-    local pourOption
-    if #sourceItems == 1 and canPour then
-        local item = sourceItems[1]
-        pourOption = subMenu:addOption(pourLabel, barrel, Actions.onPourIntoBarrel, player, item)
-        Tooltips.attachInventoryItemIcon(pourOption, item)
-        Tooltips.attachTransferTooltip(pourOption, item, LiquidAdapter.getLiquidType(item))
-    else
-        pourOption = subMenu:addOption(pourLabel, nil, nil)
-    end
+    local pourOption = subMenu:addOption(pourLabel, nil, nil)
 
     pourOption.notAvailable = not canPour
 
-    if canPour and #sourceItems > 1 then
+    if canPour then
         addPourContainerSubMenu(subMenu, pourOption, sourceItems, barrel, player, barrelData)
     elseif not canPour then
         Tooltips.attachPourRequirementsTooltip(pourOption, availability, barrelData)
@@ -120,8 +105,8 @@ end
 ---@param targetItems table<integer, InventoryItem>
 ---@param barrel IsoObject
 ---@param player IsoPlayer
----@param isGasoline boolean
-local function addVanillaLikeFillSubMenu(parentMenu, parentOption, targetItems, barrel, player, isGasoline)
+---@param liquidType string|nil
+local function addVanillaLikeFillSubMenu(parentMenu, parentOption, targetItems, barrel, player, liquidType)
     if not parentMenu or not parentOption then return end
     if not targetItems or #targetItems == 0 then return end
 
@@ -140,13 +125,7 @@ local function addVanillaLikeFillSubMenu(parentMenu, parentOption, targetItems, 
             local item = group.items[1]
             local itemOption = fillMenu:addOption(label, barrel, Actions.onExtractFromBarrel, player, item)
             Tooltips.attachInventoryItemIcon(itemOption, group.iconItem)
-            if isGasoline then
-                Tooltips.attachFuelCapacityTooltip(
-                    itemOption,
-                    LiquidAdapter.getFreeCapacity(item),
-                    LiquidAdapter.getCapacity(item)
-                )
-            end
+            Tooltips.attachFillContainerTooltip(itemOption, item, liquidType)
         else
             local groupOption = fillMenu:addOption(label, nil, nil)
             Tooltips.attachInventoryItemIcon(groupOption, group.iconItem)
@@ -171,7 +150,7 @@ local function addFillOption(subMenu, barrel, player, availability)
             availability.targetItems,
             barrel,
             player,
-            availability.isGasoline
+            availability.liquidType
         )
         return
     end
@@ -183,10 +162,8 @@ local function addDrinkOption(subMenu, barrel, player, availability)
     local drinkOption = subMenu:addOption(Text.getVanillaDrinkText(), barrel, Actions.onDrinkFromBarrel, player)
     drinkOption.notAvailable = not availability.canDrink
 
-    if availability.isTaintedWater then
-        Tooltips.attachTaintedWaterTooltip(drinkOption)
-    elseif not availability.canDrink then
-        attachReasonTooltip(drinkOption, availability.drinkReason)
+    if availability.isTaintedWater or not availability.canDrink then
+        Tooltips.attachDrinkTooltip(drinkOption, availability)
     end
 end
 

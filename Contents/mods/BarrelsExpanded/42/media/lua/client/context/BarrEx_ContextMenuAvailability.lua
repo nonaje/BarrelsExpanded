@@ -123,10 +123,10 @@ function Availability.build(player, barrelData, inRange)
         state.canEmpty = true
     end
 
-    if not hasPourTool then
-        state.pourReason = "missing_tool"
-    elseif barrelData:isFull() then
+    if barrelData:isFull() then
         state.pourReason = "barrel_full"
+    elseif not hasPourTool then
+        state.pourReason = "missing_tool"
     elseif #state.sourceItems == 0 then
         state.pourReason = "no_source_items"
     else

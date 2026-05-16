@@ -327,7 +327,7 @@ function TransferService.start(player, mode, args)
     if mode == "pour" then
         barrel, barrelData, item, liquidType, reason = resolvePour(player, args, true)
     else
-        barrel, barrelData, item, liquidType, reason = resolveExtract(player, args, false)
+        barrel, barrelData, item, liquidType, reason = resolveExtract(player, args, true)
     end
 
     if not barrel or not barrelData or not item or not liquidType then

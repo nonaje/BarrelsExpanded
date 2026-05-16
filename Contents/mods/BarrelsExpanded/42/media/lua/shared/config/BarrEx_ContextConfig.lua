@@ -34,6 +34,7 @@ ContextConfig.TOOLTIP = {
     TOO_FAR = "Tooltip_BarrEx_TooFar",
     REQUIRES_FUNNEL = "Tooltip_BarrEx_RequiresFunnel",
     REQUIRES_HOSE = "Tooltip_BarrEx_RequiresHose",
+    MISSING_REQUIRED_TOOL = "Tooltip_BarrEx_MissingRequiredTool",
     BARREL_FULL = "Tooltip_BarrEx_BarrelFull",
     BARREL_EMPTY = "Tooltip_BarrEx_BarrelEmpty",
     BARREL_CLOSED = "Tooltip_BarrEx_BarrelClosed",

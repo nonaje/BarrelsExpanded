@@ -18,9 +18,11 @@ local DEFAULT_MAX_LINE_WIDTH = 512
 local LINE_BREAK = " <LINE>"
 
 local REASON_TOOLTIP_KEYS = {
+    too_far = ContextConfig.TOOLTIP.TOO_FAR,
     barrel_empty = ContextConfig.TOOLTIP.BARREL_EMPTY,
     barrel_full = ContextConfig.TOOLTIP.BARREL_FULL,
     barrel_unavailable = ContextConfig.TOOLTIP.BARREL_UNAVAILABLE,
+    missing_tool = ContextConfig.TOOLTIP.MISSING_REQUIRED_TOOL,
     not_drinkable = ContextConfig.TOOLTIP.NOT_DRINKABLE,
     not_washable = ContextConfig.TOOLTIP.NOT_WASHABLE,
     not_thirsty = ContextConfig.TOOLTIP.NOT_THIRSTY,
@@ -28,6 +30,7 @@ local REASON_TOOLTIP_KEYS = {
 }
 
 local MAX_COMPATIBLE_CONTAINER_LINES = 8
+local appendReasonStatus
 
 ---@return ISToolTip
 local function newTooltip()
@@ -239,6 +242,21 @@ function Tooltips.attachTaintedWaterTooltip(option)
         :attach(option)
 end
 
+---@param option table|nil
+---@param availability table
+function Tooltips.attachDrinkTooltip(option, availability)
+    if not option or not availability then return end
+
+    local builder = Tooltips.newBuilder()
+    if availability.isTaintedWater then
+        builder:line(Text.translate(ContextConfig.TOOLTIP.TAINTED_WATER), Tooltips.COLORS.WARN)
+    end
+    if not availability.canDrink then
+        appendReasonStatus(builder, availability.drinkReason)
+    end
+    builder:attach(option)
+end
+
 ---@param builder table
 ---@param liquidType string|nil
 local function appendCompatibleContainers(builder, liquidType)
@@ -271,7 +289,7 @@ end
 
 ---@param builder table
 ---@param reason string|nil
-local function appendReasonStatus(builder, reason)
+function appendReasonStatus(builder, reason)
     local translationKey = REASON_TOOLTIP_KEYS[reason]
     if translationKey then
         builder:header(Text.translate(ContextConfig.TOOLTIP.STATUS))
@@ -352,6 +370,24 @@ function Tooltips.attachFuelCapacityTooltip(option, freeCapacity, capacity)
             string.format("%d / %d", tonumber(freeCapacity) or 0, tonumber(capacity) or 0)
         )
         :attach(option)
+end
+
+---@param option table|nil
+---@param item InventoryItem
+---@param liquidType string|nil
+function Tooltips.attachFillContainerTooltip(option, item, liquidType)
+    if not option or not item then return end
+
+    if liquidType == Constant.LIQUID_TYPE.GASOLINE then
+        Tooltips.attachFuelCapacityTooltip(
+            option,
+            LiquidAdapter.getFreeCapacity(item),
+            LiquidAdapter.getCapacity(item)
+        )
+        return
+    end
+
+    Tooltips.attachTransferTooltip(option, item, liquidType)
 end
 
 ---@param option table|nil

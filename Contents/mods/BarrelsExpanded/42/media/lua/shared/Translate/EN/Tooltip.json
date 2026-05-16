@@ -10,6 +10,7 @@
   "Tooltip_BarrEx_TooFar": "You are too far away. Get closer to the barrel.",
   "Tooltip_BarrEx_RequiresFunnel": "Requires: Funnel.",
   "Tooltip_BarrEx_RequiresHose": "Requires: Rubber Hose.",
+  "Tooltip_BarrEx_MissingRequiredTool": "A required tool is missing.",
   "Tooltip_BarrEx_BarrelFull": "The barrel is full.",
   "Tooltip_BarrEx_BarrelEmpty": "The barrel is empty.",
   "Tooltip_BarrEx_BarrelClosed": "Open the barrel first.",
