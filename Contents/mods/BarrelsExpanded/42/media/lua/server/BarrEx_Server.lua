@@ -10,6 +10,7 @@ local Constant           = require("BarrEx_Constant")
 local TransferService    = require("BarrEx_TransferService")
 local BarrelWorldService = require("BarrEx_BarrelWorldService")
 local BarrelUseService   = require("BarrEx_BarrelUseService")
+local MoveableSync       = require("BarrEx_MoveableSync")
 
 local function onClientCommand(module, command, player, args)
     if module ~= Constant.NETWORK.MODULE then return end
@@ -77,3 +78,4 @@ Events.OnClientCommand.Add(onClientCommand)
 Events.OnObjectAdded.Add(BarrelWorldService.onObjectAdded)
 Events.LoadGridsquare.Add(BarrelWorldService.onLoadGridsquare)
 Events.OnTick.Add(TransferService.onTick)
+MoveableSync.start()

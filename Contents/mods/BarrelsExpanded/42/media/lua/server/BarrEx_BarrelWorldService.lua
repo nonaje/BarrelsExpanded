@@ -64,6 +64,20 @@ local function reconcile(worldObject)
     ))
 end
 
+local function canUseWeightFastPath(worldObject)
+    local modData = worldObject and worldObject:getModData() or nil
+    if not modData then return false end
+
+    local rawData = modData[Constant.MODDATA_KEYS.BARREL]
+    local modDataId = modData[Constant.MODDATA_KEYS.BARREL_ID]
+    local rawId = type(rawData) == "table" and rawData.id or nil
+
+    return type(rawData) == "table"
+        and type(modDataId) == "string" and modDataId ~= ""
+        and type(rawId) == "string" and rawId ~= ""
+        and type(modData[Constant.MODDATA_KEYS.BARREL_WEIGHT]) == "number"
+end
+
 -- ---------------------------------------------------------------------------
 -- Public event handlers
 -- ---------------------------------------------------------------------------
@@ -87,7 +101,7 @@ function BarrelWorldService.onLoadGridsquare(square)
     for i = 0, objects:size() - 1 do
         local worldObject = objects:get(i)
         if WorldUtils.isExpandableBarrel(worldObject) then
-            if not BarrEx_BarrelData.reapplyWeight(worldObject) then
+            if not canUseWeightFastPath(worldObject) or not BarrEx_BarrelData.reapplyWeight(worldObject) then
                 reconcile(worldObject)
             end
         end
@@ -132,6 +146,8 @@ function BarrelWorldService.onOpenBarrel(player, args)
     end
 
     if barrelData:isRevealed() then
+        BarrEx_BarrelData.set(barrel, barrelData)
+        barrel:transmitModData()
         log("Open ignored; barrel already revealed: " .. (barrelData.id or "unknown"))
         return
     end

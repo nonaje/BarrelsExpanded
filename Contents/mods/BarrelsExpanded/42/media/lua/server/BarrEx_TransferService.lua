@@ -68,6 +68,21 @@ local function isTransferCompleted(transfer)
     return (tonumber(transfer and transfer.remainingAmount) or 0) <= TRANSFER_EPSILON
 end
 
+local function isWaitingForClientProgress(transfer)
+    if not transfer or transfer.clientAnimationFinished then return false end
+    return clamp01(transfer.clientProgress) < 1
+end
+
+local function isClientProgressStale(transfer)
+    local staleTicks = math.max(tonumber(Constant.SERVER_TRANSFER_STALE_TICKS) or 0, 0)
+    if staleTicks <= 0 or not isWaitingForClientProgress(transfer) then
+        return false
+    end
+
+    transfer.ticksSinceClientProgress = (transfer.ticksSinceClientProgress or 0) + 1
+    return transfer.ticksSinceClientProgress > staleTicks
+end
+
 local function transferMatches(transfer, mode, transferId)
     if not transfer then return false end
     if mode and transfer.mode ~= mode then return false end
@@ -387,6 +402,7 @@ function TransferService.start(player, mode, args)
         tickInterval    = tickInterval,
         ticksUntilStep  = 0,
         ticksSinceSync  = 0,
+        ticksSinceClientProgress = 0,
     }
 
     activeTransfers[playerKey] = transfer
@@ -419,6 +435,7 @@ function TransferService.updateProgress(player, args)
     if not transferMatches(transfer, args.mode, args.transferId) then return end
 
     transfer.clientProgress = math.max(tonumber(transfer.clientProgress) or 0, clamp01(args.progress))
+    transfer.ticksSinceClientProgress = 0
 end
 
 --- Stops the player's active transfer (client-initiated or replaced by a new one).
@@ -463,6 +480,7 @@ function TransferService.complete(player, mode, transferId)
     if not transferMatches(transfer, mode, transferId) then return end
 
     transfer.clientProgress = 1
+    transfer.ticksSinceClientProgress = 0
 
     if not isTransferCompleted(transfer) then
         transfer.clientAnimationFinished = true
@@ -490,6 +508,8 @@ function TransferService.onTick()
         -- Abort if lock was taken by another player between steps.
         if TransferLocks.isLockedBy(transfer.barrelKey) ~= playerKey then
             stopByKey(playerKey, transfer, "barrel_lock_lost", true)
+        elseif isClientProgressStale(transfer) then
+            stopByKey(playerKey, transfer, "client_progress_timeout", true)
         else
             transfer.ticksUntilStep = (transfer.ticksUntilStep or transfer.tickInterval or 1) - 1
 

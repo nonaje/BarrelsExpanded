@@ -17,6 +17,28 @@ local function log(message)
     Logger.info("[MoveableSync] " .. tostring(message))
 end
 
+local function isAuthoritativeContext()
+    return type(isClient) ~= "function" or isClient() ~= true
+end
+
+local function syncInventoryItem(item)
+    if not item then return end
+
+    if isAuthoritativeContext() then
+        if type(item.syncItemFields) == "function" then
+            item:syncItemFields()
+        end
+        if type(item.transmitModData) == "function" then
+            item:transmitModData()
+        end
+    end
+
+    local container = type(item.getContainer) == "function" and item:getContainer() or nil
+    if container and type(container.setDrawDirty) == "function" then
+        container:setDrawDirty(true)
+    end
+end
+
 local function isBarrelMoveable(worldObject)
     return worldObject ~= nil and WorldUtils.isExpandableBarrel(worldObject)
 end
@@ -106,6 +128,9 @@ local function applyItemSpawnProfileToNewestPlacedBarrel(item, square)
     if not barrelModData then return end
 
     BarrEx_BarrelData.writeSpawnProfile(barrelModData, spawnProfile)
+    if isAuthoritativeContext() then
+        barrel:transmitModData()
+    end
 end
 
 local function decoratePickedUpItem(item, worldObject)
@@ -117,6 +142,8 @@ local function decoratePickedUpItem(item, worldObject)
     if not barrelData then
         return
     end
+
+    syncInventoryItem(item)
 
     log(string.format(
         "Applied barrel payload to picked item: id=%s weight=%.2f",

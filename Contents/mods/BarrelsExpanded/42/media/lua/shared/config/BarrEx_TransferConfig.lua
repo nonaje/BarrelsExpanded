@@ -20,6 +20,11 @@ TransferConfig.SERVER_TICK_INTERVAL = 5
 -- client-side progress feedback.
 TransferConfig.SERVER_SYNC_INTERVAL = 10
 
+-- Maximum server ticks an in-progress transfer can go without a fresh client
+-- animation-progress update before the lock is released. This prevents a
+-- disconnected/stalled client from keeping a barrel locked forever.
+TransferConfig.SERVER_TRANSFER_STALE_TICKS = 300
+
 -- Number of timed-action update ticks between client animation progress reports.
 -- The server uses this only as a throttle for authoritative liquid movement.
 TransferConfig.CLIENT_PROGRESS_SYNC_INTERVAL = 5

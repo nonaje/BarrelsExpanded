@@ -16,5 +16,6 @@
   "UI_BarrEx_TransferRejection_BarrelLocked": "Another player is already using this barrel.",
   "UI_BarrEx_TransferRejection_BarrelIdMissing": "The barrel could not be validated.",
   "UI_BarrEx_TransferRejection_BarrelLockLost": "The transfer was interrupted because the barrel changed state.",
+  "UI_BarrEx_TransferRejection_ClientProgressTimeout": "The transfer lost client sync and was stopped.",
   "UI_BarrEx_TransferRejection_Unknown": "Transfer could not be started."
 }

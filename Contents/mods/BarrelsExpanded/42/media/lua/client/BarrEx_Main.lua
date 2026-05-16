@@ -26,6 +26,7 @@ local TRANSFER_REJECTION_KEY_MAP = {
     barrel_locked = "UI_BarrEx_TransferRejection_BarrelLocked",
     barrel_id_missing = "UI_BarrEx_TransferRejection_BarrelIdMissing",
     barrel_lock_lost = "UI_BarrEx_TransferRejection_BarrelLockLost",
+    client_progress_timeout = "UI_BarrEx_TransferRejection_ClientProgressTimeout",
 }
 
 local function getLocalPlayerSafe()
@@ -38,6 +39,47 @@ local function getLocalPlayerSafe()
     end
 
     return nil
+end
+
+local function getAckPlayer(args)
+    local playerOnlineId = type(args) == "table" and args.playerOnlineId or nil
+    if playerOnlineId and type(getPlayerByOnlineID) == "function" then
+        local player = getPlayerByOnlineID(playerOnlineId)
+        if player then
+            return player
+        end
+    end
+
+    return getLocalPlayerSafe()
+end
+
+local function refreshWashVisuals(args)
+    if type(args) ~= "table" then return end
+
+    local action = args.action
+    local washMode = args.washMode
+    if action ~= "wash_item" and action ~= "wash_self"
+        and washMode ~= "item" and washMode ~= "self"
+    then
+        return
+    end
+
+    local player = getAckPlayer(args)
+    if not player then return end
+
+    if action == "wash_item" or washMode == "item" then
+        if type(player.resetModel) == "function" then
+            player:resetModel()
+        end
+        if type(triggerEvent) == "function" then
+            triggerEvent("OnClothingUpdated", player)
+        end
+        return
+    end
+
+    if type(player.resetModelNextFrame) == "function" then
+        player:resetModelNextFrame()
+    end
 end
 
 local function showPlayerMessage(message)
@@ -84,10 +126,7 @@ local function onServerCommand(module, command, args)
     end
 
     if command == Constant.NETWORK.BARREL_USE_COMPLETED then
-        -- Barrel use (drink, wash, empty) completed on server.
-        -- The modData should be updated on the server and transmitted.
-        -- We don't need to do anything special here; transmitModData() handles sync.
-        -- This is just a confirmation that the action was processed successfully.
+        refreshWashVisuals(args)
         log(string.format(
             "Barrel use action completed on server: action=%s barrel=%s amount=%.2f",
             type(args) == "table" and args.action or "unknown",

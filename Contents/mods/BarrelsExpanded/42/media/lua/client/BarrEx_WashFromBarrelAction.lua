@@ -68,15 +68,6 @@ function BarrEx_WashFromBarrelAction:perform()
         self.item:setJobDelta(0.0)
     end
     BarrEx_BarrelUseAction.perform(self)
-    -- Mirror vanilla ISWashClothing:perform() / ISWashYourself:perform() to force
-    -- the local client to rebuild the character model and fire OnClothingUpdated,
-    -- which clears the blood visual after the server mutation is applied.
-    if self.washMode == "item" then
-        self.character:resetModel()
-        triggerEvent("OnClothingUpdated", self.character)
-    else
-        self.character:resetModelNextFrame()
-    end
 end
 
 -- Returns true when the player has enough soap to wash the given item at normal speed.

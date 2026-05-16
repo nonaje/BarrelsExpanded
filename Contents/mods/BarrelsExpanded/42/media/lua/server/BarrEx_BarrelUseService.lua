@@ -37,11 +37,14 @@ local function persistBarrel(barrel, barrelData)
     barrel:transmitModData()
 end
 
-local function notifyBarrelUseCompleted(player, barrel, barrelData, action)
+local function notifyBarrelUseCompleted(player, barrel, barrelData, action, sourceArgs)
     if not player or not barrel or not barrelData or type(sendServerCommand) ~= "function" then return end
 
     local modData = barrel:getModData()
     local barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
+    local playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil
+    local washMode = type(sourceArgs) == "table" and sourceArgs.washMode or nil
+    local itemId = type(sourceArgs) == "table" and sourceArgs.itemId or nil
 
     -- Log for debugging multiplayer sync issues
     log(string.format(
@@ -58,6 +61,9 @@ local function notifyBarrelUseCompleted(player, barrel, barrelData, action)
         barrelId = barrelId,
         liquidType = barrelData.liquidType,
         amount = tonumber(barrelData.amount) or 0,
+        playerOnlineId = playerOnlineId,
+        washMode = washMode,
+        itemId = itemId,
         x = barrel:getX(),
         y = barrel:getY(),
         z = barrel:getZ(),
@@ -157,6 +163,13 @@ end
 local function syncItem(player, item)
     if type(syncItemFields) == "function" then
         syncItemFields(player, item)
+    elseif item and type(item.syncItemFields) == "function" then
+        item:syncItemFields()
+    end
+
+    local container = item and type(item.getContainer) == "function" and item:getContainer() or nil
+    if container and type(container.setDrawDirty) == "function" then
+        container:setDrawDirty(true)
     end
 end
 
@@ -194,6 +207,46 @@ local function isCleanableBandageLikeItem(item)
     return item ~= nil
         and type(item.getItemAfterCleaning) == "function"
         and item:getItemAfterCleaning() ~= nil
+end
+
+local function replaceCleanedItem(player, item, itemAfterCleaning)
+    local container = item and item:getContainer() or nil
+    if not container then return false end
+
+    local favorite = type(item.isFavorite) == "function" and item:isFavorite() or false
+    local primary = player and type(player.isPrimaryHandItem) == "function" and player:isPrimaryHandItem(item) or false
+    local secondary = player and type(player.isSecondaryHandItem) == "function" and player:isSecondaryHandItem(item) or false
+
+    container:Remove(item)
+    local newItem = container:AddItem(itemAfterCleaning)
+    if not newItem then return false end
+
+    if type(newItem.setFavorite) == "function" then
+        newItem:setFavorite(favorite)
+    end
+
+    if type(sendReplaceItemInContainer) == "function" then
+        sendReplaceItemInContainer(container, item, newItem)
+    else
+        if type(sendRemoveItemFromContainer) == "function" then
+            sendRemoveItemFromContainer(container, item)
+        end
+        if type(sendAddItemToContainer) == "function" then
+            sendAddItemToContainer(container, newItem)
+        end
+    end
+
+    if primary and type(player.setPrimaryHandItem) == "function" then
+        player:setPrimaryHandItem(newItem)
+    end
+    if secondary and type(player.setSecondaryHandItem) == "function" then
+        player:setSecondaryHandItem(newItem)
+    end
+    if (primary or secondary) and type(sendEquip) == "function" then
+        sendEquip(player)
+    end
+
+    return true
 end
 
 local function getWashWaterRequired(item)
@@ -279,23 +332,7 @@ local function washItem(player, item)
 
     local itemAfterCleaning = type(item.getItemAfterCleaning) == "function" and item:getItemAfterCleaning() or nil
     if itemAfterCleaning then
-        local container = item:getContainer()
-        if not container then return false end
-
-        local favorite = type(item.isFavorite) == "function" and item:isFavorite() or false
-        container:Remove(item)
-        if type(sendRemoveItemFromContainer) == "function" then
-            sendRemoveItemFromContainer(container, item)
-        end
-
-        local newItem = container:AddItem(itemAfterCleaning)
-        if newItem and type(newItem.setFavorite) == "function" then
-            newItem:setFavorite(favorite)
-        end
-        if newItem and type(sendAddItemToContainer) == "function" then
-            sendAddItemToContainer(container, newItem)
-        end
-        return true
+        return replaceCleanedItem(player, item, itemAfterCleaning)
     end
 
     if instanceof and (instanceof(item, "Clothing") or instanceof(item, "InventoryContainer")) then
@@ -365,7 +402,7 @@ function BarrelUseService.wash(player, args)
 
     if args.washMode == "item" then
         if BarrelUseService.washItem(player, barrel, barrelData, args) then
-            notifyBarrelUseCompleted(player, barrel, barrelData, "wash_item")
+            notifyBarrelUseCompleted(player, barrel, barrelData, "wash_item", args)
         else
             log("Wash item rejected.")
         end
@@ -373,7 +410,7 @@ function BarrelUseService.wash(player, args)
     end
 
     if BarrelUseService.washSelf(player, barrel, barrelData) then
-        notifyBarrelUseCompleted(player, barrel, barrelData, "wash_self")
+        notifyBarrelUseCompleted(player, barrel, barrelData, "wash_self", args)
     else
         log("Wash self rejected.")
     end

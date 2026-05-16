@@ -16,5 +16,6 @@
   "UI_BarrEx_TransferRejection_BarrelLocked": "Otro jugador ya está usando este barril.",
   "UI_BarrEx_TransferRejection_BarrelIdMissing": "No se pudo validar el barril.",
   "UI_BarrEx_TransferRejection_BarrelLockLost": "La transferencia se interrumpió porque el barril cambió de estado.",
+  "UI_BarrEx_TransferRejection_ClientProgressTimeout": "La transferencia perdió sincronización con el cliente y se detuvo.",
   "UI_BarrEx_TransferRejection_Unknown": "No se pudo iniciar la transferencia."
 }
