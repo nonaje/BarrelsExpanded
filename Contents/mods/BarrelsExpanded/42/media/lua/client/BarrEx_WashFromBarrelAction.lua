@@ -68,21 +68,92 @@ function BarrEx_WashFromBarrelAction:perform()
         self.item:setJobDelta(0.0)
     end
     BarrEx_BarrelUseAction.perform(self)
+    -- Mirror vanilla ISWashClothing:perform() / ISWashYourself:perform() to force
+    -- the local client to rebuild the character model and fire OnClothingUpdated,
+    -- which clears the blood visual after the server mutation is applied.
+    if self.washMode == "item" then
+        self.character:resetModel()
+        triggerEvent("OnClothingUpdated", self.character)
+    else
+        self.character:resetModelNextFrame()
+    end
 end
 
+-- Returns true when the player has enough soap to wash the given item at normal speed.
+-- Mirrors vanilla ISWashClothing: soap covers blood stains, so only blood-stained items require soap.
+local function playerHasSoapForItem(player, item)
+    if not ISWashClothing
+        or type(ISWashClothing.GetRequiredSoap) ~= "function"
+        or type(ISWashClothing.GetSoapRemaining) ~= "function"
+    then
+        return false
+    end
+    local required = tonumber(ISWashClothing.GetRequiredSoap(item)) or 0
+    if required <= 0 then return true end
+    local inventory = player and player:getInventory()
+    if not inventory then return false end
+    local soaps = inventory:getSoapList(nil, true)
+    local remaining = tonumber(ISWashClothing.GetSoapRemaining(soaps)) or 0
+    return remaining >= required
+end
+
+-- Returns true when the player has enough soap to wash themselves at normal speed.
+-- Mirrors vanilla ISWashYourself: soap reduces duration from 126/unit to 70/unit.
+local function playerHasSoapForSelf(player)
+    if not ISWashYourself or not ISWashClothing
+        or type(ISWashYourself.GetRequiredSoap) ~= "function"
+        or type(ISWashClothing.GetSoapRemaining) ~= "function"
+    then
+        return false
+    end
+    local required = tonumber(ISWashYourself.GetRequiredSoap(player)) or 0
+    if required <= 0 then return true end
+    local inventory = player and player:getInventory()
+    if not inventory then return false end
+    local soaps = inventory:getSoapList(nil, false)
+    local remaining = tonumber(ISWashClothing.GetSoapRemaining(soaps)) or 0
+    return remaining >= required
+end
+
+-- Duration mirrors ISWashYourself:getDuration():
+--   with soap:    waterUnits * 70
+--   without soap: waterUnits * 126
 local function getSelfDuration(player)
-    local required = 1
+    local required = 0
     if ISWashYourself and type(ISWashYourself.GetRequiredWater) == "function" then
-        required = math.max(tonumber(ISWashYourself.GetRequiredWater(player)) or 1, 1)
+        required = math.max(tonumber(ISWashYourself.GetRequiredWater(player)) or 0, 0)
     end
-    return math.min(math.max(required * 70, 100), 800)
+    if required == 0 then return 100 end
+    return playerHasSoapForSelf(player) and (required * 70) or (required * 126)
 end
 
-local function getItemDuration(item)
-    local maxTime = 100
-    if item and ISWashClothing and type(ISWashClothing.GetRequiredWater) == "function" then
-        maxTime = math.min(math.max((tonumber(ISWashClothing.GetRequiredWater(item)) or 1) * 15, 100), 800)
+-- Duration mirrors ISWashClothing:getDuration():
+--   base  = (totalBlood + totalDirt) * 15, capped at 500
+--   noSoap multiplier: * 5
+--   hard cap: [100, 800]
+local function getItemDuration(player, item)
+    if not item then return 100 end
+    local blood, dirt = 0, 0
+    if instanceof and instanceof(item, "Clothing")
+        and BloodClothingType
+        and type(item.getBloodClothingType) == "function"
+    then
+        local coveredParts = BloodClothingType.getCoveredParts(item:getBloodClothingType())
+        if coveredParts then
+            for i = 0, coveredParts:size() - 1 do
+                local part = coveredParts:get(i)
+                blood = blood + (tonumber(item:getBlood(part)) or 0)
+                dirt  = dirt  + (tonumber(item:getDirt(part))  or 0)
+            end
+        end
+    elseif type(item.getBloodLevel) == "function" then
+        blood = tonumber(item:getBloodLevel()) or 0
     end
+    local maxTime = (blood + dirt) * 15
+    if maxTime > 500 then maxTime = 500 end
+    if not playerHasSoapForItem(player, item) then maxTime = maxTime * 5 end
+    if maxTime > 800 then maxTime = 800 end
+    if maxTime < 100 then maxTime = 100 end
     return maxTime
 end
 
@@ -92,7 +163,7 @@ end
 ---@param item InventoryItem|nil
 ---@return BarrEx_WashFromBarrelAction
 function BarrEx_WashFromBarrelAction:new(player, barrel, washMode, item)
-    local maxTime = washMode == "item" and getItemDuration(item) or getSelfDuration(player)
+    local maxTime = washMode == "item" and getItemDuration(player, item) or getSelfDuration(player)
     local o = BarrEx_BarrelUseAction.new(self, player, barrel, Constant.NETWORK.WASH_FROM_BARREL, maxTime)
     ---@cast o BarrEx_WashFromBarrelAction
     o.washMode = washMode or "self"

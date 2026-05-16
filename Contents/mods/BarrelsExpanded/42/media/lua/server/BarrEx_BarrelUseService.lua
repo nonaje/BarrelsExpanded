@@ -16,6 +16,14 @@ local function log(message)
     Logger.info(message)
 end
 
+-- Reads the fluid amount consumed per soap use from the vanilla global defined in defines.lua.
+-- Falls back to the canonical defines.lua value if the global is not yet initialized.
+local function getSoapFluidUseAmount()
+    -- Access via string key to avoid analyzer warnings for undeclared vanilla globals.
+    local v = ZomboidGlobals and ZomboidGlobals["CleanStainCleaningFluidAmount"]
+    return type(v) == "number" and v or 0.0999
+end
+
 local function isWaterLike(liquidType)
     return liquidType == Constant.LIQUID_TYPE.WATER
         or liquidType == Constant.LIQUID_TYPE.TAINTED_WATER
@@ -95,7 +103,7 @@ local function consumeSoap(player)
                 and soap:getFluidContainer()
                 and soap:getFluidContainer():getAmount() > 0
             then
-                local amount = soap:getFluidContainer():getAmount() - (ZomboidGlobals.CleanStainCleaningFluidAmount or 0.1)
+                local amount = soap:getFluidContainer():getAmount() - getSoapFluidUseAmount()
                 if amount <= 0.001 then
                     soap:getFluidContainer():Empty()
                 else
