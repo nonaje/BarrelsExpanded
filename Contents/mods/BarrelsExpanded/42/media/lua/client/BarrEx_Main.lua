@@ -1,6 +1,7 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_MoveableSync = require("BarrEx_MoveableSync")
 local BarrEx_TransferSync = require("BarrEx_TransferSync")
+local InventoryUtils = require("utils/BarrEx_InventoryUtils")
 local Logger = require("utils/BarrEx_Logger")
 
 local function log(message)
@@ -53,6 +54,126 @@ local function getAckPlayer(args)
     return getLocalPlayerSafe()
 end
 
+local function clearWashableItemVisuals(item)
+    if not item then return end
+
+    if instanceof and (instanceof(item, "Clothing") or instanceof(item, "InventoryContainer")) then
+        local coveredParts = nil
+        if BloodClothingType and type(item.getBloodClothingType) == "function" then
+            coveredParts = BloodClothingType.getCoveredParts(item:getBloodClothingType())
+        end
+        if coveredParts then
+            for i = 0, coveredParts:size() - 1 do
+                local part = coveredParts:get(i)
+                if type(item.setBlood) == "function" then item:setBlood(part, 0) end
+                if type(item.setDirt) == "function" then item:setDirt(part, 0) end
+            end
+        end
+        if instanceof(item, "Clothing") then
+            if type(item.setWetness) == "function" then item:setWetness(100) end
+            if type(item.setDirtiness) == "function" then item:setDirtiness(0) end
+        end
+    end
+
+    if type(item.setBloodLevel) == "function" then item:setBloodLevel(0) end
+    if type(item.setDirtiness) == "function" then item:setDirtiness(0) end
+
+    local container = type(item.getContainer) == "function" and item:getContainer() or nil
+    if container and type(container.setDrawDirty) == "function" then
+        container:setDrawDirty(true)
+    end
+    if ISInventoryPage and type(ISInventoryPage.dirtyUI) == "function" then
+        ISInventoryPage.dirtyUI()
+    end
+end
+
+local function applyCharacterVisualRefresh(player)
+    if type(syncVisuals) == "function" then
+        syncVisuals(player)
+    end
+    if type(player.updateHandEquips) == "function" then
+        player:updateHandEquips()
+    end
+end
+
+local function refreshWashItem(player, args)
+    local inventory = player and player:getInventory()
+    if not inventory then return end
+
+    log(string.format(
+        "Wash item ACK received: id=%s idType=%s fullType=%s",
+        tostring(args.itemId),
+        type(args.itemId),
+        tostring(args.itemFullType)
+    ))
+
+    local item = InventoryUtils.findInventoryItemStrict(inventory, args.itemId)
+    if not item then
+        log(string.format(
+            "Wash item local refresh skipped: item not found id=%s idType=%s fullType=%s",
+            tostring(args.itemId),
+            type(args.itemId),
+            tostring(args.itemFullType)
+        ))
+        return
+    end
+
+    local primary = type(player.isPrimaryHandItem) == "function" and player:isPrimaryHandItem(item) or false
+    local secondary = type(player.isSecondaryHandItem) == "function" and player:isSecondaryHandItem(item) or false
+
+    clearWashableItemVisuals(item)
+    applyCharacterVisualRefresh(player)
+
+    if primary and type(player.setPrimaryHandItem) == "function" then
+        player:setPrimaryHandItem(item)
+    end
+    if secondary and type(player.setSecondaryHandItem) == "function" then
+        player:setSecondaryHandItem(item)
+    end
+
+    if type(player.resetModel) == "function" then
+        player:resetModel()
+    end
+    if type(triggerEvent) == "function" then
+        triggerEvent("OnClothingUpdated", player)
+    end
+
+    log(string.format(
+        "Wash item local refresh applied: id=%s fullType=%s",
+        tostring(args.itemId),
+        tostring(type(item.getFullType) == "function" and item:getFullType() or args.itemFullType)
+    ))
+end
+
+local function refreshWashSelf(player, args)
+    local washedBodyParts = type(args) == "table" and args.washedBodyParts or nil
+    local visual = player and player:getHumanVisual()
+
+    if type(washedBodyParts) ~= "table" or #washedBodyParts == 0 or not visual then
+        log("Wash self local refresh received without body-part metadata.")
+    else
+        for i = 1, #washedBodyParts do
+            local partIndex = tonumber(washedBodyParts[i])
+            if partIndex and BloodBodyPartType and type(BloodBodyPartType.FromIndex) == "function" then
+                local part = BloodBodyPartType.FromIndex(partIndex)
+                if part then
+                    visual:setBlood(part, 0)
+                    visual:setDirt(part, 0)
+                end
+            end
+        end
+
+        log(string.format("Wash self local refresh applied: parts=%d", #washedBodyParts))
+    end
+
+    if type(player.resetModelNextFrame) == "function" then
+        player:resetModelNextFrame()
+    end
+    if type(triggerEvent) == "function" then
+        triggerEvent("OnClothingUpdated", player)
+    end
+end
+
 local function refreshWashVisuals(args)
     if type(args) ~= "table" then return end
 
@@ -68,18 +189,11 @@ local function refreshWashVisuals(args)
     if not player then return end
 
     if action == "wash_item" or washMode == "item" then
-        if type(player.resetModel) == "function" then
-            player:resetModel()
-        end
-        if type(triggerEvent) == "function" then
-            triggerEvent("OnClothingUpdated", player)
-        end
+        refreshWashItem(player, args)
         return
     end
 
-    if type(player.resetModelNextFrame) == "function" then
-        player:resetModelNextFrame()
-    end
+    refreshWashSelf(player, args)
 end
 
 local function showPlayerMessage(message)

@@ -37,14 +37,28 @@ local function persistBarrel(barrel, barrelData)
     barrel:transmitModData()
 end
 
+local function dispatchBarrelUseCompleted(player, payload)
+    if type(sendServerCommand) == "function" then
+        sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.BARREL_USE_COMPLETED, payload)
+    end
+
+    local runningServer = type(isServer) == "function" and isServer() or false
+    local runningClient = type(isClient) == "function" and isClient() or false
+    if not runningServer and not runningClient and type(triggerEvent) == "function" then
+        triggerEvent("OnServerCommand", Constant.NETWORK.MODULE, Constant.NETWORK.BARREL_USE_COMPLETED, payload)
+    end
+end
+
 local function notifyBarrelUseCompleted(player, barrel, barrelData, action, sourceArgs)
-    if not player or not barrel or not barrelData or type(sendServerCommand) ~= "function" then return end
+    if not player or not barrel or not barrelData then return end
 
     local modData = barrel:getModData()
     local barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
     local playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil
     local washMode = type(sourceArgs) == "table" and sourceArgs.washMode or nil
     local itemId = type(sourceArgs) == "table" and sourceArgs.itemId or nil
+    local itemFullType = type(sourceArgs) == "table" and sourceArgs.itemFullType or nil
+    local washedBodyParts = type(sourceArgs) == "table" and sourceArgs.washedBodyParts or nil
 
     -- Log for debugging multiplayer sync issues
     log(string.format(
@@ -56,7 +70,7 @@ local function notifyBarrelUseCompleted(player, barrel, barrelData, action, sour
     ))
 
     -- Notify the acting player that their action was processed
-    sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.BARREL_USE_COMPLETED, {
+    dispatchBarrelUseCompleted(player, {
         action = action or "use",
         barrelId = barrelId,
         liquidType = barrelData.liquidType,
@@ -64,6 +78,8 @@ local function notifyBarrelUseCompleted(player, barrel, barrelData, action, sour
         playerOnlineId = playerOnlineId,
         washMode = washMode,
         itemId = itemId,
+        itemFullType = itemFullType,
+        washedBodyParts = washedBodyParts,
         x = barrel:getX(),
         y = barrel:getY(),
         z = barrel:getZ(),
@@ -303,10 +319,12 @@ function BarrelUseService.washSelf(player, barrel, barrelData)
     if availableUnits <= 0 then return false end
 
     local waterUsed = 0
+    local washedBodyParts = {}
     for i = 1, BloodBodyPartType.MAX:index() do
         if waterUsed >= availableUnits then break end
 
-        local part = BloodBodyPartType.FromIndex(i - 1)
+        local partIndex = i - 1
+        local part = BloodBodyPartType.FromIndex(partIndex)
         local blood = tonumber(visual:getBlood(part)) or 0
         local dirt = tonumber(visual:getDirt(part)) or 0
         if blood + dirt > 0 then
@@ -314,6 +332,7 @@ function BarrelUseService.washSelf(player, barrel, barrelData)
             visual:setBlood(part, 0)
             visual:setDirt(part, 0)
             waterUsed = waterUsed + 1
+            washedBodyParts[#washedBodyParts + 1] = partIndex
         end
     end
 
@@ -324,7 +343,7 @@ function BarrelUseService.washSelf(player, barrel, barrelData)
     barrelData:removeLiquid(waterUsed * (Constant.BARREL_WASH_UNIT_AMOUNT or 1))
     persistBarrel(barrel, barrelData)
 
-    return true
+    return true, washedBodyParts
 end
 
 local function washItem(player, item)
@@ -367,30 +386,43 @@ local function washItem(player, item)
 end
 
 function BarrelUseService.washItem(player, barrel, barrelData, args)
-    if not isWaterLike(barrelData.liquidType) then return false end
+    if not isWaterLike(barrelData.liquidType) then return false, "not_water_like" end
 
     local item = InteractionRules.getItemFromArgsStrict(player, args)
-    if not item then return false end
+    if not item then
+        local requestedItemId = type(args) == "table" and args.itemId or nil
+        local requestedItemFullType = type(args) == "table" and args.itemFullType or nil
+        return false, string.format(
+            "item_not_found id=%s idType=%s fullType=%s",
+            tostring(requestedItemId),
+            type(requestedItemId),
+            tostring(requestedItemFullType)
+        )
+    end
 
     if barrelData.liquidType == Constant.LIQUID_TYPE.TAINTED_WATER
         and isCleanableBandageLikeItem(item)
     then
-        return false
+        return false, "tainted_water_cannot_clean_bandage"
     end
 
     local waterRequired = getWashWaterRequired(item)
     if (tonumber(barrelData.amount) or 0) < waterRequired then
-        return false
+        return false, string.format(
+            "insufficient_water required=%.2f available=%.2f",
+            waterRequired,
+            tonumber(barrelData.amount) or 0
+        )
     end
 
     if not washItem(player, item) then
-        return false
+        return false, "item_mutation_failed"
     end
 
     barrelData:removeLiquid(waterRequired)
     persistBarrel(barrel, barrelData)
 
-    return true
+    return true, nil
 end
 
 function BarrelUseService.wash(player, args)
@@ -401,16 +433,22 @@ function BarrelUseService.wash(player, args)
     end
 
     if args.washMode == "item" then
-        if BarrelUseService.washItem(player, barrel, barrelData, args) then
+        local success, washReason = BarrelUseService.washItem(player, barrel, barrelData, args)
+        if success then
             notifyBarrelUseCompleted(player, barrel, barrelData, "wash_item", args)
         else
-            log("Wash item rejected.")
+            log("Wash item rejected: " .. tostring(washReason))
         end
         return
     end
 
-    if BarrelUseService.washSelf(player, barrel, barrelData) then
-        notifyBarrelUseCompleted(player, barrel, barrelData, "wash_self", args)
+    local success, washedBodyParts = BarrelUseService.washSelf(player, barrel, barrelData)
+    if success then
+        local ackArgs = {
+            washMode = type(args) == "table" and args.washMode or "self",
+            washedBodyParts = washedBodyParts,
+        }
+        notifyBarrelUseCompleted(player, barrel, barrelData, "wash_self", ackArgs)
     else
         log("Wash self rejected.")
     end

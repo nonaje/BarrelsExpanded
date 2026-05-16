@@ -9,12 +9,14 @@ local LEVELS = {
     ERROR = 40,
 }
 
+local DEFAULT_LEVEL = "WARN"
+
 local function getConfiguredLevel()
     if Constant.DEBUG == true then
         return LEVELS.DEBUG
     end
 
-    local levelName = type(Constant.LOG_LEVEL) == "string" and string.upper(Constant.LOG_LEVEL) or "WARN"
+    local levelName = type(Constant.LOG_LEVEL) == "string" and string.upper(Constant.LOG_LEVEL) or DEFAULT_LEVEL
     return LEVELS[levelName] or LEVELS.WARN
 end
 

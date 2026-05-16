@@ -1,13 +1,14 @@
 local LiquidConfig   = require("config/BarrEx_LiquidConfig")
 local ToolConfig     = require("config/BarrEx_ToolConfig")
 local TransferConfig = require("config/BarrEx_TransferConfig")
+local LogConfig      = require("config/BarrEx_LogConfig")
 
 local Constant = {}
 
 Constant.MOD_ID = "BarrelsExpanded"
-Constant.LOG_PREFIX = "[BarrelsExpanded]"
-Constant.DEBUG = false
-Constant.LOG_LEVEL = "WARN"
+Constant.LOG_PREFIX = LogConfig.LOG_PREFIX
+Constant.DEBUG = LogConfig.DEBUG
+Constant.LOG_LEVEL = LogConfig.LOG_LEVEL
 
 Constant.NETWORK = {
     MODULE = "BarrEx",

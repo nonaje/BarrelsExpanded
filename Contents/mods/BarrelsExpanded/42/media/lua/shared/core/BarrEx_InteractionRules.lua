@@ -48,7 +48,8 @@ end
 ---@return InventoryItem|nil
 function InteractionRules.getItemFromArgsStrict(player, args)
     if not player or type(args) ~= "table" then return nil end
-    if type(args.itemId) ~= "number" then return nil end
+    local itemIdType = type(args.itemId)
+    if itemIdType ~= "number" and itemIdType ~= "string" then return nil end
 
     local inventory = player:getInventory()
     if not inventory then return nil end
