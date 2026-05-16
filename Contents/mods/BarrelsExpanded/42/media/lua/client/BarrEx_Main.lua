@@ -82,6 +82,19 @@ local function onServerCommand(module, command, args)
         local message = type(getText) == "function" and getText(translationKey) or nil
         showPlayerMessage(message or getText("UI_BarrEx_TransferRejection_Unknown"))
     end
+
+    if command == Constant.NETWORK.BARREL_USE_COMPLETED then
+        -- Barrel use (drink, wash, empty) completed on server.
+        -- The modData should be updated on the server and transmitted.
+        -- We don't need to do anything special here; transmitModData() handles sync.
+        -- This is just a confirmation that the action was processed successfully.
+        log(string.format(
+            "Barrel use action completed on server: action=%s barrel=%s amount=%.2f",
+            type(args) == "table" and args.action or "unknown",
+            type(args) == "table" and args.barrelId or "unknown",
+            type(args) == "table" and args.amount or 0
+        ))
+    end
 end
 
 log("Mod Initialized!")

@@ -33,6 +33,39 @@ local function persistBarrel(barrel, barrelData)
     if not barrel or not barrelData then return end
 
     BarrEx_BarrelData.set(barrel, barrelData)
+    -- First sync ensures the modData is updated on the object itself
+    barrel:transmitModData()
+end
+
+local function notifyBarrelUseCompleted(player, barrel, barrelData, action)
+    if not player or not barrel or not barrelData or type(sendServerCommand) ~= "function" then return end
+
+    local modData = barrel:getModData()
+    local barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
+
+    -- Log for debugging multiplayer sync issues
+    log(string.format(
+        "BarrelUseCompleted: action=%s barrelId=%s liquidType=%s amount=%.2f",
+        action or "unknown",
+        barrelId or "none",
+        barrelData.liquidType or "empty",
+        barrelData.amount or 0
+    ))
+
+    -- Notify the acting player that their action was processed
+    sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.BARREL_USE_COMPLETED, {
+        action = action or "use",
+        barrelId = barrelId,
+        liquidType = barrelData.liquidType,
+        amount = tonumber(barrelData.amount) or 0,
+        x = barrel:getX(),
+        y = barrel:getY(),
+        z = barrel:getZ(),
+    })
+
+    -- Second transmit to ensure all nearby clients receive the update,
+    -- particularly other players who may have the barrel visible
+    -- but didn't receive the initial transmitModData from persistBarrel
     barrel:transmitModData()
 end
 
@@ -204,6 +237,7 @@ function BarrelUseService.drink(player, args)
     end
 
     persistBarrel(barrel, barrelData)
+    notifyBarrelUseCompleted(player, barrel, barrelData, "drink")
 end
 
 function BarrelUseService.washSelf(player, barrel, barrelData)
@@ -330,13 +364,17 @@ function BarrelUseService.wash(player, args)
     end
 
     if args.washMode == "item" then
-        if not BarrelUseService.washItem(player, barrel, barrelData, args) then
+        if BarrelUseService.washItem(player, barrel, barrelData, args) then
+            notifyBarrelUseCompleted(player, barrel, barrelData, "wash_item")
+        else
             log("Wash item rejected.")
         end
         return
     end
 
-    if not BarrelUseService.washSelf(player, barrel, barrelData) then
+    if BarrelUseService.washSelf(player, barrel, barrelData) then
+        notifyBarrelUseCompleted(player, barrel, barrelData, "wash_self")
+    else
         log("Wash self rejected.")
     end
 end
@@ -352,6 +390,7 @@ function BarrelUseService.empty(player, args)
     if removed <= 0 then return end
 
     persistBarrel(barrel, barrelData)
+    notifyBarrelUseCompleted(player, barrel, barrelData, "empty")
 end
 
 return BarrelUseService

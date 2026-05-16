@@ -25,6 +25,7 @@ Constant.NETWORK = {
     DRINK_FROM_BARREL = "drinkFromBarrel",
     WASH_FROM_BARREL = "washFromBarrel",
     EMPTY_BARREL = "emptyBarrel",
+    BARREL_USE_COMPLETED = "barrelUseCompleted",
 }
 
 Constant.MODDATA_KEYS = {
