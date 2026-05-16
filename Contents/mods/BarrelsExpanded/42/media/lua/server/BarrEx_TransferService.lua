@@ -367,7 +367,7 @@ function TransferService.start(player, mode, args)
         return
     end
 
-    local totalTicks   = math.max(TransferRules.getTransferActionTime(totalAmount), 1)
+    local totalTicks   = math.max(TransferRules.getTransferActionTime(totalAmount, mode, liquidType), 1)
     local tickInterval = math.max(Constant.SERVER_TRANSFER_TICK_INTERVAL or 1, 1)
 
     local transfer = {
@@ -503,6 +503,16 @@ function TransferService.onTick()
                     transfer.remainingAmount or 0,
                     math.max(targetMovedAmount - (transfer.movedAmount or 0), 0)
                 )
+                if requestedAmount > TRANSFER_EPSILON then
+                    local wholeUnits = math.floor(requestedAmount)
+                    if wholeUnits >= 1 then
+                        requestedAmount = 1
+                    elseif targetProgress >= 1 then
+                        requestedAmount = transfer.remainingAmount or 0
+                    else
+                        requestedAmount = 0
+                    end
+                end
 
                 if requestedAmount <= TRANSFER_EPSILON then
                     if isTransferCompleted(transfer) then

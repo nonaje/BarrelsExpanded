@@ -144,18 +144,34 @@ end
 -- ---------------------------------------------------------------------------
 
 --- Returns the timed-action duration in ticks for a transfer of `amount` units.
---- Mirrors the vanilla formula scaled by TRANSFER_ACTION_TIME_MULTIPLIER.
+--- Gasoline mirrors the vehicle radial-menu actions: adding fuel moves faster
+--- than siphoning, and both advance by whole units in sync with the animation.
 ---@param amount number|nil
+---@param mode string|nil
+---@param liquidType string|nil
 ---@return number
-function TransferRules.getTransferActionTime(amount)
+function TransferRules.getTransferActionTime(amount, mode, liquidType)
     local normalizedAmount = tonumber(amount) or 0
     local baseDuration = getVanillaMinTransferTime()
 
     if normalizedAmount > 0 then
-        local vanillaDuration = normalizedAmount * getVanillaTransferTimePerUnit()
+        local timePerUnit = getVanillaTransferTimePerUnit()
+        if liquidType == LiquidConfig.LIQUID_TYPE.GASOLINE then
+            if mode == "pour" then
+                timePerUnit = 25
+            elseif mode == "extract" then
+                timePerUnit = 50
+            end
+        end
+
+        local vanillaDuration = normalizedAmount * timePerUnit
         if vanillaDuration > baseDuration then
             baseDuration = vanillaDuration
         end
+    end
+
+    if liquidType == LiquidConfig.LIQUID_TYPE.GASOLINE then
+        return math.max(math.floor(baseDuration), 1)
     end
 
     local multiplier = tonumber(TransferConfig.ACTION_TIME_MULTIPLIER) or 1

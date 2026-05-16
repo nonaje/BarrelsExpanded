@@ -31,7 +31,54 @@ function BarrEx_ExtractFromBarrelAction:getMode()
 end
 
 function BarrEx_ExtractFromBarrelAction:getAnimName()
+    if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+        return "TakeGasFromVehicle"
+    end
+
     return "MixFluids"
+end
+
+function BarrEx_ExtractFromBarrelAction:getTransferSound()
+    if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+        return "CanisterAddFuelSiphon"
+    end
+
+    return LiquidTransferAction.getTransferSound(self)
+end
+
+function BarrEx_ExtractFromBarrelAction:getFluidActionHandItems(liquidItem, toolItem)
+    if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+        return nil, liquidItem
+    end
+
+    return LiquidTransferAction.getFluidActionHandItems(self, liquidItem, toolItem)
+end
+
+function BarrEx_ExtractFromBarrelAction:setupJobTracking()
+    if self.liquidItem and type(self.liquidItem.setJobType) == "function" then
+        if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+            self.liquidItem:setJobType(getText("ContextMenu_VehicleSiphonGas"))
+        else
+            self.liquidItem:setJobType(getText("ContextMenu_Fill"))
+        end
+    end
+    if self.liquidItem and type(self.liquidItem.setJobDelta) == "function" then
+        self.liquidItem:setJobDelta(0.0)
+    end
+end
+
+function BarrEx_ExtractFromBarrelAction:clearJobTracking()
+    if self.liquidItem and type(self.liquidItem.setJobDelta) == "function" then
+        self.liquidItem:setJobDelta(0.0)
+    end
+end
+
+function BarrEx_ExtractFromBarrelAction:update()
+    if self.liquidItem and type(self.liquidItem.setJobDelta) == "function" then
+        self.liquidItem:setJobDelta(self:getJobDelta())
+    end
+
+    LiquidTransferAction.update(self)
 end
 
 ---@param player IsoPlayer

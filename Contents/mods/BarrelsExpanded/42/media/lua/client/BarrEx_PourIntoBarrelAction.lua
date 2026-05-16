@@ -31,7 +31,27 @@ function BarrEx_PourIntoBarrelAction:getMode()
 end
 
 function BarrEx_PourIntoBarrelAction:getAnimName()
+    if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+        return "refuelgascan"
+    end
+
     return "fill_container_tap"
+end
+
+function BarrEx_PourIntoBarrelAction:getTransferSound()
+    if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+        return "VehicleAddFuelFromCanister"
+    end
+
+    return LiquidTransferAction.getTransferSound(self)
+end
+
+function BarrEx_PourIntoBarrelAction:getFluidActionHandItems(liquidItem, toolItem)
+    if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+        return liquidItem, nil
+    end
+
+    return LiquidTransferAction.getFluidActionHandItems(self, liquidItem, toolItem)
 end
 
 function BarrEx_PourIntoBarrelAction:getPourType()
@@ -43,7 +63,11 @@ end
 
 function BarrEx_PourIntoBarrelAction:setupJobTracking()
     if self.liquidItem and type(self.liquidItem.setJobType) == "function" then
-        self.liquidItem:setJobType(getText("IGUI_JobType_PourOut"))
+        if self:getTransferLiquidType() == Constant.LIQUID_TYPE.GASOLINE then
+            self.liquidItem:setJobType(getText("ContextMenu_VehicleAddGas"))
+        else
+            self.liquidItem:setJobType(getText("IGUI_JobType_PourOut"))
+        end
     end
     if self.liquidItem and type(self.liquidItem.setJobDelta) == "function" then
         self.liquidItem:setJobDelta(0.0)

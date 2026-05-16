@@ -209,6 +209,41 @@ function BarrEx_LiquidTransferAction:getPourType()
     return nil
 end
 
+--- Returns the liquid type being moved by this action.
+---@return string|nil
+function BarrEx_LiquidTransferAction:getTransferLiquidType()
+    if self.mode == "pour" then
+        return LiquidAdapter.getLiquidType(self.liquidItem)
+    end
+
+    local barrelData = self.barrel and BarrEx_BarrelData.get(self.barrel) or nil
+    return barrelData and barrelData.liquidType or nil
+end
+
+--- Returns the timed-action duration for this transfer.
+---@return number
+function BarrEx_LiquidTransferAction:getTransferActionTime()
+    return TransferRules.getTransferActionTime(self.totalAmount, self.mode, self:getTransferLiquidType())
+end
+
+--- Returns the sound played by this transfer action.
+---@return string
+function BarrEx_LiquidTransferAction:getTransferSound()
+    return getTransferSound(self:getTransferLiquidType())
+end
+
+--- Returns the tool requirement list for this transfer mode.
+---@return table<string>
+function BarrEx_LiquidTransferAction:getRequiredItems()
+    if self.mode == "pour" then
+        return Constant.POUR_REQUIRED_ITEMS
+    end
+    if self.mode == "extract" then
+        return Constant.EXTRACT_REQUIRED_ITEMS
+    end
+    return {}
+end
+
 --- Sets up job-tracking fields on the liquid item (pour-specific).
 --- Base implementation does nothing; subclasses can override.
 function BarrEx_LiquidTransferAction:setupJobTracking()
@@ -240,7 +275,7 @@ function BarrEx_LiquidTransferAction:new(player, barrel, liquidItem)
     o.transferStarted = false
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = math.max(TransferRules.getTransferActionTime(o.totalAmount), 1)
+    o.maxTime = math.max(o:getTransferActionTime(), 1)
 
     setmetatable(o, self)
     self.__index = self
@@ -266,10 +301,7 @@ end
 function BarrEx_LiquidTransferAction:start()
     ISBaseTimedAction.start(self)
 
-    self.toolItem = PlayerUtils.findFirstRequiredItem(
-        self.character,
-        self.mode == "pour" and Constant.POUR_REQUIRED_ITEMS or {}
-    )
+    self.toolItem = PlayerUtils.findFirstRequiredItem(self.character, self:getRequiredItems())
     self.transferStarted = sendTransferCommand(self, self:getStartCommand())
     if self.transferStarted then
         TransferSync.registerAction(self.transferId, self.mode, self, self.barrel, self.liquidItem)
@@ -280,15 +312,10 @@ function BarrEx_LiquidTransferAction:start()
 
     self:setupJobTracking()
 
-    local barrelData = BarrEx_BarrelData.get(self.barrel)
-    local liquidType = self.mode == "pour"
-        and LiquidAdapter.getLiquidType(self.liquidItem)
-        or  (barrelData and barrelData.liquidType or nil)
-
     local primaryHandItem, secondaryHandItem = self:getFluidActionHandItems(self.liquidItem, self.toolItem)
     self:setActionAnim(self:getAnimName())
     self:setOverrideHandModels(primaryHandItem, secondaryHandItem)
-    self.sound = self.character:playSound(getTransferSound(liquidType))
+    self.sound = self.character:playSound(self:getTransferSound())
 end
 
 function BarrEx_LiquidTransferAction:update()
