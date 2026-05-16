@@ -1,5 +1,6 @@
 local ContextConfig = require("config/BarrEx_ContextConfig")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local Constant = require("BarrEx_Constant")
 local Text = require("context/BarrEx_ContextMenuText")
 
 local Tooltips = {}
@@ -20,14 +21,13 @@ local REASON_TOOLTIP_KEYS = {
     barrel_empty = ContextConfig.TOOLTIP.BARREL_EMPTY,
     barrel_full = ContextConfig.TOOLTIP.BARREL_FULL,
     barrel_unavailable = ContextConfig.TOOLTIP.BARREL_UNAVAILABLE,
-    missing_tool = ContextConfig.TOOLTIP.REQUIRES_FUNNEL,
-    no_source_items = ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER,
-    no_target_items = ContextConfig.TOOLTIP.NO_COMPATIBLE_CONTAINER,
     not_drinkable = ContextConfig.TOOLTIP.NOT_DRINKABLE,
     not_washable = ContextConfig.TOOLTIP.NOT_WASHABLE,
     not_thirsty = ContextConfig.TOOLTIP.NOT_THIRSTY,
     nothing_to_wash = ContextConfig.TOOLTIP.NOTHING_TO_WASH,
 }
+
+local MAX_COMPATIBLE_CONTAINER_LINES = 8
 
 ---@return ISToolTip
 local function newTooltip()
@@ -70,6 +70,32 @@ end
 ---@return table
 function TooltipBuilder:keyValue(label, value, valueColor)
     self.lines[#self.lines + 1] = buildLine(valueColor or Tooltips.COLORS.TEXT, tostring(label or "") .. " " .. tostring(value or ""))
+    return self
+end
+
+---@param foundItems table<string>|nil
+---@param missingItems table<string>|nil
+---@return table
+function TooltipBuilder:requiredItems(foundItems, missingItems)
+    self:header(Text.translate(ContextConfig.TOOLTIP.REQUIRED))
+        :line(Text.translate(ContextConfig.TOOLTIP.ONE_OF), Tooltips.COLORS.MUTED)
+
+    local found = foundItems or {}
+    for i = 1, #found do
+        self:line(
+            Text.translate(ContextConfig.TOOLTIP.ITEM_REQUIREMENT, Text.getItemDisplayName(found[i]), "1", "1"),
+            Tooltips.COLORS.GOOD
+        )
+    end
+
+    local missing = missingItems or {}
+    for i = 1, #missing do
+        self:line(
+            Text.translate(ContextConfig.TOOLTIP.ITEM_REQUIREMENT, Text.getItemDisplayName(missing[i]), "0", "1"),
+            Tooltips.COLORS.BAD
+        )
+    end
+
     return self
 end
 
@@ -160,27 +186,9 @@ end
 ---@param missingItems table<string>|nil
 ---@return string
 local function buildRequiredItemsTooltipDescription(foundItems, missingItems)
-    local builder = Tooltips.newBuilder()
-        :header(Text.translate(ContextConfig.TOOLTIP.REQUIRED))
-        :line(Text.translate(ContextConfig.TOOLTIP.ONE_OF), Tooltips.COLORS.MUTED)
-
-    local found = foundItems or {}
-    for i = 1, #found do
-        builder:line(
-            Text.translate(ContextConfig.TOOLTIP.ITEM_REQUIREMENT, Text.getItemDisplayName(found[i]), "1", "1"),
-            Tooltips.COLORS.GOOD
-        )
-    end
-
-    local missing = missingItems or {}
-    for i = 1, #missing do
-        builder:line(
-            Text.translate(ContextConfig.TOOLTIP.ITEM_REQUIREMENT, Text.getItemDisplayName(missing[i]), "1", "1"),
-            Tooltips.COLORS.BAD
-        )
-    end
-
-    return builder:description()
+    return Tooltips.newBuilder()
+        :requiredItems(foundItems, missingItems)
+        :description()
 end
 
 ---@param option table|nil
@@ -229,6 +237,107 @@ function Tooltips.attachTaintedWaterTooltip(option)
     Tooltips.newBuilder()
         :line(Text.translate(ContextConfig.TOOLTIP.TAINTED_WATER), Tooltips.COLORS.WARN)
         :attach(option)
+end
+
+---@param builder table
+---@param liquidType string|nil
+local function appendCompatibleContainers(builder, liquidType)
+    local containers = liquidType and Constant.COMPATIBLE_CONTAINERS[liquidType] or nil
+    if type(containers) ~= "table" then return end
+
+    builder:header(Text.translate(ContextConfig.TOOLTIP.COMPATIBLE_CONTAINERS))
+
+    local fullTypes = {}
+    for fullType, _ in pairs(containers) do
+        fullTypes[#fullTypes + 1] = fullType
+    end
+    table.sort(fullTypes, function(a, b)
+        return Text.getItemDisplayName(a) < Text.getItemDisplayName(b)
+    end)
+
+    local count = 0
+    for i = 1, #fullTypes do
+        local fullType = fullTypes[i]
+        count = count + 1
+        if count <= MAX_COMPATIBLE_CONTAINER_LINES then
+            builder:line(Text.getItemDisplayName(fullType), Tooltips.COLORS.MUTED)
+        end
+    end
+
+    if count > MAX_COMPATIBLE_CONTAINER_LINES then
+        builder:line("...", Tooltips.COLORS.MUTED)
+    end
+end
+
+---@param builder table
+---@param reason string|nil
+local function appendReasonStatus(builder, reason)
+    local translationKey = REASON_TOOLTIP_KEYS[reason]
+    if translationKey then
+        builder:header(Text.translate(ContextConfig.TOOLTIP.STATUS))
+            :line(Text.translate(translationKey), Tooltips.COLORS.BAD)
+    end
+end
+
+---@param option table|nil
+---@param reason string|nil
+function Tooltips.attachActionUnavailableTooltip(option, reason)
+    if not option or not reason then return end
+
+    local builder = Tooltips.newBuilder()
+    appendReasonStatus(builder, reason)
+    builder:attach(option)
+end
+
+---@param option table|nil
+---@param availability table
+function Tooltips.attachFillRequirementsTooltip(option, availability)
+    if not option or not availability then return end
+
+    local builder = Tooltips.newBuilder()
+    appendReasonStatus(builder, availability.fillReason)
+
+    local liquidType = availability.liquidType
+    if liquidType and liquidType ~= Constant.LIQUID_TYPE.EMPTY then
+        builder:keyValue(
+            Text.translate(ContextConfig.TOOLTIP.CURRENT_LIQUID),
+            Text.getLiquidDisplayName(liquidType)
+        )
+    end
+
+    builder:requiredItems(availability.fillFoundItems, availability.fillMissingItems)
+
+    if availability.fillReason == "no_target_items" then
+        builder:line(Text.translate(ContextConfig.TOOLTIP.NEED_CONTAINER_WITH_SPACE), Tooltips.COLORS.WARN)
+        appendCompatibleContainers(builder, liquidType)
+    end
+
+    builder:attach(option)
+end
+
+---@param option table|nil
+---@param availability table
+---@param barrelData BarrEx_Barrel|nil
+function Tooltips.attachPourRequirementsTooltip(option, availability, barrelData)
+    if not option or not availability then return end
+
+    local builder = Tooltips.newBuilder()
+    appendReasonStatus(builder, availability.pourReason)
+    builder:requiredItems(availability.pourFoundItems, availability.pourMissingItems)
+
+    local liquidType = barrelData and barrelData.liquidType or nil
+    if liquidType and liquidType ~= Constant.LIQUID_TYPE.EMPTY then
+        builder:keyValue(
+            Text.translate(ContextConfig.TOOLTIP.CURRENT_LIQUID),
+            Text.getLiquidDisplayName(liquidType)
+        )
+        builder:line(Text.translate(ContextConfig.TOOLTIP.NEED_MATCHING_LIQUID), Tooltips.COLORS.WARN)
+        appendCompatibleContainers(builder, liquidType)
+    elseif availability.pourReason == "no_source_items" then
+        builder:line(Text.translate(ContextConfig.TOOLTIP.NEED_CONTAINER_WITH_LIQUID), Tooltips.COLORS.WARN)
+    end
+
+    builder:attach(option)
 end
 
 ---@param option table|nil

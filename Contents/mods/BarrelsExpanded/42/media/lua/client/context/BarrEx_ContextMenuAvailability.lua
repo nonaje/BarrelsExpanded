@@ -38,6 +38,12 @@ function Availability.build(player, barrelData, inRange)
         canWash = false,
         canEmpty = false,
         canPour = false,
+        hasFillTool = false,
+        fillFoundItems = {},
+        fillMissingItems = {},
+        hasPourTool = false,
+        pourFoundItems = {},
+        pourMissingItems = {},
         fillReason = nil,
         drinkReason = nil,
         washReason = nil,
@@ -62,7 +68,17 @@ function Availability.build(player, barrelData, inRange)
     state.washItems = Inventory.collectWashableItems(player)
     state.washSelfWaterRequired = Inventory.getWashSelfWaterRequired(player)
 
-    local hasPourTool = PlayerUtils.isPlayerHoldingAnyRequiredItem(player, Constant.POUR_REQUIRED_ITEMS)
+    local hasFillTool, fillFoundItems, fillMissingItems =
+        PlayerUtils.getRequiredItemStatus(player, Constant.EXTRACT_REQUIRED_ITEMS)
+    local hasPourTool, pourFoundItems, pourMissingItems =
+        PlayerUtils.getRequiredItemStatus(player, Constant.POUR_REQUIRED_ITEMS)
+
+    state.hasFillTool = hasFillTool
+    state.fillFoundItems = fillFoundItems
+    state.fillMissingItems = fillMissingItems
+    state.hasPourTool = hasPourTool
+    state.pourFoundItems = pourFoundItems
+    state.pourMissingItems = pourMissingItems
 
     if not inRange then
         state.fillReason = "too_far"
@@ -78,6 +94,8 @@ function Availability.build(player, barrelData, inRange)
         state.drinkReason = "barrel_empty"
         state.washReason = "barrel_empty"
         state.emptyReason = "barrel_empty"
+    elseif not hasFillTool then
+        state.fillReason = "missing_tool"
     elseif #state.targetItems == 0 then
         state.fillReason = "no_target_items"
     else

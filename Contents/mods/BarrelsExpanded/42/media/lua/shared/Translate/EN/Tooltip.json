@@ -14,7 +14,7 @@
   "Tooltip_BarrEx_BarrelEmpty": "The barrel is empty.",
   "Tooltip_BarrEx_BarrelClosed": "Open the barrel first.",
   "Tooltip_BarrEx_IncompatibleLiquid": "Incompatible liquid type.",
-  "Tooltip_BarrEx_NoCompatibleContainer": "No compatible container found.",
+  "Tooltip_BarrEx_NoCompatibleContainer": "A compatible container with free space is required.",
   "Tooltip_BarrEx_BarrelUnavailable": "The barrel is unavailable.",
   "Tooltip_BarrEx_NotDrinkable": "This liquid cannot be drunk.",
   "Tooltip_BarrEx_NotWashable": "This liquid cannot be used for washing.",
@@ -23,5 +23,13 @@
   "Tooltip_BarrEx_TaintedWater": "Tainted water.",
   "Tooltip_BarrEx_FillLevel": "Fill level:",
   "Tooltip_BarrEx_TransferAmount": "to transfer",
-  "Tooltip_BarrEx_ContainerCapacity": "Container:"
+  "Tooltip_BarrEx_ContainerCapacity": "Container:",
+  "Tooltip_BarrEx_Status": "Status:",
+  "Tooltip_BarrEx_CompatibleContainers": "Compatible containers:",
+  "Tooltip_BarrEx_NeedContainerWithSpace": "You need a compatible container with free space.",
+  "Tooltip_BarrEx_NeedContainerWithLiquid": "You need a compatible container with liquid to pour.",
+  "Tooltip_BarrEx_NeedMatchingLiquid": "Use a container with the same liquid.",
+  "Tooltip_BarrEx_CurrentLiquid": "Current liquid:",
+  "Tooltip_BarrEx_Available": "Available:",
+  "Tooltip_BarrEx_Missing": "Missing:"
 }

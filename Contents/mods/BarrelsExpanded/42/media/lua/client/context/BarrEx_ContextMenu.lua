@@ -13,7 +13,7 @@ local Actions = require("context/BarrEx_ContextMenuActions")
 local ContextMenu = {}
 
 local function attachReasonTooltip(option, reason)
-    Tooltips.attachReasonTooltip(option, reason)
+    Tooltips.attachActionUnavailableTooltip(option, reason)
 end
 
 ---@param subMenu ISContextMenu
@@ -25,7 +25,7 @@ local function addBarrelInfoOption(subMenu, barrelData)
 
     local infoLabel = Text.translate(
         ContextConfig.CONTEXT_MENU.INFO_PERCENT,
-        Text.getVanillaInfoText(),
+        Text.translate(ContextConfig.CONTEXT_MENU.BARREL_INFO),
         tostring(percent)
     )
     local infoOption = subMenu:addOption(infoLabel, nil, nil)
@@ -49,7 +49,6 @@ local function addPourContainerSubMenu(parentMenu, parentOption, sourceItems, ba
 
     for _, item in ipairs(sourceItems) do
         local liquidType = LiquidAdapter.getLiquidType(item)
-        local transferAmount = Inventory.getPourTransferAmount(item, barrelData)
 
         local itemOption = itemMenu:addOption(
             Text.buildPourContainerOptionLabel(item, liquidType),
@@ -96,7 +95,7 @@ local function addPourOption(subMenu, barrel, player, barrelData, availability)
     if canPour and #sourceItems > 1 then
         addPourContainerSubMenu(subMenu, pourOption, sourceItems, barrel, player, barrelData)
     elseif not canPour then
-        attachReasonTooltip(pourOption, availability.pourReason)
+        Tooltips.attachPourRequirementsTooltip(pourOption, availability, barrelData)
     end
 end
 
@@ -161,7 +160,7 @@ end
 ---@param player IsoPlayer
 ---@param availability table
 local function addFillOption(subMenu, barrel, player, availability)
-    local fillLabel = availability.isGasoline and Text.getVanillaTakeGasText() or Text.getVanillaFillText()
+    local fillLabel = Text.getVanillaFillText()
     local fillOption = subMenu:addOption(fillLabel, nil, nil)
     fillOption.notAvailable = not availability.canFill
 
@@ -177,7 +176,7 @@ local function addFillOption(subMenu, barrel, player, availability)
         return
     end
 
-    attachReasonTooltip(fillOption, availability.fillReason)
+    Tooltips.attachFillRequirementsTooltip(fillOption, availability)
 end
 
 local function addDrinkOption(subMenu, barrel, player, availability)

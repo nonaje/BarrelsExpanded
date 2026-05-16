@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/UI.schema.json",
+  "UI_BarrEx_TransferRejection_BarrelNotFound": "El barril ya no está disponible.",
+  "UI_BarrEx_TransferRejection_BarrelUnavailable": "Primero tenés que abrir el barril.",
+  "UI_BarrEx_TransferRejection_InteractionInvalid": "No podés hacer eso desde esta posición o sin la herramienta requerida.",
+  "UI_BarrEx_TransferRejection_BarrelFull": "El barril está lleno.",
+  "UI_BarrEx_TransferRejection_BarrelEmpty": "El barril está vacío.",
+  "UI_BarrEx_TransferRejection_SourceNotFound": "No se encontró el recipiente de origen.",
+  "UI_BarrEx_TransferRejection_TargetNotFound": "No se encontró el recipiente de destino.",
+  "UI_BarrEx_TransferRejection_SourceLiquidMissing": "El recipiente no tiene líquido transferible.",
+  "UI_BarrEx_TransferRejection_SourceCannotProvide": "Ese recipiente no puede verter ese líquido.",
+  "UI_BarrEx_TransferRejection_TargetCannotReceive": "Ese recipiente no puede recibir ese líquido.",
+  "UI_BarrEx_TransferRejection_IncompatibleLiquid": "No se pueden mezclar líquidos distintos.",
+  "UI_BarrEx_TransferRejection_InvalidBarrelLiquid": "El líquido del barril no es válido.",
+  "UI_BarrEx_TransferRejection_NoTransferableAmount": "No hay cantidad transferible.",
+  "UI_BarrEx_TransferRejection_BarrelLocked": "Otro jugador ya está usando este barril.",
+  "UI_BarrEx_TransferRejection_BarrelIdMissing": "No se pudo validar el barril.",
+  "UI_BarrEx_TransferRejection_BarrelLockLost": "La transferencia se interrumpió porque el barril cambió de estado.",
+  "UI_BarrEx_TransferRejection_Unknown": "No se pudo iniciar la transferencia."
+}

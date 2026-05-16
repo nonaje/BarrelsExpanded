@@ -8,20 +8,16 @@ local VANILLA_TEXT_KEYS = {
     FILL = { "ContextMenu_Fill" },
     FILL_ONE = { "ContextMenu_Fill_one", "ContextMenu_Fill_One", "ContextMenu_FillOne" },
     FILL_ALL = { "ContextMenu_Fill_all", "ContextMenu_Fill_All", "ContextMenu_FillAll" },
-    TAKE_GAS = { "ContextMenu_TakeGasFromPump" },
     DRINK = { "ContextMenu_Drink" },
     WASH = { "ContextMenu_Wash" },
     YOURSELF = { "ContextMenu_Yourself" },
     WASH_ALL_CLOTHING = { "ContextMenu_WashAllClothing" },
-    EMPTY = { "Fluid_Empty" },
-    INFO = { "Fluid_Show_Info" },
 }
 
 local FALLBACK_TEXT_KEYS = {
     FILL = ContextConfig.CONTEXT_MENU.FALLBACK_FILL,
     FILL_ONE = ContextConfig.CONTEXT_MENU.FALLBACK_FILL_ONE,
     FILL_ALL = ContextConfig.CONTEXT_MENU.FALLBACK_FILL_ALL,
-    TAKE_GAS = ContextConfig.CONTEXT_MENU.FALLBACK_TAKE_GAS,
     DRINK = ContextConfig.CONTEXT_MENU.FALLBACK_DRINK,
     WASH = ContextConfig.CONTEXT_MENU.FALLBACK_WASH,
     YOURSELF = ContextConfig.CONTEXT_MENU.FALLBACK_YOURSELF,
@@ -73,7 +69,7 @@ end
 
 ---@return string
 function Text.getVanillaFillText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.FILL, FALLBACK_TEXT_KEYS.FILL)
+    return Text.translate(FALLBACK_TEXT_KEYS.FILL)
 end
 
 ---@return string
@@ -88,7 +84,7 @@ end
 
 ---@return string
 function Text.getVanillaTakeGasText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.TAKE_GAS, FALLBACK_TEXT_KEYS.TAKE_GAS)
+    return Text.getVanillaFillText()
 end
 
 ---@return string
@@ -113,12 +109,12 @@ end
 
 ---@return string
 function Text.getVanillaEmptyText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.EMPTY, FALLBACK_TEXT_KEYS.EMPTY)
+    return Text.translate(FALLBACK_TEXT_KEYS.EMPTY)
 end
 
 ---@return string
 function Text.getVanillaInfoText()
-    return getFirstAvailableText(VANILLA_TEXT_KEYS.INFO, FALLBACK_TEXT_KEYS.INFO)
+    return Text.translate(FALLBACK_TEXT_KEYS.INFO)
 end
 
 ---@param amount number|nil

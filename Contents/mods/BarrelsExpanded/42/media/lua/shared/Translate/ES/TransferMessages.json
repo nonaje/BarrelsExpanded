@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/UI.schema.json",
   "UI_BarrEx_TransferRejection_BarrelNotFound": "El barril ya no está disponible.",
-  "UI_BarrEx_TransferRejection_BarrelUnavailable": "Primero tenés que abrir el barril.",
-  "UI_BarrEx_TransferRejection_InteractionInvalid": "No podés hacer eso desde esta posición o sin la herramienta requerida.",
+  "UI_BarrEx_TransferRejection_BarrelUnavailable": "Primero tienes que abrir el barril.",
+  "UI_BarrEx_TransferRejection_InteractionInvalid": "No puedes hacer eso desde esta posición o sin la herramienta requerida.",
   "UI_BarrEx_TransferRejection_BarrelFull": "El barril está lleno.",
   "UI_BarrEx_TransferRejection_BarrelEmpty": "El barril está vacío.",
   "UI_BarrEx_TransferRejection_SourceNotFound": "No se encontró el recipiente de origen.",

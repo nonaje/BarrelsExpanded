@@ -4,6 +4,7 @@ ContextConfig.CONTEXT_MENU = {
     BARREL = "ContextMenu_BarrEx_Barrel",
     OPEN_BARREL = "ContextMenu_BarrEx_OpenBarrel",
     INFO = "ContextMenu_BarrEx_Info",
+    BARREL_INFO = "ContextMenu_BarrEx_BarrelInfo",
     REMOVE_THE_COVER = "ContextMenu_BarrEx_RemoveCover",
     POUR = "ContextMenu_BarrEx_Pour",
     EXTRACT = "ContextMenu_BarrEx_Extract",
@@ -48,6 +49,14 @@ ContextConfig.TOOLTIP = {
     TRANSFER_AMOUNT = "Tooltip_BarrEx_TransferAmount",
     CONTAINER_CAPACITY = "Tooltip_BarrEx_ContainerCapacity",
     FUEL_CAPACITY = "ContextMenu_FuelCapacity",
+    STATUS = "Tooltip_BarrEx_Status",
+    COMPATIBLE_CONTAINERS = "Tooltip_BarrEx_CompatibleContainers",
+    NEED_CONTAINER_WITH_SPACE = "Tooltip_BarrEx_NeedContainerWithSpace",
+    NEED_CONTAINER_WITH_LIQUID = "Tooltip_BarrEx_NeedContainerWithLiquid",
+    NEED_MATCHING_LIQUID = "Tooltip_BarrEx_NeedMatchingLiquid",
+    CURRENT_LIQUID = "Tooltip_BarrEx_CurrentLiquid",
+    AVAILABLE = "Tooltip_BarrEx_Available",
+    MISSING = "Tooltip_BarrEx_Missing",
 }
 
 ContextConfig.UI = {
