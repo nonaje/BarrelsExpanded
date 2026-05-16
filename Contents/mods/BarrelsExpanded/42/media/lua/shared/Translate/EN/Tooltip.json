@@ -9,7 +9,7 @@
   "Tooltip_BarrEx_Weight": "Weight:",
   "Tooltip_BarrEx_TooFar": "You are too far away. Get closer to the barrel.",
   "Tooltip_BarrEx_RequiresFunnel": "Requires: Funnel.",
-  "Tooltip_BarrEx_RequiresHose": "Requires: Rubber Hose.",
+  "Tooltip_BarrEx_RequiresHose": "Requires: Hose.",
   "Tooltip_BarrEx_MissingRequiredTool": "A required tool is missing.",
   "Tooltip_BarrEx_BarrelFull": "The barrel is full.",
   "Tooltip_BarrEx_BarrelEmpty": "The barrel is empty.",
@@ -18,7 +18,7 @@
   "Tooltip_BarrEx_NoCompatibleContainer": "A compatible container with free space is required.",
   "Tooltip_BarrEx_BarrelUnavailable": "The barrel is unavailable.",
   "Tooltip_BarrEx_NotDrinkable": "This liquid cannot be drunk.",
-  "Tooltip_BarrEx_NotWashable": "This liquid cannot be used for washing.",
+  "Tooltip_BarrEx_NotWashable": "Washing requires water or tainted water.",
   "Tooltip_BarrEx_NotThirsty": "You are not thirsty.",
   "Tooltip_BarrEx_NothingToWash": "Nothing needs washing.",
   "Tooltip_BarrEx_TaintedWater": "Tainted water.",
@@ -32,5 +32,7 @@
   "Tooltip_BarrEx_NeedMatchingLiquid": "Use a container with the same liquid.",
   "Tooltip_BarrEx_CurrentLiquid": "Current liquid:",
   "Tooltip_BarrEx_Available": "Available:",
-  "Tooltip_BarrEx_Missing": "Missing:"
+  "Tooltip_BarrEx_Missing": "Missing:",
+  "Tooltip_BarrEx_MoreCompatibleContainers": "And %1 more.",
+  "Tooltip_BarrEx_Item_RubberHose": "Hose"
 }

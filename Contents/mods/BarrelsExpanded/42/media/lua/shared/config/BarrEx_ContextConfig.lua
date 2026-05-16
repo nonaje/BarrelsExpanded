@@ -58,6 +58,8 @@ ContextConfig.TOOLTIP = {
     CURRENT_LIQUID = "Tooltip_BarrEx_CurrentLiquid",
     AVAILABLE = "Tooltip_BarrEx_Available",
     MISSING = "Tooltip_BarrEx_Missing",
+    MORE_COMPATIBLE_CONTAINERS = "Tooltip_BarrEx_MoreCompatibleContainers",
+    ITEM_RUBBER_HOSE = "Tooltip_BarrEx_Item_RubberHose",
 }
 
 ContextConfig.UI = {

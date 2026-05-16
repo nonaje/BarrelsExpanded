@@ -257,7 +257,7 @@ function Adapter.canReceive(item, liquidType)
 
     local currentType = Adapter.getLiquidType(item)
     if not currentType then
-        return true
+        return Adapter.getAmount(item) <= 0
     end
 
     return currentType == liquidType
@@ -345,6 +345,10 @@ function Adapter.addLiquid(item, liquidType, amount)
 
     local before = Adapter.getAmount(item)
     local beforeType = Adapter.getLiquidType(item)
+    if before > 0 and not beforeType then
+        return 0
+    end
+
     if beforeType and beforeType ~= liquidType then
         return 0
     end

@@ -29,7 +29,7 @@ local REASON_TOOLTIP_KEYS = {
     nothing_to_wash = ContextConfig.TOOLTIP.NOTHING_TO_WASH,
 }
 
-local MAX_COMPATIBLE_CONTAINER_LINES = 8
+local MAX_COMPATIBLE_CONTAINER_LINES = 5
 local appendReasonStatus
 
 ---@return ISToolTip
@@ -283,7 +283,10 @@ local function appendCompatibleContainers(builder, liquidType)
     end
 
     if count > MAX_COMPATIBLE_CONTAINER_LINES then
-        builder:line("...", Tooltips.COLORS.MUTED)
+        builder:line(
+            Text.translate(ContextConfig.TOOLTIP.MORE_COMPATIBLE_CONTAINERS, tostring(count - MAX_COMPATIBLE_CONTAINER_LINES)),
+            Tooltips.COLORS.MUTED
+        )
     end
 end
 

@@ -9,7 +9,7 @@
   "Tooltip_BarrEx_Weight": "Peso:",
   "Tooltip_BarrEx_TooFar": "Estás demasiado lejos. Acercate más al barril.",
   "Tooltip_BarrEx_RequiresFunnel": "Necesita: Embudo.",
-  "Tooltip_BarrEx_RequiresHose": "Necesita: Manguera de goma.",
+  "Tooltip_BarrEx_RequiresHose": "Necesita: Manguera.",
   "Tooltip_BarrEx_MissingRequiredTool": "Falta una herramienta requerida.",
   "Tooltip_BarrEx_BarrelFull": "El barril está lleno.",
   "Tooltip_BarrEx_BarrelEmpty": "El barril está vacío.",
@@ -18,7 +18,7 @@
   "Tooltip_BarrEx_NoCompatibleContainer": "Necesitás un recipiente compatible con espacio libre.",
   "Tooltip_BarrEx_BarrelUnavailable": "El barril no está disponible.",
   "Tooltip_BarrEx_NotDrinkable": "Este líquido no se puede beber.",
-  "Tooltip_BarrEx_NotWashable": "Este líquido no se puede usar para lavar.",
+  "Tooltip_BarrEx_NotWashable": "Para lavar necesitás agua o agua contaminada.",
   "Tooltip_BarrEx_NotThirsty": "No tenés sed.",
   "Tooltip_BarrEx_NothingToWash": "No hay nada que lavar.",
   "Tooltip_BarrEx_TaintedWater": "Agua contaminada.",
@@ -32,5 +32,7 @@
   "Tooltip_BarrEx_NeedMatchingLiquid": "Usá un recipiente con el mismo líquido.",
   "Tooltip_BarrEx_CurrentLiquid": "Líquido actual:",
   "Tooltip_BarrEx_Available": "Disponible:",
-  "Tooltip_BarrEx_Missing": "Falta:"
+  "Tooltip_BarrEx_Missing": "Falta:",
+  "Tooltip_BarrEx_MoreCompatibleContainers": "Y %1 más.",
+  "Tooltip_BarrEx_Item_RubberHose": "Manguera"
 }

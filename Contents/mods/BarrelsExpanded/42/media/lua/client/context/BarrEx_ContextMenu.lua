@@ -29,7 +29,6 @@ local function addBarrelInfoOption(subMenu, barrelData)
         tostring(percent)
     )
     local infoOption = subMenu:addOption(infoLabel, nil, nil)
-    infoOption.notAvailable = true
 
     Tooltips.attachBarrelInfoTooltip(infoOption, barrelData)
 end
@@ -73,6 +72,9 @@ local function addPourOption(subMenu, barrel, player, barrelData, availability)
     local canPour = availability.canPour == true
 
     local pourLabel = Text.translate(ContextConfig.CONTEXT_MENU.POUR)
+    if canPour then
+        pourLabel = Text.withSubMenuShortcut(pourLabel)
+    end
     local pourOption = subMenu:addOption(pourLabel, nil, nil)
 
     pourOption.notAvailable = not canPour
@@ -140,6 +142,9 @@ end
 ---@param availability table
 local function addFillOption(subMenu, barrel, player, availability)
     local fillLabel = Text.getVanillaFillText()
+    if availability.canFill then
+        fillLabel = Text.withSubMenuShortcut(fillLabel)
+    end
     local fillOption = subMenu:addOption(fillLabel, nil, nil)
     fillOption.notAvailable = not availability.canFill
 
@@ -275,10 +280,10 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     local availability = Availability.build(player, barrelData, inRange)
     addBarrelInfoOption(subMenu, barrelData)
     addFillOption(subMenu, barrel, player, availability)
+    addPourOption(subMenu, barrel, player, barrelData, availability)
     addDrinkOption(subMenu, barrel, player, availability)
     addWashOption(subMenu, barrel, player, availability)
     addEmptyOption(subMenu, barrel, player, availability)
-    addPourOption(subMenu, barrel, player, barrelData, availability)
 end
 
 ---@param playerIndex integer

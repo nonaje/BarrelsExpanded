@@ -26,6 +26,12 @@ local FALLBACK_TEXT_KEYS = {
     INFO = ContextConfig.CONTEXT_MENU.FALLBACK_INFO,
 }
 
+local ITEM_DISPLAY_TEXT_KEYS = {
+    ["Base.RubberHose"] = ContextConfig.TOOLTIP.ITEM_RUBBER_HOSE,
+}
+
+local SUBMENU_SHORTCUT_SUFFIX = " >"
+
 ---@param key string
 ---@return string
 function Text.translate(key, ...)
@@ -117,6 +123,12 @@ function Text.getVanillaInfoText()
     return Text.translate(FALLBACK_TEXT_KEYS.INFO)
 end
 
+---@param label string|nil
+---@return string
+function Text.withSubMenuShortcut(label)
+    return tostring(label or "") .. SUBMENU_SHORTCUT_SUFFIX
+end
+
 ---@param amount number|nil
 ---@return string
 function Text.formatAmount(amount)
@@ -127,6 +139,11 @@ end
 ---@return string
 function Text.getItemDisplayName(itemType)
     if not itemType or itemType == "" then return "" end
+
+    local translationKey = ITEM_DISPLAY_TEXT_KEYS[itemType]
+    if translationKey then
+        return Text.translate(translationKey)
+    end
 
     local displayName = getItemNameFromFullType(itemType)
     if displayName and displayName ~= "" then
