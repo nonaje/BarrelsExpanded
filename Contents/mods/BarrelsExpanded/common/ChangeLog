@@ -1,3 +1,13 @@
+Version 1.0.1
+- Improved dedicated server multiplayer synchronization for barrel actions and liquid transfers.
+- Added stricter server-authoritative transfer lifecycle handling for start, progress, stop, complete and late packets.
+- Added exact closed-transfer replies by player and transfer id to prevent stale commands from affecting newer transfers.
+- Improved cancellation and timeout handling so partial transfers release locks and return final barrel snapshots.
+- Reduced duplicate rejection messages when delayed transfer commands arrive after the server already closed the action.
+- Improved client transfer commands so stop, complete and progress updates can still reach the server when the local item is no longer resolvable.
+- Improved barrel state request reconciliation so repaired barrel identity/modData is transmitted back to clients.
+- Documented the multiplayer transfer lifecycle rules for future features and maintenance.
+
 Version 1.0.0
 - Initial public release for Project Zomboid Build 42.
 - Added interactive world barrels with persistent liquid contents.
