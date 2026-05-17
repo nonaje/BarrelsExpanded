@@ -1,4 +1,4 @@
-version=1.0.1
+version=1
 id=3727387302
 title=Barrels Expanded [MP + SP]
 description=[h3]🌍 [url=https://steamcommunity.com/workshop/filedetails/discussion/3727387302/836124807123790931/]¿Buscás la descripción en Español? Hacé clic acá para leerla.[/url][/h3]
