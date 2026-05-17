@@ -38,6 +38,8 @@ end
 
 local function getSnapshot(source)
     if type(source) ~= "table" then return nil end
+    if type(source.snapshot) == "table" then return source.snapshot end
+    if type(source.closedSnapshot) == "table" then return source.closedSnapshot end
     return StateService.buildSnapshot(source.lastBarrel)
 end
 
@@ -46,7 +48,8 @@ end
 ---@param mode string
 ---@param reason string|nil
 ---@param source table|nil
-function Notifier.rejected(player, mode, reason, source)
+---@param options table|nil
+function Notifier.rejected(player, mode, reason, source, options)
     if not player or type(sendServerCommand) ~= "function" then return end
 
     local snapshot = getSnapshot(source)
@@ -60,6 +63,8 @@ function Notifier.rejected(player, mode, reason, source)
         barrelId   = getBarrelId(source) or (snapshot and snapshot.barrelId),
         itemId     = getItemId(source),
         reason     = reason or "unknown",
+        closedReason = type(source) == "table" and source.closedReason or nil,
+        silent     = type(options) == "table" and options.silent == true,
         playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
         revision   = snapshot and snapshot.revision or nil,
         snapshot   = snapshot,
@@ -102,9 +107,11 @@ function Notifier.progress(player, transfer, completed)
 
     local totalAmount = tonumber(transfer.totalAmount) or 0
     local movedAmount = tonumber(transfer.movedAmount) or 0
-    local progress    = completed and 1 or 0
+    local progress    = 0
 
-    if totalAmount > 0 then
+    if completed == true then
+        progress = 1
+    elseif totalAmount > 0 then
         progress = math.max(math.min(movedAmount / totalAmount, 1), 0)
     end
 
@@ -120,6 +127,7 @@ function Notifier.progress(player, transfer, completed)
         totalAmount = totalAmount,
         progress    = progress,
         completed   = completed == true,
+        closedReason = type(transfer) == "table" and transfer.closedReason or nil,
         playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
         revision    = snapshot and snapshot.revision or nil,
         snapshot    = snapshot,

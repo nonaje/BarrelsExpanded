@@ -19,6 +19,7 @@ local TransferRules     = require("core/BarrEx_TransferRules")
 local InteractionRules  = require("core/BarrEx_InteractionRules")
 local BarrelResolver    = require("BarrEx_BarrelResolver")
 local LockService       = require("BarrEx_BarrelLockService")
+local StateService      = require("BarrEx_BarrelStateService")
 local Notifier          = require("BarrEx_TransferNotifier")
 local Logger            = require("utils/BarrEx_Logger")
 
@@ -26,7 +27,9 @@ local TransferService = {}
 
 -- playerKey → transfer object for every in-progress transfer.
 local activeTransfers = {}
-local completedTransfers = {}
+-- playerKey → transferId → immutable-ish closed transfer reply.
+local closedTransfers = {}
+local CLOSED_TRANSFER_CACHE_LIMIT = 8
 local TRANSFER_EPSILON = 0.0001
 
 local function log(message)
@@ -137,22 +140,95 @@ end
 local function transferMatches(transfer, mode, transferId)
     if not transfer then return false end
     if mode and transfer.mode ~= mode then return false end
-    if isValidTransferId(transferId) and tostring(transfer.transferId) ~= tostring(transferId) then return false end
-    return true
+    if not isValidTransferId(transferId) then return false end
+    return tostring(transfer.transferId) == tostring(transferId)
+end
+
+local function getTransferItemId(transfer)
+    if type(transfer) ~= "table" then return nil end
+    if transfer.itemId then return transfer.itemId end
+    if type(transfer.args) == "table" then
+        return transfer.args.itemId
+    end
+    return nil
+end
+
+local function getClosedBucket(playerKey, create)
+    if not playerKey then return nil end
+
+    local bucket = closedTransfers[playerKey]
+    if not bucket and create == true then
+        bucket = {
+            items = {},
+            order = {},
+        }
+        closedTransfers[playerKey] = bucket
+    end
+    return bucket
+end
+
+local function enforceClosedCacheLimit(bucket)
+    if not bucket or not bucket.order or not bucket.items then return end
+
+    while #bucket.order > CLOSED_TRANSFER_CACHE_LIMIT do
+        local expiredTransferId = table.remove(bucket.order, 1)
+        if expiredTransferId then
+            bucket.items[expiredTransferId] = nil
+        end
+    end
+end
+
+local function cacheClosedTransfer(playerKey, transfer, reason, rejected, notified)
+    if not playerKey or not transfer or not isValidTransferId(transfer.transferId) then return nil end
+
+    local transferId = tostring(transfer.transferId)
+    local snapshot = transfer.snapshot or StateService.buildSnapshot(transfer.lastBarrel)
+    local closedTransfer = {
+        player = transfer.player,
+        transferId = transferId,
+        actionId = transferId,
+        mode = transfer.mode,
+        args = transfer.args,
+        barrelId = transfer.barrelKey or (snapshot and snapshot.barrelId),
+        itemId = getTransferItemId(transfer),
+        lastBarrel = transfer.lastBarrel,
+        snapshot = snapshot,
+        totalAmount = tonumber(transfer.totalAmount) or 0,
+        movedAmount = tonumber(transfer.movedAmount) or 0,
+        remainingAmount = tonumber(transfer.remainingAmount) or 0,
+        closedReason = reason or (rejected == true and "step_failed" or "server_transfer_finished"),
+        closedRejected = rejected == true,
+        notified = notified == true,
+    }
+
+    local bucket = getClosedBucket(playerKey, true)
+    if not bucket.items[transferId] then
+        bucket.order[#bucket.order + 1] = transferId
+    end
+    bucket.items[transferId] = closedTransfer
+    enforceClosedCacheLimit(bucket)
+    return closedTransfer
 end
 
 local function finishTransfer(playerKey, transfer, reason, notifyProgress)
     syncBarrel(transfer)
 
+    local closedTransfer = cacheClosedTransfer(
+        playerKey,
+        transfer,
+        reason or "server_transfer_finished",
+        false,
+        notifyProgress == true
+    )
+
     if notifyProgress and transfer and transfer.player then
-        Notifier.progress(transfer.player, transfer, true)
+        Notifier.progress(transfer.player, closedTransfer or transfer, true)
     end
 
     if transfer then
         LockService.release(playerKey, transfer.barrelKey)
     end
     activeTransfers[playerKey] = nil
-    completedTransfers[playerKey] = transfer
 
     log(string.format(
         "Transfer finished: actionId=%s player=%s action=%s barrelId=%s revision=%s moved=%.3f/%.3f reason=%s",
@@ -167,12 +243,33 @@ local function finishTransfer(playerKey, transfer, reason, notifyProgress)
     ))
 end
 
-local function getCompletedTransfer(playerKey, mode, transferId)
-    local transfer = completedTransfers[playerKey]
-    if transferMatches(transfer, mode, transferId) then
+local function getClosedTransfer(playerKey, mode, transferId)
+    if not isValidTransferId(transferId) then return nil end
+
+    local bucket = getClosedBucket(playerKey, false)
+    local transfer = bucket and bucket.items and bucket.items[tostring(transferId)] or nil
+    if transfer
+        and (not mode or transfer.mode == mode)
+        and tostring(transfer.transferId) == tostring(transferId)
+    then
         return transfer
     end
     return nil
+end
+
+local function notifyClosedTransfer(player, transfer)
+    if not player or not transfer then return false end
+
+    if transfer.closedRejected == true then
+        local silent = transfer.notified == true
+        Notifier.rejected(player, transfer.mode or "unknown", transfer.closedReason or "step_failed", transfer, {
+            silent = silent,
+        })
+    else
+        Notifier.progress(player, transfer, true)
+    end
+    transfer.notified = true
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -365,11 +462,12 @@ end
 
 local function stopByKey(playerKey, transfer, reason, notify)
     syncBarrel(transfer)
+    local closedTransfer = cacheClosedTransfer(playerKey, transfer, reason or "step_failed", true, notify == true)
     LockService.release(playerKey, transfer.barrelKey)
     activeTransfers[playerKey] = nil
 
     if notify and transfer and transfer.player then
-        Notifier.rejected(transfer.player, transfer.mode or "unknown", reason or "step_failed", transfer)
+        Notifier.rejected(transfer.player, transfer.mode or "unknown", reason or "step_failed", closedTransfer or transfer)
     end
 
     log(string.format(
@@ -383,6 +481,41 @@ local function stopByKey(playerKey, transfer, reason, notify)
         transfer and transfer.totalAmount or 0,
         reason or "step_failed"
     ))
+end
+
+local function stopActiveForPlayer(playerKey, reason, notifyProgress)
+    local transfer = activeTransfers[playerKey]
+    if not transfer then return false end
+
+    syncBarrel(transfer)
+    local closedTransfer = cacheClosedTransfer(
+        playerKey,
+        transfer,
+        reason or "cleared",
+        false,
+        notifyProgress == true
+    )
+
+    if notifyProgress and transfer.player then
+        Notifier.progress(transfer.player, closedTransfer or transfer, true)
+    end
+
+    LockService.release(playerKey, transfer.barrelKey)
+    activeTransfers[playerKey] = nil
+
+    log(string.format(
+        "Transfer stopped internally: actionId=%s player=%s action=%s barrelId=%s revision=%s moved=%.3f/%.3f reason=%s",
+        tostring(transfer.transferId or "unknown"),
+        getPlayerName(transfer.player),
+        transfer.mode or "unknown",
+        transfer.barrelKey or "unknown",
+        tostring(getTransferRevision(transfer)),
+        transfer.movedAmount or 0,
+        transfer.totalAmount or 0,
+        reason or "cleared"
+    ))
+
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -439,7 +572,7 @@ function TransferService.start(player, mode, args)
 
     -- Replace any existing transfer for this player.
     if activeTransfers[playerKey] then
-        TransferService.stop(player, nil, nil, "replaced_by_new_transfer")
+        stopActiveForPlayer(playerKey, "replaced_by_new_transfer", true)
     end
 
     local barrelKey = LockService.getBarrelKey(barrel, barrelData)
@@ -514,6 +647,7 @@ end
 ---@param args table|nil
 function TransferService.updateProgress(player, args)
     if not player or type(args) ~= "table" then return end
+    if not isValidTransferId(args.transferId) then return end
 
     local playerKey = LockService.getPlayerKey(player)
     if playerKey == nil then return end
@@ -531,6 +665,11 @@ end
 ---@param transferId string|number|nil
 ---@param reason string|nil
 function TransferService.stop(player, mode, transferId, reason)
+    if not isValidTransferId(transferId) then
+        TransferService.reject(player, mode or "unknown", "missing_transfer_id", buildCommandSource(mode, transferId))
+        return
+    end
+
     local playerKey = LockService.getPlayerKey(player)
     if playerKey == nil then
         TransferService.reject(player, mode or "unknown", "invalid_player", buildCommandSource(mode, transferId))
@@ -539,29 +678,25 @@ function TransferService.stop(player, mode, transferId, reason)
 
     local transfer = activeTransfers[playerKey]
     if not transfer then
-        transfer = getCompletedTransfer(playerKey, mode, transferId)
-        if transfer then
-            Notifier.progress(player, transfer, true)
-        else
+        transfer = getClosedTransfer(playerKey, mode, transferId)
+        if not notifyClosedTransfer(player, transfer) then
             TransferService.reject(player, mode or "unknown", "transfer_not_active", buildCommandSource(mode, transferId))
         end
         return
     end
     if not transferMatches(transfer, mode, transferId) then
-        local completedTransfer = getCompletedTransfer(playerKey, mode, transferId)
-        if completedTransfer then
-            Notifier.progress(player, completedTransfer, true)
-        else
+        local closedTransfer = getClosedTransfer(playerKey, mode, transferId)
+        if not notifyClosedTransfer(player, closedTransfer) then
             TransferService.reject(player, mode or transfer.mode or "unknown", "transfer_mismatch", buildCommandSource(mode, transferId))
         end
         return
     end
 
     syncBarrel(transfer)
-    Notifier.progress(player, transfer, true)
+    local closedTransfer = cacheClosedTransfer(playerKey, transfer, reason or "cleared", false, true)
+    Notifier.progress(player, closedTransfer or transfer, true)
     LockService.release(playerKey, transfer.barrelKey)
     activeTransfers[playerKey] = nil
-    completedTransfers[playerKey] = transfer
 
     log(string.format(
         "Transfer stopped: actionId=%s player=%s action=%s barrelId=%s revision=%s moved=%.3f/%.3f reason=%s",
@@ -596,19 +731,15 @@ function TransferService.complete(player, mode, transferId)
 
     local transfer = activeTransfers[playerKey]
     if not transfer then
-        transfer = getCompletedTransfer(playerKey, mode, transferId)
-        if transfer then
-            Notifier.progress(player, transfer, true)
-        else
+        transfer = getClosedTransfer(playerKey, mode, transferId)
+        if not notifyClosedTransfer(player, transfer) then
             TransferService.reject(player, mode or "unknown", "transfer_not_active", buildCommandSource(mode, transferId))
         end
         return
     end
     if not transferMatches(transfer, mode, transferId) then
-        local completedTransfer = getCompletedTransfer(playerKey, mode, transferId)
-        if completedTransfer then
-            Notifier.progress(player, completedTransfer, true)
-        else
+        local closedTransfer = getClosedTransfer(playerKey, mode, transferId)
+        if not notifyClosedTransfer(player, closedTransfer) then
             TransferService.reject(player, mode or transfer.mode or "unknown", "transfer_mismatch", buildCommandSource(mode, transferId))
         end
         return

@@ -8,7 +8,7 @@ local TransferSync = require("BarrEx_TransferSync")
 local BarrEx_BarrelActionBase = require("actions/BarrEx_BarrelActionBase")
 local BarrelStateClient = require("BarrEx_BarrelStateClient")
 
----@class BarrEx_LiquidTransferAction : ISBaseTimedAction
+---@class BarrEx_LiquidTransferAction : BarrEx_BarrelActionBase
 ---@field barrel IsoObject
 ---@field liquidItem InventoryItem The source (pour) or target (extract) item
 ---@field toolItem InventoryItem|nil
@@ -16,6 +16,9 @@ local BarrelStateClient = require("BarrEx_BarrelStateClient")
 ---@field totalAmount number
 ---@field initialLiquidAmount number
 ---@field transferStarted boolean
+---@field transferId string
+---@field liquidItemId string|number|nil
+---@field liquidItemFullType string|nil
 ---@field mode string "pour" or "extract"
 local BarrEx_LiquidTransferAction = BarrEx_BarrelActionBase:derive("BarrEx_LiquidTransferAction")
 
@@ -79,23 +82,33 @@ local function clamp01(value)
     return numericValue
 end
 
+local function isStartTransferCommand(command)
+    return command == Constant.NETWORK.START_POUR_INTO_BARREL
+        or command == Constant.NETWORK.START_EXTRACT_FROM_BARREL
+end
+
 local function sendTransferCommand(action, command, extraArgs)
     if not action or not command then return false end
 
-    local inventory = action.character:getInventory()
-    local item = InventoryUtils.findInventoryItemStrict(
-        inventory,
-        action.liquidItem and action.liquidItem:getID() or nil
-    )
-    if not item then
+    local itemId = action.liquidItemId
+        or (action.liquidItem and action.liquidItem.getID and action.liquidItem:getID())
+    local itemFullType = action.liquidItemFullType
+        or (action.liquidItem and action.liquidItem.getFullType and action.liquidItem:getFullType())
+
+    local inventory = action.character and action.character:getInventory() or nil
+    local item = inventory and InventoryUtils.findInventoryItemStrict(inventory, itemId) or nil
+    if item then
+        itemId = item:getID()
+        itemFullType = item:getFullType()
+    elseif isStartTransferCommand(command) then
         return false
     end
 
     local payload = action:buildBarrelPayload({
         transferId = action.transferId,
         mode = action.mode,
-        itemId = item:getID(),
-        itemFullType = item:getFullType(),
+        itemId = itemId,
+        itemFullType = itemFullType,
     })
     if not payload then
         return false
@@ -109,9 +122,7 @@ local function sendTransferCommand(action, command, extraArgs)
 
     sendClientCommand(Constant.NETWORK.MODULE, command, payload)
 
-    if command == Constant.NETWORK.START_POUR_INTO_BARREL
-        or command == Constant.NETWORK.START_EXTRACT_FROM_BARREL
-    then
+    if isStartTransferCommand(command) then
         BarrelStateClient.trackAction(payload)
     end
 
@@ -268,6 +279,8 @@ function BarrEx_LiquidTransferAction:new(player, barrel, liquidItem)
     o.mode = mode
     o.transferId = buildTransferId(player, barrel, liquidItem, o.mode)
     o.actionId = o.transferId
+    o.liquidItemId = liquidItem and liquidItem:getID() or nil
+    o.liquidItemFullType = liquidItem and liquidItem:getFullType() or nil
     o.totalAmount = o:getEstimatedTransferAmount(barrel, liquidItem)
     o.initialLiquidAmount = o:getInitialLiquidAmount(liquidItem)
     o.transferStarted = false

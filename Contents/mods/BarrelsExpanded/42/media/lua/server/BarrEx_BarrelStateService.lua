@@ -119,8 +119,17 @@ function BarrelStateService.onRequest(player, args)
 
     local barrelData = BarrEx_BarrelData.get(barrel)
     if barrelData then
-        BarrEx_BarrelData.ensureStableId(barrel, barrelData)
-        BarrEx_BarrelData.set(barrel, barrelData)
+        local _, idChanged = BarrEx_BarrelData.ensureStableId(barrel, barrelData)
+        local stateChanged = BarrEx_BarrelData.set(barrel, barrelData)
+        if idChanged or stateChanged then
+            barrel:transmitModData()
+            log(string.format(
+                "Barrel state request reconciled object modData: actionId=%s barrelId=%s revision=%s",
+                tostring(getActionId(args) or "unknown"),
+                tostring(barrelData.id or "unknown"),
+                tostring(barrelData.revision or 0)
+            ))
+        end
     end
 
     BarrelStateService.sendState(player, barrel, barrelData, args)

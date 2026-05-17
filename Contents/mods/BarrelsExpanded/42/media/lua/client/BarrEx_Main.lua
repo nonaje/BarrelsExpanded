@@ -264,7 +264,9 @@ local function onServerCommand(module, command, args)
         local reason = type(args) == "table" and args.reason or "unknown"
         BarrEx_BarrelStateClient.onBarrelState(args)
         BarrEx_TransferSync.onTransferRejected(type(args) == "table" and args or nil)
-        showPlayerMessage(getRejectionMessage(reason))
+        if type(args) ~= "table" or args.silent ~= true then
+            showPlayerMessage(getRejectionMessage(reason))
+        end
         return
     end
 
