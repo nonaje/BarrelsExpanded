@@ -1,3 +1,7 @@
+Version 1.0.2
+- Fixed barrel opening timed actions getting stuck before showing progress.
+- Improved open-barrel reservation handling so valid completions are not rejected after server timeout.
+
 Version 1.0.1
 - Improved dedicated server multiplayer synchronization for barrel actions and liquid transfers.
 - Added stricter server-authoritative transfer lifecycle handling for start, progress, stop, complete and late packets.

@@ -2,7 +2,7 @@ local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_BarrelActionBase = require("actions/BarrEx_BarrelActionBase")
 
----@class BarrEx_BarrelUseAction : ISBaseTimedAction
+---@class BarrEx_BarrelUseAction : BarrEx_BarrelActionBase
 ---@field barrel IsoObject
 ---@field command string
 ---@field payload table
@@ -90,7 +90,9 @@ function BarrEx_BarrelUseAction:new(player, barrel, command, maxTime)
         actionName = "empty"
     end
 
-    local o = BarrEx_BarrelActionBase.new(self, player, barrel, actionName, command, maxTime)
+    ---@type BarrEx_BarrelActionBase
+    local baseSelf = self
+    local o = BarrEx_BarrelActionBase.new(baseSelf, player, barrel, actionName, command, maxTime)
     ---@cast o BarrEx_BarrelUseAction
 
     return o

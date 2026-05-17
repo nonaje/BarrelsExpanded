@@ -15,8 +15,8 @@ local activeOpenActions = {}
 
 local OPEN_LOCK_TIMEOUT_TICKS = math.max(
     (tonumber(Constant.OPEN_BARREL_ACTION_TIME) or 200)
-        + (tonumber(Constant.ACTION_ACK_TIMEOUT_TICKS) or 240),
-    60
+        + ((tonumber(Constant.ACTION_ACK_TIMEOUT_TICKS) or 240) * 4),
+    1200
 )
 
 local function log(message)
@@ -526,7 +526,12 @@ function ActionService.completeOpen(player, args)
 
     local active = getActiveOpen(playerKey, args.actionId)
     if not active then
-        reject(player, action, "transfer_not_active", nil, nil, args)
+        log(string.format(
+            "Open completion received without active reservation; using validated fallback: actionId=%s player=%s",
+            tostring(args.actionId or "unknown"),
+            getPlayerName(player)
+        ))
+        ActionService.open(player, args)
         return
     end
 
