@@ -1,3 +1,6 @@
+version=1.0.1
+id=3727387302
+title=Barrels Expanded [MP + SP]
 description=[h3]🌍 [url=https://steamcommunity.com/workshop/filedetails/discussion/3727387302/836124807123790931/]¿Buscás la descripción en Español? Hacé clic acá para leerla.[/url][/h3]
 description=
 description=[hr][/hr]
@@ -66,3 +69,5 @@ description=[list]
 description=[*] [b]Workshop ID:[/b] 3727387302
 description=[*] [b]Mod ID:[/b] BarrelsExpanded42
 description=[/list]
+tags=Build 42;Items;Misc;Multiplayer;Realistic;QoL;WIP
+visibility=public
