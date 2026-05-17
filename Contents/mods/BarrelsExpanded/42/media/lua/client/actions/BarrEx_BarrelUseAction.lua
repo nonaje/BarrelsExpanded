@@ -1,36 +1,18 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
-local PlayerUtils = require("utils/BarrEx_PlayerUtils")
-local WorldUtils = require("utils/BarrEx_WorldUtils")
+local BarrEx_BarrelActionBase = require("actions/BarrEx_BarrelActionBase")
 
 ---@class BarrEx_BarrelUseAction : ISBaseTimedAction
 ---@field barrel IsoObject
 ---@field command string
 ---@field payload table
 ---@field sound integer|nil
-local BarrEx_BarrelUseAction = ISBaseTimedAction:derive("BarrEx_BarrelUseAction")
+local BarrEx_BarrelUseAction = BarrEx_BarrelActionBase:derive("BarrEx_BarrelUseAction")
 
 local function stopSound(action)
     if action.sound and action.character and action.character:getEmitter():isPlaying(action.sound) then
         action.character:stopOrTriggerSound(action.sound)
     end
-end
-
----@param barrel IsoObject|nil
----@return table|nil
-local function buildBarrelPayload(barrel)
-    local square = barrel and barrel:getSquare()
-    if not square then return nil end
-
-    local modData = barrel:getModData()
-    return {
-        x = square:getX(),
-        y = square:getY(),
-        z = square:getZ(),
-        objectIndex = barrel:getObjectIndex(),
-        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil,
-        spriteName = WorldUtils.getSpriteName(barrel),
-    }
 end
 
 function BarrEx_BarrelUseAction:getAnimName()
@@ -48,7 +30,7 @@ function BarrEx_BarrelUseAction:isValid()
     return self.barrel ~= nil
         and self.command ~= nil
         and BarrEx_BarrelData.isRevealedRaw(self.barrel)
-        and PlayerUtils.isPlayerInRange(self.character, self.barrel)
+        and self:isBarrelInRange()
 end
 
 function BarrEx_BarrelUseAction:waitToStart()
@@ -86,11 +68,9 @@ end
 function BarrEx_BarrelUseAction:perform()
     stopSound(self)
 
-    local payload = buildBarrelPayload(self.barrel)
-    if payload then
-        self:decoratePayload(payload)
-        sendClientCommand(Constant.NETWORK.MODULE, self.command, payload)
-    end
+    local extraArgs = {}
+    self:decoratePayload(extraArgs)
+    self:sendBarrelCommand(self.command, extraArgs)
 
     ISBaseTimedAction.perform(self)
 end
@@ -101,17 +81,17 @@ end
 ---@param maxTime number
 ---@return BarrEx_BarrelUseAction
 function BarrEx_BarrelUseAction:new(player, barrel, command, maxTime)
-    local o = ISBaseTimedAction.new(self, player)
+    local actionName = command
+    if command == Constant.NETWORK.DRINK_FROM_BARREL then
+        actionName = "drink"
+    elseif command == Constant.NETWORK.WASH_FROM_BARREL then
+        actionName = "wash"
+    elseif command == Constant.NETWORK.EMPTY_BARREL then
+        actionName = "empty"
+    end
+
+    local o = BarrEx_BarrelActionBase.new(self, player, barrel, actionName, command, maxTime)
     ---@cast o BarrEx_BarrelUseAction
-
-    o.barrel = barrel
-    o.command = command
-    o.maxTime = math.max(tonumber(maxTime) or 1, 1)
-    o.stopOnWalk = true
-    o.stopOnRun = true
-
-    setmetatable(o, self)
-    self.__index = self
 
     return o
 end

@@ -1,7 +1,9 @@
 -- BarrEx_Server: entry point — event registration and command routing only.
 --
 -- All logic has been extracted into focused server modules:
---   BarrEx_BarrelWorldService  – barrel initialization, reconciliation and open
+--   BarrEx_BarrelWorldService   – barrel initialization and reconciliation
+--   BarrEx_BarrelActionService  – short authoritative barrel mutations
+--   BarrEx_BarrelStateService   – state request/reply snapshots
 --   BarrEx_TransferService     – transfer lifecycle, per-tick advance
 --
 -- This file must not contain business logic.
@@ -9,14 +11,15 @@
 local Constant           = require("BarrEx_Constant")
 local TransferService    = require("BarrEx_TransferService")
 local BarrelWorldService = require("BarrEx_BarrelWorldService")
-local BarrelUseService   = require("BarrEx_BarrelUseService")
+local BarrelActionService = require("BarrEx_BarrelActionService")
+local BarrelStateService = require("BarrEx_BarrelStateService")
 local MoveableSync       = require("BarrEx_MoveableSync")
 
 local function onClientCommand(module, command, player, args)
     if module ~= Constant.NETWORK.MODULE then return end
 
     if command == Constant.NETWORK.OPEN_BARREL then
-        BarrelWorldService.onOpenBarrel(player, args)
+        BarrelActionService.open(player, args)
         return
     end
 
@@ -60,17 +63,22 @@ local function onClientCommand(module, command, player, args)
     end
 
     if command == Constant.NETWORK.DRINK_FROM_BARREL then
-        BarrelUseService.drink(player, args)
+        BarrelActionService.drink(player, args)
         return
     end
 
     if command == Constant.NETWORK.WASH_FROM_BARREL then
-        BarrelUseService.wash(player, args)
+        BarrelActionService.wash(player, args)
         return
     end
 
     if command == Constant.NETWORK.EMPTY_BARREL then
-        BarrelUseService.empty(player, args)
+        BarrelActionService.empty(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.REQUEST_BARREL_STATE then
+        BarrelStateService.onRequest(player, args)
     end
 end
 

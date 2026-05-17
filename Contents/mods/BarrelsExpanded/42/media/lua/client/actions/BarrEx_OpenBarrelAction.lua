@@ -1,7 +1,7 @@
 local PlayerUtils = require("utils/BarrEx_PlayerUtils")
-local WorldUtils = require("utils/BarrEx_WorldUtils")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local BarrEx_BarrelActionBase = require("actions/BarrEx_BarrelActionBase")
 local Logger = require("utils/BarrEx_Logger")
 
 ---@class BarrEx_OpenBarrelAction : ISBaseTimedAction
@@ -11,7 +11,7 @@ local Logger = require("utils/BarrEx_Logger")
 ---@field maxTime number
 ---@field stopOnWalk boolean
 ---@field stopOnRun boolean
-local BarrEx_OpenBarrelAction = ISBaseTimedAction:derive("BarrEx_OpenBarrelAction")
+local BarrEx_OpenBarrelAction = BarrEx_BarrelActionBase:derive("BarrEx_OpenBarrelAction")
 
 local function log(message)
     Logger.info(message)
@@ -22,17 +22,12 @@ end
 --- @param tool InventoryItem
 --- @return BarrEx_OpenBarrelAction
 function BarrEx_OpenBarrelAction:new(player, barrel, tool)
-    local o = ISBaseTimedAction.new(self, player)
+    local o = BarrEx_BarrelActionBase.new(self, player, barrel, "open", Constant.NETWORK.OPEN_BARREL, Constant.OPEN_BARREL_ACTION_TIME)
     ---@cast o BarrEx_OpenBarrelAction
 
-    o.barrel = barrel
     o.tool = tool
     o.stopOnWalk = true
     o.stopOnRun = true
-    o.maxTime = Constant.OPEN_BARREL_ACTION_TIME
-
-    setmetatable(o, self)
-    self.__index = self
 
     return o
 end
@@ -78,50 +73,7 @@ function BarrEx_OpenBarrelAction:perform()
         return
     end
 
-    local square = barrel:getSquare()
-    if not square then
-        ISBaseTimedAction.perform(self)
-        return
-    end
-
-    local modData = barrel:getModData()
-
-    sendClientCommand(Constant.NETWORK.MODULE, Constant.NETWORK.OPEN_BARREL, {
-        x = square:getX(),
-        y = square:getY(),
-        z = square:getZ(),
-        objectIndex = barrel:getObjectIndex(),
-        barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil,
-        spriteName = WorldUtils.getSpriteName(barrel),
-    })
-
-    local ticks = 0
-    local function onTick()
-        ticks = ticks + 1
-
-        if BarrEx_BarrelData.isRevealedRaw(barrel) then
-            -- Full get() only on success, not every tick while waiting.
-            local barrelData = BarrEx_BarrelData.get(barrel)
-            if barrelData then
-                log(string.format(
-                    "Barrel revealed and synced: id=%s liquid=%s amount=%d/%d",
-                    barrelData.id or "N/A",
-                    barrelData.liquidType or "none",
-                    barrelData.amount,
-                    barrelData.capacity
-                ))
-            end
-            Events.OnTick.Remove(onTick)
-            return
-        end
-
-        if ticks >= Constant.BARREL_DATA_POLL_TICKS then
-            log("Barrel reveal not confirmed yet.")
-            Events.OnTick.Remove(onTick)
-        end
-    end
-
-    Events.OnTick.Add(onTick)
+    self:sendBarrelCommand(Constant.NETWORK.OPEN_BARREL)
     ISBaseTimedAction.perform(self)
 end
 

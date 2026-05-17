@@ -1,7 +1,6 @@
-local LiquidTransferAction = require("BarrEx_LiquidTransferAction")
+local LiquidTransferAction = require("actions/transfer/BarrEx_LiquidTransferAction")
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
-local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 local TransferRules = require("core/BarrEx_TransferRules")
 
 ---@class BarrEx_PourIntoBarrelAction : BarrEx_LiquidTransferAction

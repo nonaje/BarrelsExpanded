@@ -150,7 +150,9 @@ function Inventory.groupInventoryItemsByFullType(items)
     local groupedByFullType = {}
     local orderedGroups = {}
 
-    for _, item in ipairs(items or {}) do
+    local itemList = items or {}
+    for i = 1, #itemList do
+        local item = itemList[i]
         local fullType = Text.getInventoryItemFullType(item)
 
         if not groupedByFullType[fullType] then
@@ -164,7 +166,8 @@ function Inventory.groupInventoryItemsByFullType(items)
             orderedGroups[#orderedGroups + 1] = groupedByFullType[fullType]
         end
 
-        table.insert(groupedByFullType[fullType].items, item)
+        local groupItems = groupedByFullType[fullType].items
+        groupItems[#groupItems + 1] = item
     end
 
     table.sort(orderedGroups, function(a, b)

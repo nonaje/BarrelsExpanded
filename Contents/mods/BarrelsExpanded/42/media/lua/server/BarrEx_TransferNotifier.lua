@@ -4,14 +4,16 @@
 -- No state, no world access, no business logic.
 
 local Constant = require("BarrEx_Constant")
+local StateService = require("BarrEx_BarrelStateService")
 
 local Notifier = {}
 
 local function getTransferId(source)
     if type(source) ~= "table" then return nil end
     if source.transferId then return source.transferId end
+    if source.actionId then return source.actionId end
     if type(source.args) == "table" then
-        return source.args.transferId
+        return source.args.transferId or source.args.actionId
     end
     return nil
 end
@@ -34,6 +36,11 @@ local function getItemId(source)
     return source.itemId
 end
 
+local function getSnapshot(source)
+    if type(source) ~= "table" then return nil end
+    return StateService.buildSnapshot(source.lastBarrel)
+end
+
 --- Notifies the client that its transfer request was rejected.
 ---@param player IsoPlayer
 ---@param mode string
@@ -42,12 +49,20 @@ end
 function Notifier.rejected(player, mode, reason, source)
     if not player or type(sendServerCommand) ~= "function" then return end
 
+    local snapshot = getSnapshot(source)
+
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_REJECTED, {
+        actionId   = getTransferId(source),
+        action     = mode,
+        accepted   = false,
         transferId = getTransferId(source),
         mode       = mode,
-        barrelId   = getBarrelId(source),
+        barrelId   = getBarrelId(source) or (snapshot and snapshot.barrelId),
         itemId     = getItemId(source),
         reason     = reason or "unknown",
+        playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
+        revision   = snapshot and snapshot.revision or nil,
+        snapshot   = snapshot,
     })
 end
 
@@ -58,13 +73,21 @@ end
 function Notifier.started(player, transfer)
     if not player or not transfer or type(sendServerCommand) ~= "function" then return end
 
+    local snapshot = getSnapshot(transfer)
+
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_STARTED, {
+        actionId    = getTransferId(transfer),
+        action      = transfer.mode,
+        accepted    = true,
         transferId   = getTransferId(transfer),
         mode        = transfer.mode,
-        barrelId    = getBarrelId(transfer),
+        barrelId    = getBarrelId(transfer) or (snapshot and snapshot.barrelId),
         itemId      = getItemId(transfer),
         totalAmount = tonumber(transfer.totalAmount) or 0,
         actionTime  = tonumber(transfer.totalTicks) or 0,
+        playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
+        revision    = snapshot and snapshot.revision or nil,
+        snapshot    = snapshot,
     })
 end
 
@@ -75,6 +98,8 @@ end
 function Notifier.progress(player, transfer, completed)
     if not player or not transfer or type(sendServerCommand) ~= "function" then return end
 
+    local snapshot = getSnapshot(transfer)
+
     local totalAmount = tonumber(transfer.totalAmount) or 0
     local movedAmount = tonumber(transfer.movedAmount) or 0
     local progress    = completed and 1 or 0
@@ -84,14 +109,20 @@ function Notifier.progress(player, transfer, completed)
     end
 
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_PROGRESS, {
+        actionId    = getTransferId(transfer),
+        action      = transfer.mode,
+        accepted    = true,
         transferId   = getTransferId(transfer),
         mode        = transfer.mode,
-        barrelId    = getBarrelId(transfer),
+        barrelId    = getBarrelId(transfer) or (snapshot and snapshot.barrelId),
         itemId      = getItemId(transfer),
         movedAmount = movedAmount,
         totalAmount = totalAmount,
         progress    = progress,
         completed   = completed == true,
+        playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
+        revision    = snapshot and snapshot.revision or nil,
+        snapshot    = snapshot,
     })
 end
 

@@ -3,12 +3,12 @@ require "ISUI/ISInventoryPaneContextMenu"
 
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
-local BarrEx_OpenBarrelAction = require("BarrEx_OpenBarrelAction")
-local BarrEx_PourIntoBarrelAction = require("BarrEx_PourIntoBarrelAction")
-local BarrEx_ExtractFromBarrelAction = require("BarrEx_ExtractFromBarrelAction")
-local BarrEx_DrinkFromBarrelAction = require("BarrEx_DrinkFromBarrelAction")
-local BarrEx_WashFromBarrelAction = require("BarrEx_WashFromBarrelAction")
-local BarrEx_EmptyBarrelAction = require("BarrEx_EmptyBarrelAction")
+local BarrEx_OpenBarrelAction = require("actions/BarrEx_OpenBarrelAction")
+local BarrEx_PourIntoBarrelAction = require("actions/transfer/BarrEx_PourIntoBarrelAction")
+local BarrEx_ExtractFromBarrelAction = require("actions/transfer/BarrEx_ExtractFromBarrelAction")
+local BarrEx_DrinkFromBarrelAction = require("actions/BarrEx_DrinkFromBarrelAction")
+local BarrEx_WashFromBarrelAction = require("actions/BarrEx_WashFromBarrelAction")
+local BarrEx_EmptyBarrelAction = require("actions/BarrEx_EmptyBarrelAction")
 local PlayerUtils = require("utils/BarrEx_PlayerUtils")
 local Logger = require("utils/BarrEx_Logger")
 
@@ -149,7 +149,8 @@ end
 function Actions.onWashAllFromBarrel(barrel, player, items)
     if not barrel or not player or not items then return end
 
-    for _, item in ipairs(items) do
+    for i = 1, #items do
+        local item = items[i]
         if item then
             ISTimedActionQueue.add(BarrEx_WashFromBarrelAction:new(player, barrel, "item", item))
         end

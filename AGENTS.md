@@ -21,8 +21,9 @@ BarrelsExpanded convierte barriles del mundo de Project Zomboid Build 42 en obje
 El codigo esta dividido por responsabilidad:
 
 - `client/`: UI, acciones temporizadas, comandos salientes y sincronizacion visual.
+- `client/actions/`: timed actions agrupadas por dominio; deben heredar de `BarrEx_BarrelActionBase.lua` para armar payloads de red consistentes.
 - `client/context/`: construccion del menu contextual, textos, tooltips, disponibilidad y acciones del menu.
-- `server/`: validacion autoritativa, mutaciones reales, locks, resolucion de objetos y comandos entrantes.
+- `server/`: validacion autoritativa, mutaciones reales, locks, snapshots, resolucion de objetos y comandos entrantes.
 - `shared/`: modelos, reglas puras, adaptadores, constantes, configuracion y utilidades compartidas.
 - `shared/core/`: reglas de interaccion y transferencia que pueden usarse desde cliente y servidor.
 - `shared/config/`: configuracion por dominio; evita volver a concentrar todo en `BarrEx_Constant.lua`.
@@ -32,11 +33,12 @@ Este archivo es la guia viva de arquitectura para agentes. Si una decision nueva
 ## Server autoritativo
 
 - El cliente puede mostrar opciones, iniciar timed actions y pedir operaciones.
+- El cliente envia intenciones y aplica snapshots aceptados; no confirma exito por polling ni escribe estado real de barriles desde UI/actions.
 - El servidor valida otra vez todo lo importante antes de mutar estado.
-- La mutacion real de liquidos debe vivir en servicios del servidor, especialmente `BarrEx_TransferService.lua` y `BarrEx_BarrelUseService.lua`.
+- La mutacion real de barriles debe entrar por servicios del servidor, especialmente `BarrEx_BarrelActionService.lua` para acciones cortas y `BarrEx_TransferService.lua` para transferencias.
 - No confies en datos enviados por el cliente para cantidades, items, distancias, herramientas o estado del barril.
-- Usa locks de transferencia cuando una accion pueda competir por el mismo barril.
-- Despues de cambios persistentes en barriles, sincroniza con `transmitModData()` cuando corresponda.
+- Usa `BarrEx_BarrelLockService.lua` para cualquier accion que pueda competir por el mismo barril.
+- Despues de cambios persistentes, incrementa `revision`, persiste con `BarrEx_BarrelData.lua`, transmite modData y responde con snapshot via `BarrEx_BarrelActionNotifier.lua` o `BarrEx_TransferNotifier.lua`.
 
 ## Persistencia y modData
 
@@ -45,6 +47,7 @@ Este archivo es la guia viva de arquitectura para agentes. Si una decision nueva
 - Mantene `modData` serializable con tablas Lua normales. No guardes funciones, objetos vivos, arrays especiales ni referencias temporales.
 - Los datos persistentes deben poder sobrevivir guardados, reinicios y multiplayer.
 - Si agregas campos nuevos, conserva compatibilidad con barriles ya guardados.
+- `revision` es parte del estado persistente y del snapshot; solo debe incrementarse cuando cambia el estado persistente del barril.
 
 ## Separacion de responsabilidades
 
@@ -55,6 +58,9 @@ Este archivo es la guia viva de arquitectura para agentes. Si una decision nueva
 - `BarrEx_ContextMenuActions.lua` conecta opciones del menu con acciones concretas.
 - `BarrEx_ContextMenuText.lua` concentra textos y etiquetas de UI.
 - `BarrEx_ContextMenuTooltips.lua` concentra tooltips e iconos.
+- `BarrEx_BarrelActionBase.lua` concentra payload base, `actionId`, identidad de barril y revision cliente.
+- `BarrEx_BarrelStateService.lua` concentra snapshots autoritativos y respuestas `requestBarrelState`.
+- `BarrEx_BarrelActionService.lua` concentra mutaciones cortas: abrir, beber, lavar y vaciar.
 - Evita que archivos de UI muten estado real del mundo.
 
 ## Optimizacion para PZ/Kahlua
@@ -92,6 +98,9 @@ end
 - No mandes objetos vivos por red; manda IDs, tipos, coordenadas o payloads simples.
 - Los payloads deben ser chicos, serializables y tolerantes a campos faltantes.
 - Toda accion iniciada por red debe validar jugador, rango, herramienta, item, estado del barril y compatibilidad de liquido.
+- Toda accion iniciada por cliente debe recibir `accepted/rejected` con `actionId`, `reason`, `barrelId`, `revision` y `snapshot` cuando el objeto pudo resolverse.
+- El servidor no debe confiar en `objectIndex`; usalo solo como hint junto con `barrelId`, coords, sprite y resolucion cercana.
+- No hagas broadcast global despues de cada accion: usa `transmitModData()`/sync de objeto para jugadores con chunk cargado y `requestBarrelState` para refresh bajo demanda.
 - Mantene notificaciones de red separadas en capas como `BarrEx_TransferNotifier.lua`.
 
 ## Configuracion

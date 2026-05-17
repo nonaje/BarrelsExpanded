@@ -1,6 +1,7 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_MoveableSync = require("BarrEx_MoveableSync")
 local BarrEx_TransferSync = require("BarrEx_TransferSync")
+local BarrEx_BarrelStateClient = require("BarrEx_BarrelStateClient")
 local InventoryUtils = require("utils/BarrEx_InventoryUtils")
 local Logger = require("utils/BarrEx_Logger")
 
@@ -11,7 +12,9 @@ end
 --- Map from rejection reason to translation key for transfer error messages.
 --- All keys are defined in Translate/*/TransferMessages.json
 local TRANSFER_REJECTION_KEY_MAP = {
+    invalid_args = "UI_BarrEx_TransferRejection_Unknown",
     barrel_not_found = "UI_BarrEx_TransferRejection_BarrelNotFound",
+    ambiguous_barrel = "UI_BarrEx_TransferRejection_AmbiguousBarrel",
     barrel_unavailable = "UI_BarrEx_TransferRejection_BarrelUnavailable",
     interaction_invalid = "UI_BarrEx_TransferRejection_InteractionInvalid",
     barrel_full = "UI_BarrEx_TransferRejection_BarrelFull",
@@ -28,6 +31,15 @@ local TRANSFER_REJECTION_KEY_MAP = {
     barrel_id_missing = "UI_BarrEx_TransferRejection_BarrelIdMissing",
     barrel_lock_lost = "UI_BarrEx_TransferRejection_BarrelLockLost",
     client_progress_timeout = "UI_BarrEx_TransferRejection_ClientProgressTimeout",
+    not_drinkable = "UI_BarrEx_TransferRejection_NotDrinkable",
+    not_washable = "UI_BarrEx_TransferRejection_NotWashable",
+    not_thirsty = "UI_BarrEx_TransferRejection_NotThirsty",
+    nothing_to_wash = "UI_BarrEx_TransferRejection_NothingToWash",
+    insufficient_water = "UI_BarrEx_TransferRejection_InsufficientWater",
+    tainted_water_cannot_clean_bandage = "UI_BarrEx_TransferRejection_TaintedWaterCannotCleanBandage",
+    item_mutation_failed = "UI_BarrEx_TransferRejection_ItemMutationFailed",
+    visual_unavailable = "UI_BarrEx_TransferRejection_Unknown",
+    server_error = "UI_BarrEx_TransferRejection_Unknown",
 }
 
 local function getLocalPlayerSafe()
@@ -217,36 +229,59 @@ local function showPlayerMessage(message)
     end
 end
 
+local function getRejectionMessage(reason)
+    local translationKey = TRANSFER_REJECTION_KEY_MAP[reason] or "UI_BarrEx_TransferRejection_Unknown"
+    if type(getText) == "function" then
+        return getText(translationKey) or getText("UI_BarrEx_TransferRejection_Unknown")
+    end
+    return translationKey
+end
+
 local function onServerCommand(module, command, args)
     if module ~= Constant.NETWORK.MODULE then return end
 
     if command == Constant.NETWORK.TRANSFER_STARTED then
+        BarrEx_BarrelStateClient.onBarrelState(args)
         BarrEx_TransferSync.onTransferStarted(args)
         return
     end
 
     if command == Constant.NETWORK.TRANSFER_PROGRESS then
+        BarrEx_BarrelStateClient.onBarrelState(args)
         BarrEx_TransferSync.onTransferProgress(args)
         return
     end
 
     if command == Constant.NETWORK.TRANSFER_REJECTED then
         local reason = type(args) == "table" and args.reason or "unknown"
+        BarrEx_BarrelStateClient.onBarrelState(args)
         BarrEx_TransferSync.onTransferRejected(type(args) == "table" and args or nil)
-        -- Look up translated message from TransferMessages.json files.
-        local translationKey = TRANSFER_REJECTION_KEY_MAP[reason] or "UI_BarrEx_TransferRejection_Unknown"
-        local message = type(getText) == "function" and getText(translationKey) or nil
-        showPlayerMessage(message or getText("UI_BarrEx_TransferRejection_Unknown"))
+        showPlayerMessage(getRejectionMessage(reason))
+        return
     end
 
-    if command == Constant.NETWORK.BARREL_USE_COMPLETED then
-        refreshWashVisuals(args)
-        log(string.format(
-            "Barrel use action completed on server: action=%s barrel=%s amount=%.2f",
-            type(args) == "table" and args.action or "unknown",
-            type(args) == "table" and args.barrelId or "unknown",
-            type(args) == "table" and args.amount or 0
-        ))
+    if command == Constant.NETWORK.BARREL_STATE then
+        BarrEx_BarrelStateClient.onBarrelState(args)
+        return
+    end
+
+    if command == Constant.NETWORK.BARREL_ACTION_RESULT then
+        BarrEx_BarrelStateClient.onActionResult(args)
+
+        if type(args) == "table" and args.accepted == true then
+            refreshWashVisuals(args)
+            log(string.format(
+                "Barrel action accepted by server: action=%s barrel=%s revision=%s",
+                tostring(args.action or "unknown"),
+                tostring(args.barrelId or "unknown"),
+                tostring(args.revision or "unknown")
+            ))
+            return
+        end
+
+        local reason = type(args) == "table" and args.reason or "unknown"
+        showPlayerMessage(getRejectionMessage(reason))
+        return
     end
 end
 
@@ -257,4 +292,6 @@ Events.OnGameStart.Add(function()
 end)
 
 Events.OnServerCommand.Add(onServerCommand)
+Events.LoadGridsquare.Add(BarrEx_BarrelStateClient.onLoadGridsquare)
+Events.OnTick.Add(BarrEx_BarrelStateClient.onTick)
 BarrEx_MoveableSync.start()

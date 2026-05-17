@@ -1,6 +1,6 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
-local BarrEx_BarrelUseAction = require("BarrEx_BarrelUseAction")
+local BarrEx_BarrelUseAction = require("actions/BarrEx_BarrelUseAction")
 local TransferRules = require("core/BarrEx_TransferRules")
 
 ---@class BarrEx_EmptyBarrelAction : BarrEx_BarrelUseAction

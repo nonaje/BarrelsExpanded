@@ -2,6 +2,7 @@ local LiquidConfig   = require("config/BarrEx_LiquidConfig")
 local ToolConfig     = require("config/BarrEx_ToolConfig")
 local TransferConfig = require("config/BarrEx_TransferConfig")
 local LogConfig      = require("config/BarrEx_LogConfig")
+local NetworkConfig  = require("config/BarrEx_NetworkConfig")
 
 local Constant = {}
 
@@ -26,7 +27,9 @@ Constant.NETWORK = {
     DRINK_FROM_BARREL = "drinkFromBarrel",
     WASH_FROM_BARREL = "washFromBarrel",
     EMPTY_BARREL = "emptyBarrel",
-    BARREL_USE_COMPLETED = "barrelUseCompleted",
+    REQUEST_BARREL_STATE = "requestBarrelState",
+    BARREL_STATE = "barrelState",
+    BARREL_ACTION_RESULT = "barrelActionResult",
 }
 
 Constant.MODDATA_KEYS = {
@@ -54,7 +57,6 @@ Constant.FULLTYPE_TO_LIQUIDS          = LiquidConfig.FULLTYPE_TO_LIQUIDS
 Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = LiquidConfig.BARREL_LIQUID_WEIGHT_PER_UNIT
 
 Constant.BARREL_DEFAULT_CAPACITY   = 160
-Constant.BARREL_DATA_POLL_TICKS    = 120
 Constant.MAX_INTERACTION_DISTANCE  = 1.55
 Constant.OPEN_BARREL_ACTION_TIME   = 200
 Constant.BARREL_EMPTY_WEIGHT       = 20
@@ -69,6 +71,8 @@ Constant.SERVER_TRANSFER_SYNC_INTERVAL   = TransferConfig.SERVER_SYNC_INTERVAL
 Constant.SERVER_TRANSFER_STALE_TICKS     = TransferConfig.SERVER_TRANSFER_STALE_TICKS
 Constant.CLIENT_TRANSFER_PROGRESS_INTERVAL = TransferConfig.CLIENT_PROGRESS_SYNC_INTERVAL
 Constant.CLIENT_TRANSFER_PROGRESS_EPSILON  = TransferConfig.CLIENT_PROGRESS_SYNC_EPSILON
+Constant.ACTION_ACK_TIMEOUT_TICKS          = NetworkConfig.ACTION_ACK_TIMEOUT_TICKS
+Constant.STATE_REQUEST_COOLDOWN_TICKS      = NetworkConfig.STATE_REQUEST_COOLDOWN_TICKS
 
 Constant.BARREL_SPAWN_PROFILE = {
     WORLD = "WORLD",

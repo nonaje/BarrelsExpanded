@@ -19,7 +19,8 @@ function InteractionRules.playerHasRequiredTool(player, requiredItems)
     local inventory = player:getInventory()
     if not inventory then return false end
 
-    for _, itemType in ipairs(requiredItems) do
+    for i = 1, #requiredItems do
+        local itemType = requiredItems[i]
         if InventoryUtils.findInventoryItem(inventory, nil, itemType) then
             return true
         end

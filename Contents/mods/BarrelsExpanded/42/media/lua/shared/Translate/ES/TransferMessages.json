@@ -17,5 +17,13 @@
   "UI_BarrEx_TransferRejection_BarrelIdMissing": "No se pudo validar el barril.",
   "UI_BarrEx_TransferRejection_BarrelLockLost": "La transferencia se interrumpió porque el barril cambió de estado.",
   "UI_BarrEx_TransferRejection_ClientProgressTimeout": "La transferencia perdió sincronización con el cliente y se detuvo.",
+  "UI_BarrEx_TransferRejection_AmbiguousBarrel": "No se pudo identificar el barril. Intenta hacer clic de nuevo.",
+  "UI_BarrEx_TransferRejection_NotDrinkable": "Ese líquido no se puede beber.",
+  "UI_BarrEx_TransferRejection_NotWashable": "Ese líquido no se puede usar para lavar.",
+  "UI_BarrEx_TransferRejection_NotThirsty": "No tienes sed.",
+  "UI_BarrEx_TransferRejection_NothingToWash": "No hay nada para lavar.",
+  "UI_BarrEx_TransferRejection_InsufficientWater": "No hay suficiente agua en el barril.",
+  "UI_BarrEx_TransferRejection_TaintedWaterCannotCleanBandage": "El agua contaminada no puede limpiar vendas.",
+  "UI_BarrEx_TransferRejection_ItemMutationFailed": "No se pudo actualizar el objeto.",
   "UI_BarrEx_TransferRejection_Unknown": "No se pudo iniciar la transferencia."
 }

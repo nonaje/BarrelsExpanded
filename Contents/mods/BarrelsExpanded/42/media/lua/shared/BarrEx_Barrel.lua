@@ -6,6 +6,7 @@ local Constant = require("BarrEx_Constant")
 ---@field amount number
 ---@field capacity number
 ---@field revealed boolean
+---@field revision number
 local BarrEx_Barrel = {}
 local EMPTY_AMOUNT_EPSILON = 0.0001
 
@@ -24,6 +25,7 @@ function BarrEx_Barrel:new(data)
     instance.amount = tonumber(data.amount) or 0
     instance.capacity = tonumber(data.capacity) or Constant.BARREL_DEFAULT_CAPACITY
     instance.revealed = data.revealed == true
+    instance.revision = math.max(math.floor(tonumber(data.revision) or 0), 0)
 
     if instance.capacity < 0 then
         instance.capacity = 0
@@ -191,6 +193,7 @@ function BarrEx_Barrel:toData()
         amount = isEmpty and 0 or self.amount,
         capacity = self.capacity,
         revealed = self.revealed,
+        revision = self.revision,
     }
 end
 

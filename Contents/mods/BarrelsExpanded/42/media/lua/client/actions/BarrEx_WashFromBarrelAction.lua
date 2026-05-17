@@ -1,5 +1,5 @@
 local Constant = require("BarrEx_Constant")
-local BarrEx_BarrelUseAction = require("BarrEx_BarrelUseAction")
+local BarrEx_BarrelUseAction = require("actions/BarrEx_BarrelUseAction")
 
 ---@class BarrEx_WashFromBarrelAction : BarrEx_BarrelUseAction
 ---@field washMode string

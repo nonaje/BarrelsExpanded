@@ -31,6 +31,7 @@ function BarrEx_BarrelData.fromRawData(rawData)
 
     local barrelId = type(rawData.id) == "string" and rawData.id or nil
     local revealed = rawData.revealed == true
+    local revision = math.max(math.floor(tonumber(rawData.revision) or 0), 0)
 
     return BarrEx_Barrel:new({
         id = barrelId,
@@ -38,6 +39,7 @@ function BarrEx_BarrelData.fromRawData(rawData)
         amount = amount,
         capacity = capacity,
         revealed = revealed,
+        revision = revision,
     })
 end
 
@@ -109,6 +111,17 @@ local function buildStableId(barrel)
 
     return "BARR_" .. tostring(x) .. "_" .. tostring(y) .. "_" .. tostring(z)
         .. "_" .. tostring(timestamp) .. "_" .. tostring(random)
+end
+
+--- Increments the barrel data revision after a real authoritative mutation.
+--- @param barrelData BarrEx_Barrel|nil
+--- @return number
+function BarrEx_BarrelData.bumpRevision(barrelData)
+    if not barrelData then return 0 end
+
+    local nextRevision = math.max(math.floor(tonumber(barrelData.revision) or 0), 0) + 1
+    barrelData.revision = nextRevision
+    return nextRevision
 end
 
 --- Ensures barrelData.id / modData[BARREL_ID] are a persistent barrel identity.
@@ -197,7 +210,7 @@ function BarrEx_BarrelData.set(barrel, barrelData)
     local modData = barrel:getModData()
     if not modData then return false end
 
-    local stableId, idChanged = BarrEx_BarrelData.ensureStableId(barrel, barrelData)
+    local _, idChanged = BarrEx_BarrelData.ensureStableId(barrel, barrelData)
     local normalized = normalizeBarrelData(barrelData)
     if not normalized then return false end
 
@@ -211,6 +224,7 @@ function BarrEx_BarrelData.set(barrel, barrelData)
         or tonumber(existing.amount) ~= tonumber(serialized.amount)
         or tonumber(existing.capacity) ~= tonumber(serialized.capacity)
         or existing.revealed ~= serialized.revealed
+        or tonumber(existing.revision) ~= tonumber(serialized.revision)
         or modData[Constant.MODDATA_KEYS.BARREL_ID] ~= serialized.id
         or modData[Constant.MODDATA_KEYS.BARREL_WEIGHT] ~= weight
 

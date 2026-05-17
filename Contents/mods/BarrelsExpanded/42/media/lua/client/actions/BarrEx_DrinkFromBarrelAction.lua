@@ -1,5 +1,5 @@
 local Constant = require("BarrEx_Constant")
-local BarrEx_BarrelUseAction = require("BarrEx_BarrelUseAction")
+local BarrEx_BarrelUseAction = require("actions/BarrEx_BarrelUseAction")
 
 ---@class BarrEx_DrinkFromBarrelAction : BarrEx_BarrelUseAction
 local BarrEx_DrinkFromBarrelAction = BarrEx_BarrelUseAction:derive("BarrEx_DrinkFromBarrelAction")

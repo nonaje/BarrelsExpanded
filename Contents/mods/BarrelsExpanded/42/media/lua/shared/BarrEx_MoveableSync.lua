@@ -133,6 +133,37 @@ local function applyItemSpawnProfileToNewestPlacedBarrel(item, square)
     end
 end
 
+local function applyItemBarrelPayloadToNewestPlacedBarrel(item, square)
+    if not item or not square then return end
+
+    local itemModData = item:getModData()
+    if not itemModData then return end
+
+    local rawBarrelData = itemModData[Constant.MODDATA_KEYS.BARREL]
+    if type(rawBarrelData) ~= "table" then return end
+
+    local barrel = findNewestBarrelOnSquare(square)
+    if not barrel then return end
+
+    local barrelData = BarrEx_BarrelData.fromRawData(rawBarrelData)
+    if not barrelData then return end
+
+    BarrEx_BarrelData.bumpRevision(barrelData)
+    BarrEx_BarrelData.set(barrel, barrelData)
+    BarrEx_BarrelData.writeSpawnProfile(barrel:getModData(), itemModData[Constant.MODDATA_KEYS.BARREL_SPAWN_PROFILE])
+
+    if isAuthoritativeContext() then
+        barrel:transmitModData()
+    end
+
+    log(string.format(
+        "Applied barrel payload to placed world object: id=%s revision=%s weight=%.2f",
+        barrelData.id or "unknown",
+        tostring(barrelData.revision or 0),
+        barrelData:getTotalWeight()
+    ))
+end
+
 local function decoratePickedUpItem(item, worldObject)
     if not item or not isBarrelMoveable(worldObject) then
         return
@@ -237,6 +268,7 @@ function BarrEx_MoveableSync.start()
             local result = originalPlaceMoveableInternal(self, ...)
 
             if item and isBarrelPlacement then
+                applyItemBarrelPayloadToNewestPlacedBarrel(item, square)
                 applyItemSpawnProfileToNewestPlacedBarrel(item, square)
             end
 

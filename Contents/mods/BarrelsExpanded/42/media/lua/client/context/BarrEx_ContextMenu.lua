@@ -9,6 +9,7 @@ local Tooltips = require("context/BarrEx_ContextMenuTooltips")
 local Inventory = require("context/BarrEx_ContextMenuInventory")
 local Availability = require("context/BarrEx_ContextMenuAvailability")
 local Actions = require("context/BarrEx_ContextMenuActions")
+local BarrelStateClient = require("BarrEx_BarrelStateClient")
 
 local ContextMenu = {}
 
@@ -46,7 +47,8 @@ local function addPourContainerSubMenu(parentMenu, parentOption, sourceItems, ba
     local itemMenu = parentMenu:getNew(parentMenu)
     parentMenu:addSubMenu(parentOption, itemMenu)
 
-    for _, item in ipairs(sourceItems) do
+    for i = 1, #sourceItems do
+        local item = sourceItems[i]
         local liquidType = LiquidAdapter.getLiquidType(item)
 
         local itemOption = itemMenu:addOption(
@@ -119,7 +121,9 @@ local function addVanillaLikeFillSubMenu(parentMenu, parentOption, targetItems, 
         fillMenu:addOption(Text.getVanillaFillAllText(), barrel, Actions.onExtractAllFromBarrel, player, targetItems)
     end
 
-    for _, group in ipairs(Inventory.groupInventoryItemsByFullType(targetItems)) do
+    local groups = Inventory.groupInventoryItemsByFullType(targetItems)
+    for i = 1, #groups do
+        local group = groups[i]
         local itemCount = #(group.items or {})
         local label = Text.buildGroupedContainerLabel(group)
 
@@ -204,7 +208,8 @@ local function addWashOption(subMenu, barrel, player, availability)
     local washableItems = availability.washItems or {}
     if #washableItems > 1 then
         local allowedItems = {}
-        for _, item in ipairs(washableItems) do
+        for i = 1, #washableItems do
+            local item = washableItems[i]
             if not (availability.isTaintedWater and Inventory.isCleanableBandageLikeItem(item)) then
                 allowedItems[#allowedItems + 1] = item
             end
@@ -215,7 +220,8 @@ local function addWashOption(subMenu, barrel, player, availability)
         end
     end
 
-    for _, item in ipairs(washableItems) do
+    for i = 1, #washableItems do
+        local item = washableItems[i]
         addWashItemOption(washMenu, barrel, player, item, availability.isTaintedWater)
     end
 end
@@ -248,15 +254,91 @@ local function addOpenBarrelOption(subMenu, barrel, player, canOpen, foundItems,
     Tooltips.attachRequiredItemsTooltip(openOption, foundItems, missingItems)
 end
 
+local function getWorldObject(value)
+    if value and type(value) == "table" and value.object then
+        return value.object
+    end
+    return value
+end
+
+local function appendUniqueBarrel(found, seen, barrel)
+    if not barrel or seen[barrel] then return end
+    seen[barrel] = true
+    found[#found + 1] = barrel
+end
+
+local function collectBarrelsOnSquare(square, found, seen)
+    if not square then return end
+
+    local objects = square:getObjects()
+    if not objects then return end
+
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        if WorldUtils.isExpandableBarrel(object) then
+            appendUniqueBarrel(found, seen, object)
+        end
+    end
+end
+
+local function chooseOnly(found)
+    if #found == 1 then return found[1] end
+    return nil
+end
+
 ---@param worldObjects IsoObject[]|nil
----@return IsoGridSquare|nil
-local function getClickedSquare(worldObjects)
+---@return IsoObject|nil
+local function findContextBarrel(worldObjects)
     if not worldObjects or #worldObjects == 0 then return nil end
 
-    local clickedObject = worldObjects[1]
-    if not clickedObject then return nil end
+    local found = {}
+    local seen = {}
+    local squares = {}
+    local squareSeen = {}
 
-    return clickedObject:getSquare()
+    for i = 1, #worldObjects do
+        local object = getWorldObject(worldObjects[i])
+        if object then
+            if WorldUtils.isExpandableBarrel(object) then
+                appendUniqueBarrel(found, seen, object)
+            end
+
+            local square = object:getSquare()
+            if square and not squareSeen[square] then
+                squareSeen[square] = true
+                squares[#squares + 1] = square
+            end
+        end
+    end
+
+    local directBarrel = chooseOnly(found)
+    if directBarrel then return directBarrel end
+    if #found > 1 then return nil end
+
+    for i = 1, #squares do
+        collectBarrelsOnSquare(squares[i], found, seen)
+    end
+
+    local sameSquareBarrel = chooseOnly(found)
+    if sameSquareBarrel then return sameSquareBarrel end
+    if #found > 1 then return nil end
+
+    local cell = getCell()
+    if not cell then return nil end
+
+    for i = 1, #squares do
+        local square = squares[i]
+        local z = square:getZ()
+        for dx = -1, 1 do
+            for dy = -1, 1 do
+                if dx ~= 0 or dy ~= 0 then
+                    collectBarrelsOnSquare(cell:getGridSquare(square:getX() + dx, square:getY() + dy, z), found, seen)
+                end
+            end
+        end
+    end
+
+    return chooseOnly(found)
 end
 
 ---@param context ISContextMenu
@@ -293,10 +375,7 @@ end
 function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObjects, test)
     if test then return end
 
-    local clickedSquare = getClickedSquare(worldObjects)
-    if not clickedSquare then return end
-
-    local barrel = WorldUtils.findExpandableBarrelOnSquare(clickedSquare)
+    local barrel = findContextBarrel(worldObjects)
     if not barrel then return end
 
     local player = getSpecificPlayer(playerIndex)
@@ -307,6 +386,11 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
         Constant.OPEN_BARREL_REQUIRED_ITEMS
     )
     local inRange = PlayerUtils.isPlayerInRange(player, barrel)
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData or not barrelData.id or barrelData.revision == nil then
+        BarrelStateClient.requestStateForBarrel(barrel, "context")
+    end
 
     addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)
 end

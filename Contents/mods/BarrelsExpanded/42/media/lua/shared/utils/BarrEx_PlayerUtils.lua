@@ -26,7 +26,8 @@ function PlayerUtils.findFirstRequiredItem(player, requiredItems)
     local inventory = player:getInventory()
     if not inventory then return nil end
 
-    for _, itemType in ipairs(requiredItems) do
+    for i = 1, #requiredItems do
+        local itemType = requiredItems[i]
         local item = inventory:getFirstTypeRecurse(itemType)
         if item then
             return item
@@ -49,9 +50,14 @@ function PlayerUtils.getRequiredItemStatus(player, requiredItems)
     local foundItems = {}
     local missingItems = {}
     local foundCount = 0
+    local inventory = player:getInventory()
+    if not inventory then
+        return false, foundItems, missingItems
+    end
 
-    for _, itemType in ipairs(requiredItems) do
-        if PlayerUtils.findFirstRequiredItem(player, { itemType }) then
+    for i = 1, #requiredItems do
+        local itemType = requiredItems[i]
+        if inventory:getFirstTypeRecurse(itemType) then
             foundCount = foundCount + 1
             foundItems[#foundItems + 1] = itemType
         else
