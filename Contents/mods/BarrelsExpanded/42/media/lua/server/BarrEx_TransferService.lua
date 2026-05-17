@@ -202,6 +202,10 @@ local function cacheClosedTransfer(playerKey, transfer, reason, rejected, notifi
     }
 
     local bucket = getClosedBucket(playerKey, true)
+    if not bucket or not bucket.items or not bucket.order then
+        return closedTransfer
+    end
+
     if not bucket.items[transferId] then
         bucket.order[#bucket.order + 1] = transferId
     end

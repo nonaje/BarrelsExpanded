@@ -103,6 +103,17 @@ end
 - No hagas broadcast global despues de cada accion: usa `transmitModData()`/sync de objeto para jugadores con chunk cargado y `requestBarrelState` para refresh bajo demanda.
 - Mantene notificaciones de red separadas en capas como `BarrEx_TransferNotifier.lua`.
 
+## Lifecycle de transferencias MP
+
+- `start` de transferencia debe exigir `transferId`, barril resoluble, item resoluble, herramienta/rango validos y lock largo adquirido.
+- `update`, `stop` y `complete` deben poder enviarse aunque el item ya no este resoluble en el inventario cliente; deben conservar `transferId`, `mode`, `barrelId`, `itemId` y el ultimo payload base conocido.
+- La API publica de `BarrEx_TransferService.stop` y `BarrEx_TransferService.complete` nunca debe operar sin `transferId` explicito. Los cierres internos deben usar helpers internos como `stopActiveForPlayer(...)`.
+- Los comandos tardios de `stop`/`complete` deben responder desde cache cerrada exacta por `playerKey + transferId`, sin mutar estado ni tomar locks nuevos.
+- Los cierres de transferencia deben guardar datos suficientes para responder paquetes tardios: `transferId`, `mode`, `barrelId`, `itemId`, snapshot, `closedReason`, `closedRejected` y si ya fue notificado.
+- Si un rechazo ya fue notificado y llega otro comando tardio para la misma transferencia cerrada, responde con snapshot/ack tecnico y evita duplicar mensajes visibles usando `silent=true`.
+- Un payload final de transferencia con `completed=true` debe enviar `progress=1`; usa `movedAmount`, `totalAmount` y `closedReason` para explicar cierres parciales o cancelados.
+- No uses caches cerradas como persistencia. Son temporales y solo existen para absorber orden de paquetes, timeouts y comandos tardios en MP.
+
 ## Configuracion
 
 - No expandas `BarrEx_Constant.lua` como cajon general si existe un modulo de config mas adecuado.
