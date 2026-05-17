@@ -112,6 +112,10 @@ end
 
 local function applyItemSpawnProfileToNewestPlacedBarrel(item, square)
     if not item or not square then return end
+    if not isAuthoritativeContext() then
+        log("Skipped client-side spawn profile application; waiting for server object sync.")
+        return
+    end
 
     local itemModData = item:getModData()
     if not itemModData then return end
@@ -128,13 +132,15 @@ local function applyItemSpawnProfileToNewestPlacedBarrel(item, square)
     if not barrelModData then return end
 
     BarrEx_BarrelData.writeSpawnProfile(barrelModData, spawnProfile)
-    if isAuthoritativeContext() then
-        barrel:transmitModData()
-    end
+    barrel:transmitModData()
 end
 
 local function applyItemBarrelPayloadToNewestPlacedBarrel(item, square)
     if not item or not square then return end
+    if not isAuthoritativeContext() then
+        log("Skipped client-side placed barrel payload application; waiting for server object sync.")
+        return
+    end
 
     local itemModData = item:getModData()
     if not itemModData then return end
@@ -148,13 +154,9 @@ local function applyItemBarrelPayloadToNewestPlacedBarrel(item, square)
     local barrelData = BarrEx_BarrelData.fromRawData(rawBarrelData)
     if not barrelData then return end
 
-    BarrEx_BarrelData.bumpRevision(barrelData)
     BarrEx_BarrelData.set(barrel, barrelData)
     BarrEx_BarrelData.writeSpawnProfile(barrel:getModData(), itemModData[Constant.MODDATA_KEYS.BARREL_SPAWN_PROFILE])
-
-    if isAuthoritativeContext() then
-        barrel:transmitModData()
-    end
+    barrel:transmitModData()
 
     log(string.format(
         "Applied barrel payload to placed world object: id=%s revision=%s weight=%.2f",

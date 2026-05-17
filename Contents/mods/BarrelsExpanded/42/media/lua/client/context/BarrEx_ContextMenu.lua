@@ -254,6 +254,15 @@ local function addOpenBarrelOption(subMenu, barrel, player, canOpen, foundItems,
     Tooltips.attachRequiredItemsTooltip(openOption, foundItems, missingItems)
 end
 
+local function addSyncingSubMenu(context)
+    local barrelOption = context:addOption(Text.translate(ContextConfig.CONTEXT_MENU.BARREL), nil, nil)
+    local subMenu = context:getNew(context)
+    context:addSubMenu(barrelOption, subMenu)
+
+    local syncingOption = subMenu:addOption(Text.translate(ContextConfig.CONTEXT_MENU.SYNCING), nil, nil)
+    syncingOption.notAvailable = true
+end
+
 local function getWorldObject(value)
     if value and type(value) == "table" and value.object then
         return value.object
@@ -390,6 +399,8 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData or not barrelData.id or barrelData.revision == nil then
         BarrelStateClient.requestStateForBarrel(barrel, "context")
+        addSyncingSubMenu(context)
+        return
     end
 
     addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)

@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/pz-wiki-modding/pz-translation-data/refs/heads/main/PZ_Translation_Schemas/ContextMenu.schema.json",
   "ContextMenu_BarrEx_Barrel": "Barrel",
+  "ContextMenu_BarrEx_Syncing": "Synchronizing...",
   "ContextMenu_BarrEx_OpenBarrel": "Open Barrel",
   "ContextMenu_BarrEx_Info": "Information",
   "ContextMenu_BarrEx_BarrelInfo": "Barrel Info",

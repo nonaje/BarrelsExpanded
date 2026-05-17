@@ -15,6 +15,12 @@ local BarrelActionService = require("BarrEx_BarrelActionService")
 local BarrelStateService = require("BarrEx_BarrelStateService")
 local MoveableSync       = require("BarrEx_MoveableSync")
 
+local function hasTransferId(args)
+    if type(args) ~= "table" then return false end
+    return (type(args.transferId) == "string" and args.transferId ~= "")
+        or type(args.transferId) == "number"
+end
+
 local function onClientCommand(module, command, player, args)
     if module ~= Constant.NETWORK.MODULE then return end
 
@@ -29,13 +35,19 @@ local function onClientCommand(module, command, player, args)
     end
 
     if command == Constant.NETWORK.STOP_POUR_INTO_BARREL then
-        if not args or not args.transferId then return end
+        if not hasTransferId(args) then
+            TransferService.reject(player, "pour", "missing_transfer_id", args)
+            return
+        end
         TransferService.stop(player, "pour", args and args.transferId, "client_stop")
         return
     end
 
     if command == Constant.NETWORK.COMPLETE_POUR_INTO_BARREL then
-        if not args or not args.transferId then return end
+        if not hasTransferId(args) then
+            TransferService.reject(player, "pour", "missing_transfer_id", args)
+            return
+        end
         TransferService.complete(player, "pour", args and args.transferId)
         return
     end
@@ -51,13 +63,19 @@ local function onClientCommand(module, command, player, args)
     end
 
     if command == Constant.NETWORK.STOP_EXTRACT_FROM_BARREL then
-        if not args or not args.transferId then return end
+        if not hasTransferId(args) then
+            TransferService.reject(player, "extract", "missing_transfer_id", args)
+            return
+        end
         TransferService.stop(player, "extract", args and args.transferId, "client_stop")
         return
     end
 
     if command == Constant.NETWORK.COMPLETE_EXTRACT_FROM_BARREL then
-        if not args or not args.transferId then return end
+        if not hasTransferId(args) then
+            TransferService.reject(player, "extract", "missing_transfer_id", args)
+            return
+        end
         TransferService.complete(player, "extract", args and args.transferId)
         return
     end

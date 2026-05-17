@@ -172,7 +172,7 @@ function BarrEx_LiquidTransferAction:syncProgress()
     if (tonumber(self.totalAmount) or 0) <= 0 then return end
 
     local currentAmount = math.max(tonumber(LiquidAdapter.getAmount(self.liquidItem)) or 0, 0)
-    
+
     -- For pour: movedAmount = initialAmount - currentAmount (liquid left container)
     -- For extract: movedAmount = currentAmount - initialAmount (liquid entered container)
     local movedAmount

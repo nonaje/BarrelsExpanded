@@ -1,8 +1,10 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
+local Logger = require("utils/BarrEx_Logger")
 
 local BarrelStateClient = {}
+local LOG_TAG = "[BarrelStateClient] "
 
 local pendingSnapshotsById = {}
 local pendingActionsById = {}
@@ -27,6 +29,19 @@ local function getSnapshotKey(snapshot)
     return nil
 end
 
+local function getSnapshotId(snapshot)
+    if type(snapshot) ~= "table" then return nil end
+    local snapshotId = snapshot.barrelId or snapshot.id
+    if type(snapshotId) == "string" and snapshotId ~= "" then
+        return snapshotId
+    end
+    return nil
+end
+
+local function getObjectBarrelId(object)
+    return BarrEx_BarrelData.getId(object)
+end
+
 local function getActionKey(args)
     if type(args) ~= "table" then return nil end
     return args.actionId or args.transferId
@@ -39,7 +54,7 @@ local function clearPendingAction(args)
     end
 end
 
-local function snapshotMatchesObject(snapshot, object)
+local function snapshotMatchesObjectShape(snapshot, object)
     if not snapshot or not object or not WorldUtils.isExpandableBarrel(object) then return false end
 
     if type(snapshot.spriteName) == "string" and snapshot.spriteName ~= ""
@@ -48,77 +63,209 @@ local function snapshotMatchesObject(snapshot, object)
         return false
     end
 
-    local snapshotId = snapshot.barrelId or snapshot.id
-    if type(snapshotId) == "string" and snapshotId ~= "" then
-        local modData = object:getModData()
-        local objectId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
-        return objectId == nil or objectId == "" or objectId == snapshotId
-    end
-
     return true
 end
 
-local function findBarrelOnSquare(square, snapshot)
-    if not square then return nil end
+local function classifySquare(square, snapshot)
+    local result = {
+        total = 0,
+        idCount = 0,
+        noIdCount = 0,
+        anyCandidate = nil,
+        idCandidate = nil,
+        noIdCandidate = nil,
+    }
+
+    if not square then return result end
 
     local objects = square:getObjects()
-    if not objects then return nil end
+    if not objects then return result end
 
-    if type(snapshot.objectIndex) == "number"
-        and snapshot.objectIndex >= 0
-        and snapshot.objectIndex < objects:size()
-    then
-        local object = objects:get(snapshot.objectIndex)
-        if snapshotMatchesObject(snapshot, object) then
-            return object
+    local snapshotId = getSnapshotId(snapshot)
+    local objectCount = objects:size()
+    for i = 0, objectCount - 1 do
+        local object = objects:get(i)
+        if snapshotMatchesObjectShape(snapshot, object) then
+            result.total = result.total + 1
+            result.anyCandidate = object
+
+            local objectId = getObjectBarrelId(object)
+            if snapshotId and objectId == snapshotId then
+                result.idCount = result.idCount + 1
+                result.idCandidate = object
+            elseif not objectId then
+                result.noIdCount = result.noIdCount + 1
+                result.noIdCandidate = object
+            end
         end
     end
 
+    return result
+end
+
+local function findBarrelOnExactSquare(square, snapshot)
+    if not square then return nil, "square_unavailable" end
+
+    local snapshotId = getSnapshotId(snapshot)
+    local classified = classifySquare(square, snapshot)
+
+    if snapshotId then
+        if classified.idCount == 1 then
+            return classified.idCandidate, nil
+        end
+        if classified.idCount > 1 then
+            return nil, "ambiguous_barrel"
+        end
+        if classified.total == 1 and classified.noIdCount == 1 then
+            return nil, "unique_unidentified_barrel", classified.noIdCandidate
+        end
+        if classified.total > 1 then
+            return nil, "ambiguous_barrel"
+        end
+        return nil, "barrel_not_found"
+    end
+
+    if classified.total == 1 then
+        return classified.anyCandidate, nil
+    end
+    if classified.total > 1 then
+        return nil, "ambiguous_barrel"
+    end
+
+    return nil, "barrel_not_found"
+end
+
+local function findBarrelByIdOnSquare(square, snapshot)
+    local snapshotId = getSnapshotId(snapshot)
+    if not snapshotId or not square then return nil, nil end
+
+    local objects = square:getObjects()
+    if not objects then return nil, nil end
+
     local found = nil
-    for i = 0, objects:size() - 1 do
+    local foundCount = 0
+    local objectCount = objects:size()
+    for i = 0, objectCount - 1 do
         local object = objects:get(i)
-        if snapshotMatchesObject(snapshot, object) then
-            if found then return nil end
+        if snapshotMatchesObjectShape(snapshot, object) and getObjectBarrelId(object) == snapshotId then
+            foundCount = foundCount + 1
             found = object
         end
     end
 
-    return found
+    if foundCount == 1 then return found, nil end
+    if foundCount > 1 then return nil, "ambiguous_barrel" end
+    return nil, nil
 end
 
 local function findBarrel(snapshot)
     if type(snapshot) ~= "table" then return nil end
     if type(snapshot.x) ~= "number" or type(snapshot.y) ~= "number" or type(snapshot.z) ~= "number" then
-        return nil
+        return nil, "invalid_args"
     end
 
     local cell = getCell()
-    if not cell then return nil end
+    if not cell then return nil, "cell_unavailable" end
 
     local square = cell:getGridSquare(snapshot.x, snapshot.y, snapshot.z)
-    local barrel = findBarrelOnSquare(square, snapshot)
-    if barrel then return barrel end
+    local barrel, reason, unidentifiedFallback = findBarrelOnExactSquare(square, snapshot)
+    if barrel then return barrel, nil end
+    if reason == "ambiguous_barrel" then return nil, reason end
+
+    if not getSnapshotId(snapshot) then
+        return nil, reason
+    end
 
     for dx = -1, 1 do
         for dy = -1, 1 do
             if dx ~= 0 or dy ~= 0 then
                 square = cell:getGridSquare(snapshot.x + dx, snapshot.y + dy, snapshot.z)
-                barrel = findBarrelOnSquare(square, snapshot)
-                if barrel then return barrel end
+                barrel, reason = findBarrelByIdOnSquare(square, snapshot)
+                if barrel then return barrel, nil end
+                if reason == "ambiguous_barrel" then return nil, reason end
             end
         end
     end
 
-    return nil
+    if unidentifiedFallback then
+        return unidentifiedFallback, nil
+    end
+
+    return nil, reason or "barrel_not_found"
+end
+
+local function requestStateForSnapshot(snapshot, reason)
+    if type(snapshot) ~= "table" then return false end
+    if type(snapshot.x) ~= "number" or type(snapshot.y) ~= "number" or type(snapshot.z) ~= "number" then
+        return false
+    end
+
+    local key = getSnapshotKey(snapshot)
+    if not key then return false end
+
+    local requestKey = "snapshot:" .. tostring(key)
+    local cooldownMs = math.max(tonumber(Constant.STATE_REQUEST_COOLDOWN_TICKS) or 60, 1) * 50
+    local current = nowMs()
+    if lastRequestMsByKey[requestKey] and current - lastRequestMsByKey[requestKey] < cooldownMs then
+        return false
+    end
+    lastRequestMsByKey[requestKey] = current
+
+    sendClientCommand(Constant.NETWORK.MODULE, Constant.NETWORK.REQUEST_BARREL_STATE, {
+        actionId = "state:snapshot:" .. tostring(key) .. ":" .. tostring(current),
+        action = "state",
+        x = snapshot.x,
+        y = snapshot.y,
+        z = snapshot.z,
+        objectIndex = snapshot.objectIndex,
+        barrelId = getSnapshotId(snapshot),
+        clientRevision = tonumber(snapshot.revision) or 0,
+        spriteName = snapshot.spriteName,
+    })
+
+    Logger.warn(LOG_TAG .. string.format(
+        "Requested authoritative state after snapshot could not be applied: barrelId=%s revision=%s reason=%s",
+        tostring(getSnapshotId(snapshot) or "unknown"),
+        tostring(snapshot.revision or "unknown"),
+        tostring(reason or "unknown")
+    ))
+
+    return true
 end
 
 function BarrelStateClient.applySnapshot(snapshot)
     if type(snapshot) ~= "table" then return false end
 
-    local barrel = findBarrel(snapshot)
+    local barrel, reason = findBarrel(snapshot)
     if not barrel then
         local key = getSnapshotKey(snapshot)
         if key then pendingSnapshotsById[key] = snapshot end
+        if reason == "ambiguous_barrel" then
+            Logger.warn(LOG_TAG .. string.format(
+                "Pending ambiguous snapshot: barrelId=%s revision=%s x=%s y=%s z=%s",
+                tostring(getSnapshotId(snapshot) or "unknown"),
+                tostring(snapshot.revision or "unknown"),
+                tostring(snapshot.x),
+                tostring(snapshot.y),
+                tostring(snapshot.z)
+            ))
+            requestStateForSnapshot(snapshot, reason)
+        end
+        return false
+    end
+
+    local currentData = BarrEx_BarrelData.get(barrel)
+    local snapshotRevision = tonumber(snapshot.revision)
+    local localRevision = currentData and tonumber(currentData.revision) or nil
+    if snapshotRevision and localRevision and snapshotRevision < localRevision then
+        local key = getSnapshotKey(snapshot)
+        if key then pendingSnapshotsById[key] = nil end
+        Logger.warn(LOG_TAG .. string.format(
+            "Discarded stale snapshot: barrelId=%s snapshotRevision=%s localRevision=%s",
+            tostring(getSnapshotId(snapshot) or getObjectBarrelId(barrel) or "unknown"),
+            tostring(snapshotRevision),
+            tostring(localRevision)
+        ))
         return false
     end
 
@@ -205,8 +352,7 @@ function BarrelStateClient.requestStateForBarrel(barrel, action)
     local square = barrel and barrel:getSquare()
     if not square then return false end
 
-    local modData = barrel:getModData()
-    local barrelId = modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
+    local barrelId = BarrEx_BarrelData.getId(barrel)
     local key = barrelId or (tostring(square:getX()) .. ":" .. tostring(square:getY()) .. ":" .. tostring(square:getZ()))
     local cooldownMs = math.max(tonumber(Constant.STATE_REQUEST_COOLDOWN_TICKS) or 60, 1) * 50
     local current = nowMs()

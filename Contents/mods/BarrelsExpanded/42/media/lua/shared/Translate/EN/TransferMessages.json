@@ -25,5 +25,13 @@
   "UI_BarrEx_TransferRejection_InsufficientWater": "There is not enough water in the barrel.",
   "UI_BarrEx_TransferRejection_TaintedWaterCannotCleanBandage": "Tainted water cannot clean bandages.",
   "UI_BarrEx_TransferRejection_ItemMutationFailed": "The item could not be updated.",
+  "UI_BarrEx_TransferRejection_MissingTransferId": "The transfer lost its network id.",
+  "UI_BarrEx_TransferRejection_InvalidPlayer": "The player could not be validated.",
+  "UI_BarrEx_TransferRejection_SourceRemoveFailed": "The source container could not be updated.",
+  "UI_BarrEx_TransferRejection_BarrelAddFailed": "The barrel could not receive the liquid.",
+  "UI_BarrEx_TransferRejection_BarrelRemoveFailed": "The barrel could not provide the liquid.",
+  "UI_BarrEx_TransferRejection_TargetAddFailed": "The target container could not be updated.",
+  "UI_BarrEx_TransferRejection_TransferNotActive": "That transfer is no longer active.",
+  "UI_BarrEx_TransferRejection_TransferMismatch": "That transfer no longer matches the server state.",
   "UI_BarrEx_TransferRejection_Unknown": "Transfer could not be started."
 }

@@ -1,4 +1,5 @@
 local Constant = require("BarrEx_Constant")
+local BarrEx_BarrelData = require("BarrEx_BarrelData")
 
 local TransferSync = {}
 
@@ -42,13 +43,6 @@ local function setActionMaxTime(action, time)
     if action.action and type(action.action.setTime) == "function" then
         action.action:setTime(adjustedTime)
     end
-end
-
-local function getBarrelId(barrel)
-    if not barrel then return nil end
-
-    local modData = barrel:getModData()
-    return modData and modData[Constant.MODDATA_KEYS.BARREL_ID] or nil
 end
 
 local function matchesTransfer(entry, args)
@@ -99,7 +93,7 @@ function TransferSync.registerAction(transferId, mode, action, barrel, item)
         action = action,
         transferId = transferId,
         mode = mode,
-        barrelId = getBarrelId(barrel),
+        barrelId = BarrEx_BarrelData.getId(barrel),
         itemId = item and item:getID() or nil,
     }
 

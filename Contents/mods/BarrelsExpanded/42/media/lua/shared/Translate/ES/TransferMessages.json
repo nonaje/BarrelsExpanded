@@ -25,5 +25,13 @@
   "UI_BarrEx_TransferRejection_InsufficientWater": "No hay suficiente agua en el barril.",
   "UI_BarrEx_TransferRejection_TaintedWaterCannotCleanBandage": "El agua contaminada no puede limpiar vendas.",
   "UI_BarrEx_TransferRejection_ItemMutationFailed": "No se pudo actualizar el objeto.",
+  "UI_BarrEx_TransferRejection_MissingTransferId": "La transferencia perdió su identificador de red.",
+  "UI_BarrEx_TransferRejection_InvalidPlayer": "No se pudo validar al jugador.",
+  "UI_BarrEx_TransferRejection_SourceRemoveFailed": "No se pudo actualizar el recipiente de origen.",
+  "UI_BarrEx_TransferRejection_BarrelAddFailed": "El barril no pudo recibir el líquido.",
+  "UI_BarrEx_TransferRejection_BarrelRemoveFailed": "El barril no pudo entregar el líquido.",
+  "UI_BarrEx_TransferRejection_TargetAddFailed": "No se pudo actualizar el recipiente de destino.",
+  "UI_BarrEx_TransferRejection_TransferNotActive": "Esa transferencia ya no está activa.",
+  "UI_BarrEx_TransferRejection_TransferMismatch": "Esa transferencia ya no coincide con el estado del servidor.",
   "UI_BarrEx_TransferRejection_Unknown": "No se pudo iniciar la transferencia."
 }

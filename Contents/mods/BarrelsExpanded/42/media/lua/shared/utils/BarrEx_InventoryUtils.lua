@@ -59,7 +59,10 @@ end
 ---@return InventoryItem|nil
 function InventoryUtils.findInventoryItemStrict(inventory, itemId)
     if not isValidItemId(itemId) then return nil end
-    return InventoryUtils.findInventoryItemById(inventory, itemId)
+
+    local resolvedItemId = itemId
+    ---@cast resolvedItemId string|number
+    return InventoryUtils.findInventoryItemById(inventory, resolvedItemId)
 end
 
 --- Resolves a specific inventory item by ID when available, falling back to full type.
@@ -71,7 +74,9 @@ function InventoryUtils.findInventoryItem(inventory, itemId, itemFullType)
     if not inventory then return nil end
 
     if isValidItemId(itemId) then
-        local item = InventoryUtils.findInventoryItemById(inventory, itemId)
+        local resolvedItemId = itemId
+        ---@cast resolvedItemId string|number
+        local item = InventoryUtils.findInventoryItemById(inventory, resolvedItemId)
         if item then
             return item
         end

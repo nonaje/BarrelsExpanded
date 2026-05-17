@@ -1,8 +1,10 @@
 local LiquidAdapter   = require("BarrEx_LiquidContainerAdapter")
 local TransferRules   = require("core/BarrEx_TransferRules")
 local Text            = require("context/BarrEx_ContextMenuText")
+local SafeCall        = require("utils/BarrEx_SafeCall")
 
 local Inventory = {}
+local call = SafeCall.call
 
 ---@param item InventoryItem
 ---@param barrelData BarrEx_Barrel
@@ -34,9 +36,9 @@ local function collectInventoryItems(inventory, predicate, found)
             found[#found + 1] = item
         end
 
-        local getInventory = item and item["getInventory"] or nil
-        if type(getInventory) == "function" then
-            collectInventoryItems(getInventory(item), predicate, found)
+        local nestedInventory = call(item, "getInventory")
+        if nestedInventory then
+            collectInventoryItems(nestedInventory, predicate, found)
         end
     end
 
@@ -72,15 +74,15 @@ end
 local function itemHasBloodOrDirt(item)
     if not item then return false end
 
-    if type(item.getItemAfterCleaning) == "function" and item:getItemAfterCleaning() then
+    if call(item, "getItemAfterCleaning") then
         return true
     end
 
-    if type(item.getBloodLevel) == "function" and (tonumber(item:getBloodLevel()) or 0) > 0 then
+    if (tonumber(call(item, "getBloodLevel")) or 0) > 0 then
         return true
     end
 
-    if type(item.getDirtiness) == "function" and (tonumber(item:getDirtiness()) or 0) > 0 then
+    if (tonumber(call(item, "getDirtiness")) or 0) > 0 then
         return true
     end
 
@@ -104,9 +106,7 @@ end
 ---@param item InventoryItem|nil
 ---@return boolean
 function Inventory.isCleanableBandageLikeItem(item)
-    return item ~= nil
-        and type(item.getItemAfterCleaning) == "function"
-        and item:getItemAfterCleaning() ~= nil
+    return item ~= nil and call(item, "getItemAfterCleaning") ~= nil
 end
 
 ---@param item InventoryItem|nil

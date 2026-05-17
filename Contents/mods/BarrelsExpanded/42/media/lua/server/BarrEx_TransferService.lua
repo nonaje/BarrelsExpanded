@@ -26,6 +26,7 @@ local TransferService = {}
 
 -- playerKey → transfer object for every in-progress transfer.
 local activeTransfers = {}
+local completedTransfers = {}
 local TRANSFER_EPSILON = 0.0001
 
 local function log(message)
@@ -73,7 +74,7 @@ end
 
 local function logTransferRejected(player, mode, args, barrelData, reason)
     log(string.format(
-        "Transfer start rejected: actionId=%s player=%s action=%s barrelId=%s revision=%s reason=%s",
+        "Transfer command rejected: actionId=%s player=%s action=%s barrelId=%s revision=%s reason=%s",
         tostring(getActionId(args) or "unknown"),
         getPlayerName(player),
         tostring(mode or "unknown"),
@@ -81,6 +82,14 @@ local function logTransferRejected(player, mode, args, barrelData, reason)
         tostring(barrelData and barrelData.revision or "unknown"),
         tostring(reason or "unknown")
     ))
+end
+
+local function buildCommandSource(mode, transferId)
+    return {
+        actionId = transferId,
+        transferId = transferId,
+        mode = mode,
+    }
 end
 
 -- ---------------------------------------------------------------------------
@@ -143,6 +152,7 @@ local function finishTransfer(playerKey, transfer, reason, notifyProgress)
         LockService.release(playerKey, transfer.barrelKey)
     end
     activeTransfers[playerKey] = nil
+    completedTransfers[playerKey] = transfer
 
     log(string.format(
         "Transfer finished: actionId=%s player=%s action=%s barrelId=%s revision=%s moved=%.3f/%.3f reason=%s",
@@ -155,6 +165,14 @@ local function finishTransfer(playerKey, transfer, reason, notifyProgress)
         transfer and transfer.totalAmount or 0,
         reason or "server_transfer_finished"
     ))
+end
+
+local function getCompletedTransfer(playerKey, mode, transferId)
+    local transfer = completedTransfers[playerKey]
+    if transferMatches(transfer, mode, transferId) then
+        return transfer
+    end
+    return nil
 end
 
 -- ---------------------------------------------------------------------------
@@ -384,8 +402,7 @@ function TransferService.start(player, mode, args)
     end
 
     if not isValidTransferId(args.transferId) then
-        logTransferRejected(player, mode, args, nil, "missing_transfer_id")
-        Notifier.rejected(player, mode, "missing_transfer_id", args)
+        TransferService.reject(player, mode, "missing_transfer_id", args)
         return
     end
 
@@ -478,6 +495,18 @@ function TransferService.start(player, mode, args)
     ))
 end
 
+--- Sends a standard transfer rejection for malformed lifecycle commands.
+---@param player IsoPlayer
+---@param mode string|nil
+---@param reason string
+---@param args table|nil
+function TransferService.reject(player, mode, reason, args)
+    if not player then return end
+
+    logTransferRejected(player, mode, args, nil, reason)
+    Notifier.rejected(player, mode or (type(args) == "table" and args.mode) or "unknown", reason, buildNotifySource(args, nil, nil))
+end
+
 --- Updates the latest client animation progress for an active transfer.
 --- This throttles liquid movement to the visual timed action; server elapsed time,
 --- validation and mutation remain authoritative.
@@ -503,15 +532,36 @@ end
 ---@param reason string|nil
 function TransferService.stop(player, mode, transferId, reason)
     local playerKey = LockService.getPlayerKey(player)
-    if playerKey == nil then return end
+    if playerKey == nil then
+        TransferService.reject(player, mode or "unknown", "invalid_player", buildCommandSource(mode, transferId))
+        return
+    end
 
     local transfer = activeTransfers[playerKey]
-    if not transfer then return end
-    if not transferMatches(transfer, mode, transferId) then return end
+    if not transfer then
+        transfer = getCompletedTransfer(playerKey, mode, transferId)
+        if transfer then
+            Notifier.progress(player, transfer, true)
+        else
+            TransferService.reject(player, mode or "unknown", "transfer_not_active", buildCommandSource(mode, transferId))
+        end
+        return
+    end
+    if not transferMatches(transfer, mode, transferId) then
+        local completedTransfer = getCompletedTransfer(playerKey, mode, transferId)
+        if completedTransfer then
+            Notifier.progress(player, completedTransfer, true)
+        else
+            TransferService.reject(player, mode or transfer.mode or "unknown", "transfer_mismatch", buildCommandSource(mode, transferId))
+        end
+        return
+    end
 
     syncBarrel(transfer)
+    Notifier.progress(player, transfer, true)
     LockService.release(playerKey, transfer.barrelKey)
     activeTransfers[playerKey] = nil
+    completedTransfers[playerKey] = transfer
 
     log(string.format(
         "Transfer stopped: actionId=%s player=%s action=%s barrelId=%s revision=%s moved=%.3f/%.3f reason=%s",
@@ -534,10 +584,35 @@ end
 ---@param transferId string|number|nil
 function TransferService.complete(player, mode, transferId)
     local playerKey = LockService.getPlayerKey(player)
-    if playerKey == nil then return end
+    if playerKey == nil then
+        TransferService.reject(player, mode or "unknown", "invalid_player", buildCommandSource(mode, transferId))
+        return
+    end
+
+    if not isValidTransferId(transferId) then
+        TransferService.reject(player, mode or "unknown", "missing_transfer_id", buildCommandSource(mode, transferId))
+        return
+    end
 
     local transfer = activeTransfers[playerKey]
-    if not transferMatches(transfer, mode, transferId) then return end
+    if not transfer then
+        transfer = getCompletedTransfer(playerKey, mode, transferId)
+        if transfer then
+            Notifier.progress(player, transfer, true)
+        else
+            TransferService.reject(player, mode or "unknown", "transfer_not_active", buildCommandSource(mode, transferId))
+        end
+        return
+    end
+    if not transferMatches(transfer, mode, transferId) then
+        local completedTransfer = getCompletedTransfer(playerKey, mode, transferId)
+        if completedTransfer then
+            Notifier.progress(player, completedTransfer, true)
+        else
+            TransferService.reject(player, mode or transfer.mode or "unknown", "transfer_mismatch", buildCommandSource(mode, transferId))
+        end
+        return
+    end
 
     transfer.clientProgress = 1
     transfer.ticksSinceClientProgress = 0
@@ -556,7 +631,7 @@ function TransferService.complete(player, mode, transferId)
         return
     end
 
-    finishTransfer(playerKey, transfer, "client_complete_after_server_finished", false)
+    finishTransfer(playerKey, transfer, "client_complete_after_server_finished", true)
 end
 
 --- Per-tick handler: advances all active transfers by one step interval.

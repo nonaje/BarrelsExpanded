@@ -175,6 +175,29 @@ function BarrEx_BarrelData.get(barrel)
     return BarrEx_BarrelData.fromRawData(raw)
 end
 
+--- Reads the stable barrel id from object modData without full deserialization.
+--- @param barrel IsoObject|nil
+--- @return string|nil
+function BarrEx_BarrelData.getId(barrel)
+    if not barrel then return nil end
+
+    local modData = call(barrel, "getModData")
+    if not modData then return nil end
+
+    local storedId = modData[Constant.MODDATA_KEYS.BARREL_ID]
+    if type(storedId) == "string" and storedId ~= "" then
+        return storedId
+    end
+
+    local raw = modData[Constant.MODDATA_KEYS.BARREL]
+    local rawId = type(raw) == "table" and raw.id or nil
+    if type(rawId) == "string" and rawId ~= "" then
+        return rawId
+    end
+
+    return nil
+end
+
 --- Returns whether the barrel's contents have been revealed to the player.
 --- @param barrel IsoObject|nil
 --- @return boolean

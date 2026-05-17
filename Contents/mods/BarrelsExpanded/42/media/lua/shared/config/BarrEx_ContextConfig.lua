@@ -2,6 +2,7 @@ local ContextConfig = {}
 
 ContextConfig.CONTEXT_MENU = {
     BARREL = "ContextMenu_BarrEx_Barrel",
+    SYNCING = "ContextMenu_BarrEx_Syncing",
     OPEN_BARREL = "ContextMenu_BarrEx_OpenBarrel",
     INFO = "ContextMenu_BarrEx_Info",
     BARREL_INFO = "ContextMenu_BarrEx_BarrelInfo",
