@@ -156,6 +156,38 @@ function BarrelResolver.resolve(args)
     return chooseUnique(matches)
 end
 
+--- Strict resolver for authoritative mutations.  Nearby fallback is only used
+--- when the client supplied a stable barrel id; without one, never guess an
+--- adjacent barrel in dense barrel areas.
+---@param args table|nil
+---@return IsoObject|nil
+---@return string|nil
+function BarrelResolver.resolveStrict(args)
+    if not args then return nil, "invalid_args" end
+    if type(args.x) ~= "number" or type(args.y) ~= "number" or type(args.z) ~= "number" then
+        return nil, "invalid_args"
+    end
+
+    local square = getCellSquare(args.x, args.y, args.z)
+    local hasId = argsHaveBarrelId(args)
+
+    if hasId then
+        local matches = collectBarrelsOnSquare(square, args, true)
+        local barrel, reason = chooseUnique(matches)
+        if barrel then return barrel, nil end
+        if reason == "ambiguous_barrel" then return nil, reason end
+
+        matches = collectNearbyMatches(args, true)
+        return chooseUnique(matches)
+    end
+
+    local indexedBarrel = getIndexedBarrel(square, args)
+    if indexedBarrel then return indexedBarrel, nil end
+
+    local matches = collectBarrelsOnSquare(square, args, false)
+    return chooseUnique(matches)
+end
+
 --- Legacy-shaped helper for callers that only need the object.
 ---@param args table|nil
 ---@return IsoObject|nil

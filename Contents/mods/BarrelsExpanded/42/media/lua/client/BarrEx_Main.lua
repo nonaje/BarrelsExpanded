@@ -1,6 +1,7 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_MoveableSync = require("BarrEx_MoveableSync")
 local BarrEx_TransferSync = require("BarrEx_TransferSync")
+local BarrEx_OpenActionSync = require("BarrEx_OpenActionSync")
 local BarrEx_BarrelStateClient = require("BarrEx_BarrelStateClient")
 local InventoryUtils = require("utils/BarrEx_InventoryUtils")
 local Logger = require("utils/BarrEx_Logger")
@@ -277,6 +278,7 @@ local function onServerCommand(module, command, args)
 
     if command == Constant.NETWORK.BARREL_ACTION_RESULT then
         BarrEx_BarrelStateClient.onActionResult(args)
+        BarrEx_OpenActionSync.onActionResult(args)
 
         if type(args) == "table" and args.accepted == true then
             refreshWashVisuals(args)

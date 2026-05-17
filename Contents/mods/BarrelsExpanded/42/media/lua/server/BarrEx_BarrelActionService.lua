@@ -11,6 +11,13 @@ local Notifier              = require("BarrEx_BarrelActionNotifier")
 local Logger                = require("utils/BarrEx_Logger")
 
 local ActionService = {}
+local activeOpenActions = {}
+
+local OPEN_LOCK_TIMEOUT_TICKS = math.max(
+    (tonumber(Constant.OPEN_BARREL_ACTION_TIME) or 200)
+        + (tonumber(Constant.ACTION_ACK_TIMEOUT_TICKS) or 240),
+    60
+)
 
 local function log(message)
     Logger.info(message)
@@ -26,6 +33,12 @@ end
 local function getActionId(args)
     if type(args) ~= "table" then return nil end
     return args.actionId or args.transferId
+end
+
+local function isValidActionId(actionId)
+    local actionIdType = type(actionId)
+    if actionIdType == "number" then return true end
+    return actionIdType == "string" and actionId ~= ""
 end
 
 local function reject(player, action, reason, barrel, barrelData, args, extra)
@@ -268,7 +281,7 @@ local function resolveForAction(player, args, action)
         return nil, nil, "invalid_args"
     end
 
-    local barrel, reason = BarrelResolver.resolve(args)
+    local barrel, reason = BarrelResolver.resolveStrict(args)
     if not barrel then
         return nil, nil, reason or "barrel_not_found"
     end
@@ -353,6 +366,217 @@ local function runShortMutation(player, args, action, mutator)
     if not finishOk then
         reject(player, action, "server_error", barrel, barrelData, args)
         Logger.error("Barrel action finish error: " .. tostring(finishError))
+    end
+end
+
+local function getPlayerName(player)
+    return tostring(player and player.getUsername and player:getUsername() or "unknown")
+end
+
+local function getActiveOpen(playerKey, actionId)
+    local active = playerKey and activeOpenActions[playerKey] or nil
+    if not active then return nil end
+    if tostring(active.actionId) ~= tostring(actionId) then return nil end
+    return active
+end
+
+local function releaseOpen(playerKey, active, reason)
+    if not active then return end
+
+    LockService.release(playerKey, active.barrelKey)
+    if activeOpenActions[playerKey] == active then
+        activeOpenActions[playerKey] = nil
+    end
+
+    log(string.format(
+        "Open reservation released: actionId=%s player=%s barrelId=%s reason=%s",
+        tostring(active.actionId or "unknown"),
+        getPlayerName(active.player),
+        tostring(active.barrelKey or "unknown"),
+        tostring(reason or "released")
+    ))
+end
+
+local function replaceActiveOpen(playerKey, reason)
+    local active = playerKey and activeOpenActions[playerKey] or nil
+    if active then
+        releaseOpen(playerKey, active, reason or "replaced_by_new_open")
+    end
+end
+
+local function getOrCreateOpenData(barrel)
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if barrelData then
+        local _, idChanged = BarrEx_BarrelData.ensureStableId(barrel, barrelData)
+        local stateChanged = BarrEx_BarrelData.set(barrel, barrelData)
+        if idChanged or stateChanged then
+            barrel:transmitModData()
+        end
+        return barrelData
+    end
+
+    local spawnProfile = BarrEx_BarrelData.getSpawnProfile(barrel) or Constant.BARREL_SPAWN_PROFILE.WORLD
+    barrelData = BarrEx_BarrelFactory.createRandom(barrel, { spawnProfile = spawnProfile })
+    StateService.persist(barrel, barrelData, false)
+    return barrelData
+end
+
+---@param player IsoPlayer
+---@param args table|nil
+function ActionService.startOpen(player, args)
+    local action = getAction(args, "open")
+    if type(args) ~= "table" then
+        reject(player, action, "invalid_args", nil, nil, args)
+        return
+    end
+
+    if not isValidActionId(args.actionId) then
+        reject(player, action, "missing_transfer_id", nil, nil, args)
+        return
+    end
+
+    local barrel, barrelData, reason = resolveForAction(player, args, action)
+    if not barrel then
+        reject(player, action, reason, nil, nil, args)
+        return
+    end
+
+    if not InteractionRules.validateInteraction(barrel, player, Constant.OPEN_BARREL_REQUIRED_ITEMS, true) then
+        reject(player, action, "interaction_invalid", barrel, barrelData, args)
+        return
+    end
+
+    barrelData = getOrCreateOpenData(barrel)
+
+    local playerKey = LockService.getPlayerKey(player)
+    if playerKey == nil then
+        reject(player, action, "invalid_player", barrel, barrelData, args)
+        return
+    end
+
+    local barrelKey = LockService.getBarrelKey(barrel, barrelData)
+    if not barrelKey then
+        reject(player, action, "barrel_id_missing", barrel, barrelData, args)
+        return
+    end
+
+    local active = getActiveOpen(playerKey, args.actionId)
+    if active and active.barrelKey == barrelKey then
+        active.ticks = 0
+        accept(player, action, "reserved", barrel, barrelData, args, { openReserved = true })
+        return
+    end
+
+    replaceActiveOpen(playerKey, "replaced_by_new_open")
+
+    if not LockService.acquire(playerKey, barrelKey, "long", args.actionId) then
+        reject(player, action, "barrel_locked", barrel, barrelData, args)
+        return
+    end
+
+    activeOpenActions[playerKey] = {
+        player = player,
+        actionId = tostring(args.actionId),
+        args = args,
+        barrelKey = barrelKey,
+        lastBarrel = barrel,
+        barrelData = barrelData,
+        ticks = 0,
+    }
+
+    accept(player, action, "reserved", barrel, barrelData, args, { openReserved = true })
+end
+
+---@param player IsoPlayer
+---@param args table|nil
+function ActionService.cancelOpen(player, args)
+    if type(args) ~= "table" or not isValidActionId(args.actionId) then return end
+
+    local playerKey = LockService.getPlayerKey(player)
+    if playerKey == nil then return end
+
+    local active = getActiveOpen(playerKey, args.actionId)
+    if not active then return end
+
+    local barrel = active.lastBarrel
+    local barrelData = active.barrelData or BarrEx_BarrelData.get(barrel)
+    releaseOpen(playerKey, active, "client_cancel")
+    accept(player, getAction(args, "open"), "cancelled", barrel, barrelData, args)
+end
+
+---@param player IsoPlayer
+---@param args table|nil
+function ActionService.completeOpen(player, args)
+    local action = getAction(args, "open")
+    if type(args) ~= "table" then
+        reject(player, action, "invalid_args", nil, nil, args)
+        return
+    end
+
+    if not isValidActionId(args.actionId) then
+        reject(player, action, "missing_transfer_id", nil, nil, args)
+        return
+    end
+
+    local playerKey = LockService.getPlayerKey(player)
+    if playerKey == nil then
+        reject(player, action, "invalid_player", nil, nil, args)
+        return
+    end
+
+    local active = getActiveOpen(playerKey, args.actionId)
+    if not active then
+        reject(player, action, "transfer_not_active", nil, nil, args)
+        return
+    end
+
+    local barrel, barrelData, reason = resolveForAction(player, args, action)
+    if not barrel then
+        releaseOpen(playerKey, active, reason or "barrel_not_found")
+        reject(player, action, reason or "barrel_not_found", active.lastBarrel, active.barrelData, args)
+        return
+    end
+
+    barrelData = BarrEx_BarrelData.get(barrel) or active.barrelData
+    if not barrelData then
+        releaseOpen(playerKey, active, "barrel_unavailable")
+        reject(player, action, "barrel_unavailable", barrel, barrelData, args)
+        return
+    end
+    BarrEx_BarrelData.ensureStableId(barrel, barrelData)
+
+    local barrelKey = LockService.getBarrelKey(barrel, barrelData)
+    if barrelKey ~= active.barrelKey then
+        releaseOpen(playerKey, active, "barrel_mismatch")
+        reject(player, action, "transfer_mismatch", barrel, barrelData, args)
+        return
+    end
+
+    if LockService.isLockedBy(barrelKey) ~= playerKey then
+        activeOpenActions[playerKey] = nil
+        reject(player, action, "barrel_lock_lost", barrel, barrelData, args)
+        return
+    end
+
+    if not InteractionRules.validateInteraction(barrel, player, Constant.OPEN_BARREL_REQUIRED_ITEMS, true) then
+        releaseOpen(playerKey, active, "interaction_invalid")
+        reject(player, action, "interaction_invalid", barrel, barrelData, args)
+        return
+    end
+
+    local changed = false
+    local resultReason = "already_open"
+    if not barrelData:isRevealed() then
+        barrelData.revealed = true
+        changed = true
+        resultReason = "ok"
+    end
+
+    local finishOk, finishError = pcall(finishMutation, player, action, args, barrel, barrelData, changed, resultReason)
+    releaseOpen(playerKey, active, resultReason)
+    if not finishOk then
+        reject(player, action, "server_error", barrel, barrelData, args)
+        Logger.error("Barrel open finish error: " .. tostring(finishError))
     end
 end
 
@@ -509,6 +733,25 @@ function ActionService.empty(player, args)
 
         return true, "ok"
     end)
+end
+
+--- Releases abandoned open reservations when the completing/cancel command never
+--- arrives from the client.
+function ActionService.onTick()
+    local expiredPlayerKeys = nil
+    for playerKey, active in pairs(activeOpenActions) do
+        active.ticks = (tonumber(active.ticks) or 0) + 1
+        if active.ticks >= OPEN_LOCK_TIMEOUT_TICKS then
+            expiredPlayerKeys = expiredPlayerKeys or {}
+            expiredPlayerKeys[#expiredPlayerKeys + 1] = playerKey
+        end
+    end
+
+    if not expiredPlayerKeys then return end
+    for i = 1, #expiredPlayerKeys do
+        local playerKey = expiredPlayerKeys[i]
+        releaseOpen(playerKey, activeOpenActions[playerKey], "timeout")
+    end
 end
 
 return ActionService

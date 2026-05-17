@@ -330,24 +330,7 @@ local function findContextBarrel(worldObjects)
 
     local sameSquareBarrel = chooseOnly(found)
     if sameSquareBarrel then return sameSquareBarrel end
-    if #found > 1 then return nil end
-
-    local cell = getCell()
-    if not cell then return nil end
-
-    for i = 1, #squares do
-        local square = squares[i]
-        local z = square:getZ()
-        for dx = -1, 1 do
-            for dy = -1, 1 do
-                if dx ~= 0 or dy ~= 0 then
-                    collectBarrelsOnSquare(cell:getGridSquare(square:getX() + dx, square:getY() + dy, z), found, seen)
-                end
-            end
-        end
-    end
-
-    return chooseOnly(found)
+    return nil
 end
 
 ---@param context ISContextMenu

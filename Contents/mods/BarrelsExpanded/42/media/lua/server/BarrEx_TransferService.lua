@@ -282,7 +282,7 @@ end
 
 ---@return IsoObject|nil, BarrEx_Barrel|nil, InventoryItem|nil, string|nil, string|nil
 local function resolvePour(player, args, checkTool)
-    local barrel, resolveReason = BarrelResolver.resolve(args)
+    local barrel, resolveReason = BarrelResolver.resolveStrict(args)
     if not barrel then
         return nil, nil, nil, nil, resolveReason or "barrel_not_found"
     end
@@ -357,7 +357,7 @@ end
 
 ---@return IsoObject|nil, BarrEx_Barrel|nil, InventoryItem|nil, string|nil, string|nil
 local function resolveExtract(player, args, checkTool)
-    local barrel, resolveReason = BarrelResolver.resolve(args)
+    local barrel, resolveReason = BarrelResolver.resolveStrict(args)
     if not barrel then
         return nil, nil, nil, nil, resolveReason or "barrel_not_found"
     end

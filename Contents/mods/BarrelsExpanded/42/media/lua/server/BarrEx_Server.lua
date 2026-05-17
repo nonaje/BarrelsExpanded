@@ -29,6 +29,21 @@ local function onClientCommand(module, command, player, args)
         return
     end
 
+    if command == Constant.NETWORK.START_OPEN_BARREL then
+        BarrelActionService.startOpen(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.CANCEL_OPEN_BARREL then
+        BarrelActionService.cancelOpen(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.COMPLETE_OPEN_BARREL then
+        BarrelActionService.completeOpen(player, args)
+        return
+    end
+
     if command == Constant.NETWORK.START_POUR_INTO_BARREL then
         TransferService.start(player, "pour", args)
         return
@@ -104,4 +119,5 @@ Events.OnClientCommand.Add(onClientCommand)
 Events.OnObjectAdded.Add(BarrelWorldService.onObjectAdded)
 Events.LoadGridsquare.Add(BarrelWorldService.onLoadGridsquare)
 Events.OnTick.Add(TransferService.onTick)
+Events.OnTick.Add(BarrelActionService.onTick)
 MoveableSync.start()
