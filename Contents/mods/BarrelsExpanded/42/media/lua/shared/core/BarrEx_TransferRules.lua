@@ -140,6 +140,38 @@ function TransferRules.getExtractAmount(barrelData, targetItem)
 end
 
 -- ---------------------------------------------------------------------------
+-- Empty rules (barrel -> world)
+-- ---------------------------------------------------------------------------
+
+--- Returns true when barrelData can currently be emptied.
+--- Does NOT check player range.
+---@param barrelData BarrEx_Barrel
+---@return boolean
+function TransferRules.canEmptyBarrel(barrelData)
+    if not barrelData then return false end
+    if not barrelData:isRevealed() then return false end
+    if barrelData:isEmpty() then return false end
+
+    local liquidType = barrelData.liquidType
+    if type(liquidType) ~= "string" then return false end
+    if LiquidConfig.LIQUID_TYPE[liquidType] == nil then return false end
+    if liquidType == LiquidConfig.LIQUID_TYPE.EMPTY then return false end
+
+    return true
+end
+
+--- Returns the maximum units discardable from barrelData.
+---@param barrelData BarrEx_Barrel
+---@return number
+function TransferRules.getEmptyAmount(barrelData)
+    if not TransferRules.canEmptyBarrel(barrelData) then
+        return 0
+    end
+
+    return math.max(tonumber(barrelData.amount) or 0, 0)
+end
+
+-- ---------------------------------------------------------------------------
 -- Transfer duration
 -- ---------------------------------------------------------------------------
 
@@ -155,6 +187,14 @@ function TransferRules.getTransferActionTime(amount, mode, liquidType)
     local baseDuration = getVanillaMinTransferTime()
 
     if normalizedAmount > 0 then
+        if mode == "empty" then
+            local timePerUnit = tonumber(TransferConfig.EMPTY_ACTION_TIME_PER_UNIT) or 5
+            if timePerUnit <= 0 then
+                timePerUnit = 5
+            end
+            return math.max(math.floor(math.max(baseDuration, normalizedAmount * timePerUnit)), 1)
+        end
+
         local timePerUnit = getVanillaTransferTimePerUnit()
         if liquidType == LiquidConfig.LIQUID_TYPE.GASOLINE then
             if mode == "pour" then

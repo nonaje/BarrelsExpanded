@@ -72,6 +72,34 @@ local function onClientCommand(module, command, player, args)
         return
     end
 
+    if command == Constant.NETWORK.START_EMPTY_BARREL then
+        TransferService.start(player, "empty", args)
+        return
+    end
+
+    if command == Constant.NETWORK.STOP_EMPTY_BARREL then
+        if not hasTransferId(args) then
+            TransferService.reject(player, "empty", "missing_transfer_id", args)
+            return
+        end
+        TransferService.stop(player, "empty", args and args.transferId, "client_stop")
+        return
+    end
+
+    if command == Constant.NETWORK.COMPLETE_EMPTY_BARREL then
+        if not hasTransferId(args) then
+            TransferService.reject(player, "empty", "missing_transfer_id", args)
+            return
+        end
+        TransferService.complete(player, "empty", args and args.transferId)
+        return
+    end
+
+    if command == Constant.NETWORK.UPDATE_EMPTY_BARREL_PROGRESS then
+        TransferService.updateProgress(player, args)
+        return
+    end
+
     if command == Constant.NETWORK.START_EXTRACT_FROM_BARREL then
         TransferService.start(player, "extract", args)
         return

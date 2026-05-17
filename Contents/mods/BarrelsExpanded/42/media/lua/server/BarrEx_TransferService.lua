@@ -426,6 +426,51 @@ local function applyExtract(barrel, barrelData, targetItem, liquidType, requeste
 end
 
 -- ---------------------------------------------------------------------------
+-- Empty: validate + apply
+-- ---------------------------------------------------------------------------
+
+---@return IsoObject|nil, BarrEx_Barrel|nil, string|nil, string|nil
+local function resolveEmpty(player, args)
+    local barrel, resolveReason = BarrelResolver.resolveStrict(args)
+    if not barrel then
+        return nil, nil, nil, resolveReason or "barrel_not_found"
+    end
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData or not barrelData:isRevealed() then
+        return nil, nil, nil, "barrel_unavailable"
+    end
+
+    if not InteractionRules.validateInteraction(barrel, player, {}, false) then
+        return nil, nil, nil, "interaction_invalid"
+    end
+
+    if not TransferRules.canEmptyBarrel(barrelData) then
+        return nil, nil, nil, "barrel_empty"
+    end
+
+    return barrel, barrelData, barrelData.liquidType, nil
+end
+
+---@return number, string|nil, IsoObject|nil
+local function applyEmpty(barrel, barrelData, requestedAmount)
+    local available = tonumber(barrelData and barrelData.amount) or 0
+    local transferAmount = math.max(math.min(available, requestedAmount or math.huge), 0)
+
+    if transferAmount <= 0 then
+        return 0, "no_transferable_amount", barrel
+    end
+
+    local removed = barrelData:removeLiquid(transferAmount)
+    if removed <= 0 then
+        return 0, "barrel_remove_failed", barrel
+    end
+
+    persistBarrel(barrel, barrelData, false, true)
+    return removed, nil, barrel
+end
+
+-- ---------------------------------------------------------------------------
 -- Tick advance
 -- ---------------------------------------------------------------------------
 
@@ -447,6 +492,18 @@ local function advance(transfer, requestedAmount)
 
         transfer.lastBarrel = barrel
         return applyPour(barrel, barrelData, sourceItem, liquidType, requestedAmount)
+    end
+
+    if transfer.mode == "empty" then
+        local barrel, barrelData, liquidType, reason =
+            resolveEmpty(transfer.player, transfer.args)
+
+        if not barrel or not barrelData or not liquidType then
+            return 0, reason, barrel
+        end
+
+        transfer.lastBarrel = barrel
+        return applyEmpty(barrel, barrelData, requestedAmount)
     end
 
     local barrel, barrelData, targetItem, liquidType, reason =
@@ -528,7 +585,7 @@ end
 
 --- Validates, locks, and starts a new transfer for the player.
 ---@param player IsoPlayer
----@param mode string "pour" | "extract"
+---@param mode string "pour" | "extract" | "empty"
 ---@param args table
 function TransferService.start(player, mode, args)
     if not player then return end
@@ -547,19 +604,29 @@ function TransferService.start(player, mode, args)
 
     if mode == "pour" then
         barrel, barrelData, item, liquidType, reason = resolvePour(player, args, true)
-    else
+    elseif mode == "extract" then
         barrel, barrelData, item, liquidType, reason = resolveExtract(player, args, true)
+    elseif mode == "empty" then
+        barrel, barrelData, liquidType, reason = resolveEmpty(player, args)
+    else
+        TransferService.reject(player, mode or "unknown", "unknown_transfer_mode", args)
+        return
     end
 
-    if not barrel or not barrelData or not item or not liquidType then
+    if not barrel or not barrelData or (mode ~= "empty" and not item) or not liquidType then
         logTransferRejected(player, mode, args, barrelData, reason or "unknown")
         Notifier.rejected(player, mode, reason or "unknown", buildNotifySource(args, barrel, barrelData))
         return
     end
 
-    local totalAmount = mode == "pour"
-        and TransferRules.getPourAmount(barrelData, item)
-        or  TransferRules.getExtractAmount(barrelData, item)
+    local totalAmount
+    if mode == "pour" then
+        totalAmount = TransferRules.getPourAmount(barrelData, item)
+    elseif mode == "extract" then
+        totalAmount = TransferRules.getExtractAmount(barrelData, item)
+    else
+        totalAmount = TransferRules.getEmptyAmount(barrelData)
+    end
 
     if totalAmount <= 0 then
         logTransferRejected(player, mode, args, barrelData, "no_transferable_amount")
@@ -594,6 +661,9 @@ function TransferService.start(player, mode, args)
 
     local totalTicks   = math.max(TransferRules.getTransferActionTime(totalAmount, mode, liquidType), 1)
     local tickInterval = math.max(Constant.SERVER_TRANSFER_TICK_INTERVAL or 1, 1)
+    local syncInterval = mode == "empty"
+        and tickInterval
+        or math.max(Constant.SERVER_TRANSFER_SYNC_INTERVAL or 10, 1)
 
     local transfer = {
         player          = player,
@@ -610,6 +680,7 @@ function TransferService.start(player, mode, args)
         clientProgress  = clamp01(args.progress),
         serverTicksElapsed = 0,
         tickInterval    = tickInterval,
+        syncInterval    = syncInterval,
         ticksUntilStep  = 0,
         ticksSinceSync  = 0,
         ticksSinceClientProgress = 0,
@@ -827,7 +898,7 @@ function TransferService.onTick()
 
                             if isTransferCompleted(transfer) then
                                 finishTransfer(playerKey, transfer, "server_transfer_finished", true)
-                            elseif transfer.ticksSinceSync >= math.max(Constant.SERVER_TRANSFER_SYNC_INTERVAL or 10, 1) then
+                            elseif transfer.ticksSinceSync >= math.max(transfer.syncInterval or Constant.SERVER_TRANSFER_SYNC_INTERVAL or 10, 1) then
                                 syncBarrel(transfer)
                                 Notifier.progress(transfer.player, transfer, false)
                                 transfer.ticksSinceSync = 0

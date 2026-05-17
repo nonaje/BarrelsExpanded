@@ -1,3 +1,6 @@
+Version 1.0.3
+- Made barrel emptying progressive and faster: liquid now drains one unit at a time during the timed action, and cancelled actions keep the amount already emptied.
+
 Version 1.0.2
 - Fixed barrel opening timed actions getting stuck before showing progress.
 - Improved open-barrel reservation handling so valid completions are not rejected after server timeout.

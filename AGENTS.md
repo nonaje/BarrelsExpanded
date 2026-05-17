@@ -35,7 +35,7 @@ Este archivo es la guia viva de arquitectura para agentes. Si una decision nueva
 - El cliente puede mostrar opciones, iniciar timed actions y pedir operaciones.
 - El cliente envia intenciones y aplica snapshots aceptados; no confirma exito por polling ni escribe estado real de barriles desde UI/actions.
 - El servidor valida otra vez todo lo importante antes de mutar estado.
-- La mutacion real de barriles debe entrar por servicios del servidor, especialmente `BarrEx_BarrelActionService.lua` para acciones cortas y `BarrEx_TransferService.lua` para transferencias.
+- La mutacion real de barriles debe entrar por servicios del servidor, especialmente `BarrEx_BarrelActionService.lua` para acciones cortas y `BarrEx_TransferService.lua` para transferencias y vaciados progresivos.
 - No confies en datos enviados por el cliente para cantidades, items, distancias, herramientas o estado del barril.
 - Usa `BarrEx_BarrelLockService.lua` para cualquier accion que pueda competir por el mismo barril.
 - Despues de cambios persistentes, incrementa `revision`, persiste con `BarrEx_BarrelData.lua`, transmite modData y responde con snapshot via `BarrEx_BarrelActionNotifier.lua` o `BarrEx_TransferNotifier.lua`.
@@ -60,7 +60,7 @@ Este archivo es la guia viva de arquitectura para agentes. Si una decision nueva
 - `BarrEx_ContextMenuTooltips.lua` concentra tooltips e iconos.
 - `BarrEx_BarrelActionBase.lua` concentra payload base, `actionId`, identidad de barril y revision cliente.
 - `BarrEx_BarrelStateService.lua` concentra snapshots autoritativos y respuestas `requestBarrelState`.
-- `BarrEx_BarrelActionService.lua` concentra mutaciones cortas: abrir, beber, lavar y vaciar.
+- `BarrEx_BarrelActionService.lua` concentra mutaciones cortas: abrir, beber y lavar; el vaciado progresivo usa `BarrEx_TransferService.lua`.
 - Evita que archivos de UI muten estado real del mundo.
 
 ## Optimizacion para PZ/Kahlua
@@ -106,7 +106,9 @@ end
 ## Lifecycle de transferencias MP
 
 - `start` de transferencia debe exigir `transferId`, barril resoluble, item resoluble, herramienta/rango validos y lock largo adquirido.
+- El vaciado progresivo usa el mismo lifecycle largo con `mode="empty"` y `transferId`, pero no requiere item resoluble.
 - `update`, `stop` y `complete` deben poder enviarse aunque el item ya no este resoluble en el inventario cliente; deben conservar `transferId`, `mode`, `barrelId`, `itemId` y el ultimo payload base conocido.
+- En `mode="empty"`, `update`, `stop` y `complete` deben conservar `transferId`, `mode`, `barrelId` y el ultimo payload base conocido.
 - La API publica de `BarrEx_TransferService.stop` y `BarrEx_TransferService.complete` nunca debe operar sin `transferId` explicito. Los cierres internos deben usar helpers internos como `stopActiveForPlayer(...)`.
 - Los comandos tardios de `stop`/`complete` deben responder desde cache cerrada exacta por `playerKey + transferId`, sin mutar estado ni tomar locks nuevos.
 - Los cierres de transferencia deben guardar datos suficientes para responder paquetes tardios: `transferId`, `mode`, `barrelId`, `itemId`, snapshot, `closedReason`, `closedRejected` y si ya fue notificado.

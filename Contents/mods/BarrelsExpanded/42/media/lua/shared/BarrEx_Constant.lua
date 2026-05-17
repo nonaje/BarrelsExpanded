@@ -24,6 +24,10 @@ Constant.NETWORK = {
     STOP_EXTRACT_FROM_BARREL = "stopExtractFromBarrel",
     COMPLETE_EXTRACT_FROM_BARREL = "completeExtractFromBarrel",
     UPDATE_TRANSFER_PROGRESS = "updateTransferProgress",
+    START_EMPTY_BARREL = "startEmptyBarrel",
+    STOP_EMPTY_BARREL = "stopEmptyBarrel",
+    COMPLETE_EMPTY_BARREL = "completeEmptyBarrel",
+    UPDATE_EMPTY_BARREL_PROGRESS = "updateEmptyBarrelProgress",
     TRANSFER_REJECTED = "transferRejected",
     TRANSFER_STARTED = "transferStarted",
     TRANSFER_PROGRESS = "transferProgress",
@@ -69,6 +73,7 @@ Constant.BARREL_WASH_UNIT_AMOUNT   = 1
 
 -- Delegated to TransferConfig.
 Constant.TRANSFER_ACTION_TIME_MULTIPLIER = TransferConfig.ACTION_TIME_MULTIPLIER
+Constant.EMPTY_BARREL_ACTION_TIME_PER_UNIT = TransferConfig.EMPTY_ACTION_TIME_PER_UNIT
 Constant.SERVER_TRANSFER_TICK_INTERVAL   = TransferConfig.SERVER_TICK_INTERVAL
 Constant.SERVER_TRANSFER_SYNC_INTERVAL   = TransferConfig.SERVER_SYNC_INTERVAL
 Constant.SERVER_TRANSFER_STALE_TICKS     = TransferConfig.SERVER_TRANSFER_STALE_TICKS

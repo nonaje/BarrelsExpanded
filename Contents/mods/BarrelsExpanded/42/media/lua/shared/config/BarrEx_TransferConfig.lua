@@ -10,6 +10,11 @@ local TransferConfig = {}
 -- Higher values make pours and extractions take longer.
 TransferConfig.ACTION_TIME_MULTIPLIER = 2
 
+-- Emptying a barrel dumps liquid to the world instead of carefully moving it
+-- between containers, so it advances faster while still applying one unit at a
+-- time on the server.
+TransferConfig.EMPTY_ACTION_TIME_PER_UNIT = 5
+
 -- Number of server ticks between each transfer step advance.
 -- Lower values move liquid faster per second at the cost of more
 -- frequent server-side computation.
