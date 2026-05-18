@@ -31,7 +31,7 @@ option BarrelsExpanded.MaxInteractionDistance
 option BarrelsExpanded.OpenBarrelRequiredItemsText
 {
     type = string,
-    default = Base.Crowbar;Base.CrowbarForged;Base.Screwdriver;Base.PipeWrench;Base.SheetMetalSnips,
+    default = "Base.Crowbar;Base.CrowbarForged;Base.Screwdriver;Base.PipeWrench;Base.SheetMetalSnips",
     page = BarrelsExpanded,
     translation = BarrelsExpanded_OpenBarrelRequiredItemsText,
 }

@@ -11,7 +11,7 @@ StaticConfig.LIQUID_TYPE = {
 }
 
 StaticConfig.DEFAULT_OPEN_BARREL_REQUIRED_ITEMS_TEXT =
-    "Base.Crowbar,Base.CrowbarForged,Base.Screwdriver,Base.PipeWrench,Base.SheetMetalSnips"
+    "Base.Crowbar;Base.CrowbarForged;Base.Screwdriver;Base.PipeWrench;Base.SheetMetalSnips"
 
 StaticConfig.VALUES = {
     [ConfigKeys.BARREL_DEFAULT_CAPACITY] = 160,

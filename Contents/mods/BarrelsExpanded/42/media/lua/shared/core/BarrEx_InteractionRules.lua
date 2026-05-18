@@ -11,11 +11,12 @@ local InteractionRules = {}
 
 --- Returns true when the player has at least one item from requiredItems in their inventory.
 ---@param player IsoPlayer
----@param requiredItems table<string>
+---@param requiredItems table<string>|nil
 ---@return boolean
 function InteractionRules.playerHasRequiredTool(player, requiredItems)
     if not player then return false end
-    if type(requiredItems) ~= "table" or #requiredItems == 0 then return true end
+    if type(requiredItems) ~= "table" then return false end
+    if #requiredItems == 0 then return true end
 
     local inventory = player:getInventory()
     if not inventory then return false end
@@ -63,7 +64,7 @@ end
 --- checkTool defaults to true; pass false to skip the tool check (e.g. in per-tick validation).
 ---@param barrel IsoObject
 ---@param player IsoPlayer
----@param requiredItems table<string>
+---@param requiredItems table<string>|nil
 ---@param checkTool boolean|nil
 ---@return boolean
 function InteractionRules.validateInteraction(barrel, player, requiredItems, checkTool)

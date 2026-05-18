@@ -5,7 +5,6 @@ local ConfigRepository = require("config/BarrEx_ConfigRepository")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
 
 local BarrEx_BarrelFactory = {}
-local compiledDistributions = {}
 
 local function getDistribution(category, spawnProfile)
     if category == Constant.BARREL_TILE_CATEGORY.INDUSTRIAL then
@@ -61,23 +60,8 @@ local function compileDistribution(distribution)
     }
 end
 
-local function getCompiledDistribution(distribution)
-    local compiled = compiledDistributions[distribution]
-    if compiled ~= nil then
-        return compiled
-    end
-
-    compiled = compileDistribution(distribution)
-    compiledDistributions[distribution] = compiled or false
-    if compiledDistributions[distribution] == false then
-        return nil
-    end
-
-    return compiled
-end
-
 local function getWeightedRandomLiquidType(distribution)
-    local compiled = getCompiledDistribution(distribution)
+    local compiled = compileDistribution(distribution)
     if not compiled then
         return Constant.LIQUID_TYPE.EMPTY
     end

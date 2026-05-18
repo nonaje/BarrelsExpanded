@@ -1,3 +1,6 @@
+Version 1.0.7
+- Hardened Sandbox tool-list parsing, transfer tool validation, and barrel loot distribution handling.
+
 Version 1.0.6
 - Added Sandbox options for barrel capacity, empty weight, interaction distance, opening tools, and liquid spawn weights by barrel type.
 - Added Sandbox controls for custom open-tool fullType lists and optional funnel/hose requirements for liquid transfers.

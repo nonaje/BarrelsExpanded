@@ -143,11 +143,14 @@ local function parseFullTypeList(text)
         return nil
     end
 
+    text = string_match(text, "^%s*[\"']?(.-)[\"']?%s*$")
+
     local items = {}
     local seen = {}
 
     for token in string_gmatch(text, "[^,;]+") do
         local itemType = string_match(token, "^%s*(.-)%s*$")
+        itemType = string_match(itemType, "^[\"']?(.-)[\"']?$")
         if itemType ~= "" and string_match(itemType, "^[%w_]+%.[%w_]+$") and not seen[itemType] then
             seen[itemType] = true
             items[#items + 1] = itemType
