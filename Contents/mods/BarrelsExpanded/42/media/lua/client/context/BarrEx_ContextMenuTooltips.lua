@@ -2,6 +2,7 @@ local ContextConfig = require("config/BarrEx_ContextConfig")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 local Constant = require("BarrEx_Constant")
 local Text = require("context/BarrEx_ContextMenuText")
+local WorldUtils = require("utils/BarrEx_WorldUtils")
 
 local Tooltips = {}
 
@@ -183,6 +184,66 @@ function Tooltips.attachInventoryItemIcon(option, item)
     if type(item.getTexture) == "function" then
         option.iconTexture = item:getTexture()
     end
+end
+
+---@param texture Texture|nil
+---@return Texture|nil
+local function getSplitIconTexture(texture)
+    if not texture then return nil end
+
+    if type(texture.splitIcon) == "function" then
+        local iconTexture = texture:splitIcon()
+        if iconTexture then return iconTexture end
+    end
+
+    return texture
+end
+
+---@param textureName string|nil
+---@return Texture|nil
+local function getIconTextureFromName(textureName)
+    if not textureName or textureName == "" then return nil end
+    if type(getTexture) ~= "function" then return nil end
+
+    return getSplitIconTexture(getTexture(textureName))
+end
+
+---@param worldObject IsoObject|nil
+---@return Texture|nil
+local function getCurrentFrameTexture(worldObject)
+    if not worldObject then return nil end
+
+    if type(worldObject.getCurrentFrameTex) == "function" then
+        local texture = worldObject:getCurrentFrameTex()
+        if texture then return texture end
+    end
+
+    if type(worldObject.getSprite) ~= "function" then return nil end
+
+    local sprite = worldObject:getSprite()
+    if not sprite or type(sprite.getTextureForCurrentFrame) ~= "function" then return nil end
+    if type(worldObject.getDir) ~= "function" then return nil end
+
+    local dir = worldObject:getDir()
+    if not dir then return nil end
+
+    return sprite:getTextureForCurrentFrame(dir)
+end
+
+---@param option table|nil
+---@param worldObject IsoObject|nil
+function Tooltips.attachWorldObjectIcon(option, worldObject)
+    if not option or not worldObject then return end
+
+    local iconTexture = getIconTextureFromName(WorldUtils.getBarrelIconSpriteName(worldObject))
+    if not iconTexture and type(worldObject.getTextureName) == "function" then
+        iconTexture = getIconTextureFromName(worldObject:getTextureName())
+    end
+    if not iconTexture then
+        iconTexture = getCurrentFrameTexture(worldObject)
+    end
+
+    option.iconTexture = iconTexture
 end
 
 ---@param foundItems table<string>|nil

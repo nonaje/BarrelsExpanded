@@ -107,6 +107,12 @@ Constant.BARREL_TILE_NAME_TO_CATEGORY = {
     crafted_01_32 = Constant.BARREL_TILE_CATEGORY.CRAFTED,
 }
 
+Constant.BARREL_TILE_NAME_TO_ICON_TILE_NAME = {
+    industry_01_23 = "industry_01_22",
+    location_military_generic_01_15 = "location_military_generic_01_14",
+    location_military_generic_01_7 = "location_military_generic_01_6",
+}
+
 Constant.BARREL_LIQUID_DISTRIBUTION = {
     INDUSTRIAL = {
         [Constant.LIQUID_TYPE.EMPTY] = 40,

@@ -254,8 +254,12 @@ local function addOpenBarrelOption(subMenu, barrel, player, canOpen, foundItems,
     Tooltips.attachRequiredItemsTooltip(openOption, foundItems, missingItems)
 end
 
-local function addSyncingSubMenu(context)
+---@param context ISContextMenu
+---@param barrel IsoObject
+local function addSyncingSubMenu(context, barrel)
     local barrelOption = context:addOption(Text.translate(ContextConfig.CONTEXT_MENU.BARREL), nil, nil)
+    Tooltips.attachWorldObjectIcon(barrelOption, barrel)
+
     local subMenu = context:getNew(context)
     context:addSubMenu(barrelOption, subMenu)
 
@@ -342,6 +346,8 @@ end
 ---@param inRange boolean
 local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, missingItems, inRange)
     local barrelOption = context:addOption(Text.translate(ContextConfig.CONTEXT_MENU.BARREL), nil, nil)
+    Tooltips.attachWorldObjectIcon(barrelOption, barrel)
+
     local subMenu = context:getNew(context)
     context:addSubMenu(barrelOption, subMenu)
 
@@ -382,7 +388,7 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData or not barrelData.id or barrelData.revision == nil then
         BarrelStateClient.requestStateForBarrel(barrel, "context")
-        addSyncingSubMenu(context)
+        addSyncingSubMenu(context, barrel)
         return
     end
 

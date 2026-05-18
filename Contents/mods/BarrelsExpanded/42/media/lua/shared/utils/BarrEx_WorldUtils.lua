@@ -17,6 +17,15 @@ function WorldUtils.getSpriteName(worldObject)
 end
 
 ---@param worldObject IsoObject|nil
+---@return string|nil
+function WorldUtils.getBarrelIconSpriteName(worldObject)
+    local spriteName = WorldUtils.getSpriteName(worldObject)
+    if not spriteName then return nil end
+
+    return Constant.BARREL_TILE_NAME_TO_ICON_TILE_NAME[spriteName] or spriteName
+end
+
+---@param worldObject IsoObject|nil
 ---@return boolean
 function WorldUtils.isExpandableBarrel(worldObject)
     local spriteName = WorldUtils.getSpriteName(worldObject)

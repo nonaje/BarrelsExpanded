@@ -1,4 +1,6 @@
 Version 1.0.3
+- Added the clicked barrel's normalized icon to the Barrel context menu option.
+- Improved context menu icon consistency for alternate barrel tile sprites.
 - Made barrel emptying progressive and faster: liquid now drains one unit at a time during the timed action, and cancelled actions keep the amount already emptied.
 
 Version 1.0.2
