@@ -1,0 +1,203 @@
+option BarrelsExpanded.BarrelDefaultCapacity
+{
+    type = integer,
+    min = 20,
+    max = 500,
+    default = 160,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_BarrelDefaultCapacity,
+}
+
+option BarrelsExpanded.BarrelEmptyWeight
+{
+    type = double,
+    min = 0.0,
+    max = 100.0,
+    default = 20.0,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_BarrelEmptyWeight,
+}
+
+option BarrelsExpanded.MaxInteractionDistance
+{
+    type = double,
+    min = 0.5,
+    max = 3.0,
+    default = 1.55,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_MaxInteractionDistance,
+}
+
+option BarrelsExpanded.OpenBarrelRequiredItemsText
+{
+    type = string,
+    default = Base.Crowbar;Base.CrowbarForged;Base.Screwdriver;Base.PipeWrench;Base.SheetMetalSnips,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_OpenBarrelRequiredItemsText,
+}
+
+option BarrelsExpanded.RequireFunnelToPour
+{
+    type = boolean,
+    default = true,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_RequireFunnelToPour,
+}
+
+option BarrelsExpanded.RequireHoseToExtract
+{
+    type = boolean,
+    default = true,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_RequireHoseToExtract,
+}
+
+option BarrelsExpanded.IndustrialWeightEmpty
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 40,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_IndustrialWeightEmpty,
+}
+
+option BarrelsExpanded.IndustrialWeightWater
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 15,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_IndustrialWeightWater,
+}
+
+option BarrelsExpanded.IndustrialWeightTaintedWater
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 20,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_IndustrialWeightTaintedWater,
+}
+
+option BarrelsExpanded.IndustrialWeightGasoline
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 20,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_IndustrialWeightGasoline,
+}
+
+option BarrelsExpanded.IndustrialWeightBleach
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 5,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_IndustrialWeightBleach,
+}
+
+option BarrelsExpanded.MilitaryWeightEmpty
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 55,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_MilitaryWeightEmpty,
+}
+
+option BarrelsExpanded.MilitaryWeightWater
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 10,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_MilitaryWeightWater,
+}
+
+option BarrelsExpanded.MilitaryWeightTaintedWater
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 10,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_MilitaryWeightTaintedWater,
+}
+
+option BarrelsExpanded.MilitaryWeightGasoline
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 25,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_MilitaryWeightGasoline,
+}
+
+option BarrelsExpanded.MilitaryWeightBleach
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 0,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_MilitaryWeightBleach,
+}
+
+option BarrelsExpanded.CraftedWeightEmpty
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 20,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_CraftedWeightEmpty,
+}
+
+option BarrelsExpanded.CraftedWeightWater
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 30,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_CraftedWeightWater,
+}
+
+option BarrelsExpanded.CraftedWeightTaintedWater
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 20,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_CraftedWeightTaintedWater,
+}
+
+option BarrelsExpanded.CraftedWeightGasoline
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 30,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_CraftedWeightGasoline,
+}
+
+option BarrelsExpanded.CraftedWeightBleach
+{
+    type = integer,
+    min = 0,
+    max = 1000,
+    default = 0,
+    page = BarrelsExpanded,
+    translation = BarrelsExpanded_CraftedWeightBleach,
+}

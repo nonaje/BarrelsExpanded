@@ -41,10 +41,6 @@ function WorldUtils.getBarrelCategory(worldObject)
     local category = Constant.BARREL_TILE_NAME_TO_CATEGORY[spriteName]
     if category then return category end
 
-    if Constant.BARREL_TILE_NAMES[spriteName] then
-        return Constant.BARREL_TILE_CATEGORY.RURAL
-    end
-
     return nil
 end
 

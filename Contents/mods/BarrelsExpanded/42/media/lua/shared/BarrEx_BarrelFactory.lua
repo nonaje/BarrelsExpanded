@@ -1,6 +1,7 @@
 local Constant = require("BarrEx_Constant")
 local BarrEx_Barrel = require("BarrEx_Barrel")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
+local ConfigRepository = require("config/BarrEx_ConfigRepository")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
 
 local BarrEx_BarrelFactory = {}
@@ -8,22 +9,18 @@ local compiledDistributions = {}
 
 local function getDistribution(category, spawnProfile)
     if category == Constant.BARREL_TILE_CATEGORY.INDUSTRIAL then
-        return Constant.BARREL_LIQUID_DISTRIBUTION.INDUSTRIAL
+        return ConfigRepository.getLiquidDistribution(category, spawnProfile)
     end
 
     if category == Constant.BARREL_TILE_CATEGORY.MILITARY then
-        return Constant.BARREL_LIQUID_DISTRIBUTION.MILITARY
+        return ConfigRepository.getLiquidDistribution(category, spawnProfile)
     end
 
     if category == Constant.BARREL_TILE_CATEGORY.CRAFTED then
-        if spawnProfile == Constant.BARREL_SPAWN_PROFILE.PLAYER_CRAFTED then
-            return Constant.BARREL_LIQUID_DISTRIBUTION.CRAFTED_PLAYER
-        end
-
-        return Constant.BARREL_LIQUID_DISTRIBUTION.CRAFTED_WORLD
+        return ConfigRepository.getLiquidDistribution(category, spawnProfile)
     end
 
-    return Constant.BARREL_LIQUID_DISTRIBUTION.RURAL
+    return ConfigRepository.getLiquidDistribution(nil, spawnProfile)
 end
 
 local function compileDistribution(distribution)
@@ -104,7 +101,7 @@ function BarrEx_BarrelFactory.createRandom(barrel, options)
     options = options or {}
 
     local spawnProfile = options.spawnProfile or Constant.BARREL_SPAWN_PROFILE.WORLD
-    local category = options.category or WorldUtils.getBarrelCategory(barrel) or Constant.BARREL_TILE_CATEGORY.RURAL
+    local category = options.category or WorldUtils.getBarrelCategory(barrel)
     local distribution = getDistribution(category, spawnProfile)
 
     local capacity = Constant.BARREL_DEFAULT_CAPACITY

@@ -3,6 +3,8 @@ local ToolConfig     = require("config/BarrEx_ToolConfig")
 local TransferConfig = require("config/BarrEx_TransferConfig")
 local LogConfig      = require("config/BarrEx_LogConfig")
 local NetworkConfig  = require("config/BarrEx_NetworkConfig")
+local ConfigKeys     = require("config/BarrEx_ConfigKeys")
+local ConfigRepository = require("config/BarrEx_ConfigRepository")
 
 local Constant = {}
 
@@ -63,13 +65,13 @@ Constant.COMPATIBLE_CONTAINERS        = LiquidConfig.COMPATIBLE_CONTAINERS
 Constant.FULLTYPE_TO_LIQUIDS          = LiquidConfig.FULLTYPE_TO_LIQUIDS
 Constant.BARREL_LIQUID_WEIGHT_PER_UNIT = LiquidConfig.BARREL_LIQUID_WEIGHT_PER_UNIT
 
-Constant.BARREL_DEFAULT_CAPACITY   = 160
-Constant.MAX_INTERACTION_DISTANCE  = 1.55
-Constant.OPEN_BARREL_ACTION_TIME   = 200
-Constant.BARREL_EMPTY_WEIGHT       = 20
-Constant.BARREL_DRINK_AMOUNT       = 0.12
-Constant.BARREL_DRINK_THIRST       = 0.10
-Constant.BARREL_WASH_UNIT_AMOUNT   = 1
+Constant.BARREL_DEFAULT_CAPACITY   = ConfigRepository.getInteger(ConfigKeys.BARREL_DEFAULT_CAPACITY)
+Constant.MAX_INTERACTION_DISTANCE  = ConfigRepository.getNumber(ConfigKeys.MAX_INTERACTION_DISTANCE)
+Constant.OPEN_BARREL_ACTION_TIME   = ConfigRepository.getInteger(ConfigKeys.OPEN_BARREL_ACTION_TIME)
+Constant.BARREL_EMPTY_WEIGHT       = ConfigRepository.getNumber(ConfigKeys.BARREL_EMPTY_WEIGHT)
+Constant.BARREL_DRINK_AMOUNT       = ConfigRepository.getNumber(ConfigKeys.BARREL_DRINK_AMOUNT)
+Constant.BARREL_DRINK_THIRST       = ConfigRepository.getNumber(ConfigKeys.BARREL_DRINK_THIRST)
+Constant.BARREL_WASH_UNIT_AMOUNT   = ConfigRepository.getNumber(ConfigKeys.BARREL_WASH_UNIT_AMOUNT)
 
 -- Delegated to TransferConfig.
 Constant.TRANSFER_ACTION_TIME_MULTIPLIER = TransferConfig.ACTION_TIME_MULTIPLIER
@@ -90,7 +92,6 @@ Constant.BARREL_SPAWN_PROFILE = {
 Constant.BARREL_TILE_CATEGORY = {
     INDUSTRIAL = "INDUSTRIAL",
     MILITARY = "MILITARY",
-    RURAL = "RURAL",
     CRAFTED = "CRAFTED",
 }
 
@@ -114,36 +115,10 @@ Constant.BARREL_TILE_NAME_TO_ICON_TILE_NAME = {
 }
 
 Constant.BARREL_LIQUID_DISTRIBUTION = {
-    INDUSTRIAL = {
-        [Constant.LIQUID_TYPE.EMPTY] = 40,
-        [Constant.LIQUID_TYPE.WATER] = 15,
-        [Constant.LIQUID_TYPE.TAINTED_WATER] = 20,
-        [Constant.LIQUID_TYPE.GASOLINE] = 20,
-        [Constant.LIQUID_TYPE.BLEACH] = 5,
-    },
-    MILITARY = {
-        [Constant.LIQUID_TYPE.EMPTY] = 55,
-        [Constant.LIQUID_TYPE.GASOLINE] = 25,
-        [Constant.LIQUID_TYPE.WATER] = 10,
-        [Constant.LIQUID_TYPE.TAINTED_WATER] = 10,
-    },
-    RURAL = {
-        [Constant.LIQUID_TYPE.EMPTY] = 30,
-        [Constant.LIQUID_TYPE.WATER] = 45,
-        [Constant.LIQUID_TYPE.TAINTED_WATER] = 20,
-        [Constant.LIQUID_TYPE.GASOLINE] = 3,
-        [Constant.LIQUID_TYPE.BLEACH] = 2,
-    },
-    CRAFTED_WORLD = {
-        [Constant.LIQUID_TYPE.GASOLINE] = 30,
-        [Constant.LIQUID_TYPE.WATER] = 30,
-        [Constant.LIQUID_TYPE.TAINTED_WATER] = 20,
-        [Constant.LIQUID_TYPE.EMPTY] = 20,
-        [Constant.LIQUID_TYPE.BLEACH] = 0,
-    },
-    CRAFTED_PLAYER = {
-        [Constant.LIQUID_TYPE.EMPTY] = 100,
-    },
+    INDUSTRIAL = ConfigRepository.getLiquidDistribution("INDUSTRIAL", Constant.BARREL_SPAWN_PROFILE.WORLD),
+    MILITARY = ConfigRepository.getLiquidDistribution("MILITARY", Constant.BARREL_SPAWN_PROFILE.WORLD),
+    CRAFTED_WORLD = ConfigRepository.getLiquidDistribution("CRAFTED", Constant.BARREL_SPAWN_PROFILE.WORLD),
+    CRAFTED_PLAYER = ConfigRepository.getLiquidDistribution("CRAFTED", Constant.BARREL_SPAWN_PROFILE.PLAYER_CRAFTED),
 }
 
 -----------------------------------

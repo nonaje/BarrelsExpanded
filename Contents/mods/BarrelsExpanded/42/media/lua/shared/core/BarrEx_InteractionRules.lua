@@ -15,6 +15,7 @@ local InteractionRules = {}
 ---@return boolean
 function InteractionRules.playerHasRequiredTool(player, requiredItems)
     if not player then return false end
+    if type(requiredItems) ~= "table" or #requiredItems == 0 then return true end
 
     local inventory = player:getInventory()
     if not inventory then return false end

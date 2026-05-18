@@ -49,6 +49,10 @@ function PlayerUtils.getRequiredItemStatus(player, requiredItems)
 
     local foundItems = {}
     local missingItems = {}
+    if #requiredItems == 0 then
+        return true, foundItems, missingItems
+    end
+
     local foundCount = 0
     local inventory = player:getInventory()
     if not inventory then
