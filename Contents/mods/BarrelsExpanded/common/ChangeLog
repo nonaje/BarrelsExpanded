@@ -1,3 +1,6 @@
+Version 1.0.5
+- Added explicit liquid-transfer compatibility for DamnLib/USMIL gas and water cans.
+
 Version 1.0.4
 - Improved context menu icon consistency for alternate barrel tile sprites.
 - Added the clicked barrel's normalized icon to the Barrel context menu option.

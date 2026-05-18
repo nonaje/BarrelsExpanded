@@ -131,10 +131,47 @@ local VANILLA_FLUID_COMPATIBLE_CONTAINERS = {
     ["Base.WineScrewtop"]               = true,
 }
 
+local DAMNLIB_COMPATIBLE_CONTAINERS = {
+    GASOLINE = {
+        ["USMIL.GasCan0"] = true,
+    },
+    WATER = {
+        ["USMIL.WaterCan0"] = true,
+    },
+    TAINTED_WATER = {
+        ["USMIL.WaterCan0"] = true,
+    },
+}
+
+local function mergeContainerSets(baseContainers, extraContainers)
+    local merged = {}
+
+    for fullType, enabled in pairs(baseContainers) do
+        merged[fullType] = enabled
+    end
+
+    if type(extraContainers) == "table" then
+        for fullType, enabled in pairs(extraContainers) do
+            merged[fullType] = enabled
+        end
+    end
+
+    return merged
+end
+
 LiquidConfig.COMPATIBLE_CONTAINERS = {
-    GASOLINE = VANILLA_FLUID_COMPATIBLE_CONTAINERS,
-    WATER = VANILLA_FLUID_COMPATIBLE_CONTAINERS,
-    TAINTED_WATER = VANILLA_FLUID_COMPATIBLE_CONTAINERS,
+    GASOLINE = mergeContainerSets(
+        VANILLA_FLUID_COMPATIBLE_CONTAINERS,
+        DAMNLIB_COMPATIBLE_CONTAINERS.GASOLINE
+    ),
+    WATER = mergeContainerSets(
+        VANILLA_FLUID_COMPATIBLE_CONTAINERS,
+        DAMNLIB_COMPATIBLE_CONTAINERS.WATER
+    ),
+    TAINTED_WATER = mergeContainerSets(
+        VANILLA_FLUID_COMPATIBLE_CONTAINERS,
+        DAMNLIB_COMPATIBLE_CONTAINERS.TAINTED_WATER
+    ),
     BLEACH = {
         ["Base.Bleach"]          = true,
         ["Base.CleaningLiquid2"] = true,

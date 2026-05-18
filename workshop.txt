@@ -43,6 +43,7 @@ description=
 description=[list]
 description=[*] [b]Game Version:[/b] Project Zomboid Build 42.
 description=[*] [b]Supported Modes:[/b] Singleplayer and Multiplayer (Both client and server must enable the mod).
+description=[*] [b]Optional Mod Support:[/b] DamnLib/USMIL military gas and water cans work with barrel liquid transfers.
 description=[*] [b]Safe Install:[/b] Fully compatible with ongoing games.
 description=[/list]
 description=
