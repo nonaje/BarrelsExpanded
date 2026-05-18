@@ -1,18 +1,18 @@
-﻿# Barrels Expanded [MP + SP]
+# Barrels Expanded [MP + SP]
 
 ![Barrels Expanded](preview.png)
 
-> A Project Zomboid mod that brings the world's barrels to life, giving them randomized contents, persistent state, and interactive gameplay for both singleplayer and multiplayer.
+> A Project Zomboid Build 42 mod that turns world barrels into useful survival resources with randomized contents, persistent state, and interactive gameplay for singleplayer and multiplayer.
 
 ---
 
 ## Why was it created?
 
-Project Zomboid's world is packed with industrial and military barrels, but they are usually static decorations. You could see them and walk past them, but not interact with them in a meaningful way.
+Project Zomboid's world is packed with industrial and military barrels, but most of them are just scenery. You can walk past them, build around them, or ignore them, but they rarely matter.
 
-**Barrels Expanded** was created to fix that. The idea is simple: barrels should feel like part of the world. Maybe one holds gasoline left behind by a worker. Maybe another contains rainwater collected in an old military camp. You do not know until you open it.
+**Barrels Expanded** changes that. Barrels can become emergency water, fuel reserves, cleaning supplies, or empty containers waiting to be used at your base. You do not know what is inside until you open one.
 
-The goal is to add depth and unpredictability to exploration without overhauling the game.
+The goal is to make exploration more rewarding without turning the game into something else.
 
 ---
 
@@ -21,91 +21,89 @@ The goal is to add depth and unpredictability to exploration without overhauling
 The mod adds interactive behavior to existing vanilla world barrels. You can:
 
 - Open and inspect barrels.
-- Drink from them (when the liquid is drinkable).
-- Wash yourself or clothing with barrel water.
-- Pour liquid into barrels.
-- Extract liquid from barrels.
-- Empty barrels.
+- Drink from water barrels when the liquid is drinkable.
+- Wash yourself, clothing, and washable items with barrel water.
+- Pour compatible liquids into barrels.
+- Fill compatible containers from barrels.
+- Empty barrels progressively when you want to clean them out or change their contents.
+- Pick up, move, and place opened barrels while preserving their contents and weight.
 
 Barrel contents are revealed the first time a barrel is opened:
 
-- Liquid type: Water, Tainted Water, Gasoline, or Bleach.
-- Amount: between 1 and 160 units.
+- Liquid type: Water, Tainted Water, Gasoline, Bleach, or Empty.
+- Amount: between 1 and 160 units when liquid is present.
 
-Once generated, state is saved in world data and shared in multiplayer.
-
----
-
-## How does it work?
-
-The mod follows a client-server architecture:
-
-1. **Detection:** The context menu detects supported barrel tiles and shows a Barrel submenu.
-2. **Request:** The client sends the requested action to the server.
-3. **Validation:** The server validates range, tools, item identity, and liquid compatibility.
-4. **Mutation:** The server applies real state changes (drink/wash/transfer/empty).
-5. **Sync:** The server updates clients through `transmitModData()` and network messages.
-6. **Persistence:** Barrel data survives saves and server restarts.
+Once generated, barrel state is saved in the world and shared in multiplayer.
 
 ---
 
 ## Existing Features
 
 1. **Open barrel** with one required tool: Crowbar, Forged Crowbar, Screwdriver, Pipe Wrench, or Sheet Metal Snips.
-2. **Inspect barrel info** via context tooltips (liquid type, fill level, requirements, disabled reasons).
-3. **Drink from barrel** (Water and Tainted Water).
+2. **Inspect barrel info** through the Barrel context menu: liquid type, fill level, requirements, item icons, and disabled reasons.
+3. **Drink from barrel** when it contains Water or Tainted Water.
 4. **Wash from barrel**:
-   - Wash yourself.
-   - Wash clothing and washable items.
-   - Soap is optional, but changes wash speed.
-5. **Pour into barrel** from compatible inventory containers (requires Funnel).
-6. **Extract from barrel** into compatible inventory containers (requires Rubber Hose).
-7. **Empty barrel** completely.
-8. **Randomized first-open content** based on barrel tile category.
-9. **Persistent state** stored in `modData`.
-10. **Server-authoritative multiplayer** with transfer locks to avoid overlap on the same barrel.
-11. **Dynamic barrel weight** based on liquid type and amount.
-12. **Pickup/place sync** that preserves opened barrel contents, ID, and weight.
+   - Wash your character.
+   - Wash clothing and washable inventory items.
+   - Clean compatible bandage-like items when the water is safe.
+   - Soap is optional, but affects wash speed/cleaning behavior.
+5. **Pour into barrel** from compatible inventory containers, requiring a Funnel.
+6. **Fill containers from barrel** using compatible inventory containers, requiring a Rubber Hose.
+7. **Fill all / grouped fill menu** with vanilla-style container grouping.
+8. **Progressive emptying** that drains liquid during the timed action; interrupted actions keep the amount already drained.
+9. **Randomized first-open content** based on barrel tile category.
+10. **Persistent barrel state** that survives saves, reloads, pickup/place, and server restarts.
+11. **Server-safe multiplayer behavior** with protection against overlapping use of the same barrel.
+12. **Dynamic barrel weight** based on liquid type and amount.
 13. **Singleplayer and multiplayer support**.
+14. **Optional mod compatibility** for DamnLib/USMIL military gas and water cans in barrel liquid transfers.
+15. **Current translations**: English, Spanish, and Argentinian Spanish.
 
 ### Gameplay Data
 
 | Category | Current State |
 |---|---|
-| Liquid types | Water, Tainted Water, Gasoline, Bleach |
+| Liquid types | Water, Tainted Water, Gasoline, Bleach, Empty |
 | Barrel capacity | 160 units |
 | Drink amount | 0.12 units per drink action |
 | Wash unit cost | 1 unit per washed body/item segment |
 | Supported barrel tiles | Industrial, military, and crafted barrel tiles |
+| Transfer tools | Funnel for pouring in, Rubber Hose for filling containers |
 
 ---
 
 ## Planned Features
 
-- [ ] **Separate lid workflow**: staged interaction (remove lid vs open/inspect).
-- [ ] **Barrel condition system**: rust/damage affecting reliability and quality.
-- [ ] **Sandbox configuration options**: spawn profiles, capacity rules, behavior tuning.
-- [ ] **Extended liquid ecosystem**: more liquid types with balanced compatibility.
+These are ideas for future versions, not current features:
 
----
-
-## Future Ideas
-
-- Refuel generators from gasoline barrels.
-- Refuel vehicles from gasoline barrels.
-- Transfer liquid between barrels.
-- Drain vehicle fuel into barrels.
-- Add barrel labels/ownership markers for multiplayer organization.
-- Add water treatment interactions (for example, filtering tainted water through gameplay steps).
+- **Fuel logistics**: refuel generators or vehicles from gasoline barrels.
+- **Barrel-to-barrel transfer**: organize supplies between base storage barrels.
+- **Barrel labels or ownership markers**: easier multiplayer base organization.
+- **Sandbox options**: tune rarity, capacity, spawn profiles, tool requirements, and behavior.
+- **Barrel condition system**: rust, damage, leaks, contamination, or reliability risks.
+- **Water treatment interactions**: gameplay steps for making tainted water safer.
 
 ---
 
 ## Compatibility
 
-- **Game version:** Build 42
-- **Multiplayer:** Fully supported
-- **Singleplayer:** Fully supported
-- **Server-side only:** Not supported (client mod required)
+- **Game version:** Project Zomboid Build 42
+- **Multiplayer:** Supported
+- **Singleplayer:** Supported
+- **Server-side only:** Not supported; the mod must be enabled on clients too
+- **Safe install:** Designed to work with ongoing saves; always back up saves before adding or removing mods
+
+---
+
+## Translations
+
+Current translations:
+
+- English
+- Spanish
+- Argentinian Spanish
+
+Community translation help is welcome. If you want to help translate Barrels Expanded into another language or improve an existing translation, contributions and suggestions are appreciated.
 
 ---
 
