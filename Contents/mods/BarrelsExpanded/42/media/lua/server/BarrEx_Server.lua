@@ -13,6 +13,7 @@ local TransferService    = require("BarrEx_TransferService")
 local BarrelWorldService = require("BarrEx_BarrelWorldService")
 local BarrelActionService = require("BarrEx_BarrelActionService")
 local BarrelStateService = require("BarrEx_BarrelStateService")
+local AdminBarrelService = require("BarrEx_AdminBarrelService")
 local MoveableSync       = require("BarrEx_MoveableSync")
 
 local function hasTransferId(args)
@@ -135,6 +136,11 @@ local function onClientCommand(module, command, player, args)
 
     if command == Constant.NETWORK.EMPTY_BARREL then
         BarrelActionService.empty(player, args)
+        return
+    end
+
+    if command == Constant.NETWORK.ADMIN_BARREL_ACTION then
+        AdminBarrelService.handle(player, args)
         return
     end
 

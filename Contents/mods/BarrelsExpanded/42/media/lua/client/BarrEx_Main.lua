@@ -3,6 +3,7 @@ local BarrEx_MoveableSync = require("BarrEx_MoveableSync")
 local BarrEx_TransferSync = require("BarrEx_TransferSync")
 local BarrEx_OpenActionSync = require("BarrEx_OpenActionSync")
 local BarrEx_BarrelStateClient = require("BarrEx_BarrelStateClient")
+local AdminBarrelActions = require("context/BarrEx_AdminBarrelActions")
 local InventoryUtils = require("utils/BarrEx_InventoryUtils")
 local Logger = require("utils/BarrEx_Logger")
 
@@ -279,8 +280,10 @@ local function onServerCommand(module, command, args)
     if command == Constant.NETWORK.BARREL_ACTION_RESULT then
         BarrEx_BarrelStateClient.onActionResult(args)
         BarrEx_OpenActionSync.onActionResult(args)
+        local adminHandled = AdminBarrelActions.onActionResult(args)
 
         if type(args) == "table" and args.accepted == true then
+            if adminHandled then return end
             refreshWashVisuals(args)
             log(string.format(
                 "Barrel action accepted by server: action=%s barrel=%s revision=%s",
@@ -291,6 +294,7 @@ local function onServerCommand(module, command, args)
             return
         end
 
+        if adminHandled then return end
         local reason = type(args) == "table" and args.reason or "unknown"
         showPlayerMessage(getRejectionMessage(reason))
         return

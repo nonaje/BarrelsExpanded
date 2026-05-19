@@ -9,6 +9,7 @@ local Tooltips = require("context/BarrEx_ContextMenuTooltips")
 local Inventory = require("context/BarrEx_ContextMenuInventory")
 local Availability = require("context/BarrEx_ContextMenuAvailability")
 local Actions = require("context/BarrEx_ContextMenuActions")
+local AdminBarrelActions = require("context/BarrEx_AdminBarrelActions")
 local BarrelStateClient = require("BarrEx_BarrelStateClient")
 
 local ContextMenu = {}
@@ -256,7 +257,8 @@ end
 
 ---@param context ISContextMenu
 ---@param barrel IsoObject
-local function addSyncingSubMenu(context, barrel)
+---@param player IsoPlayer
+local function addSyncingSubMenu(context, barrel, player)
     local barrelOption = context:addOption(Text.translate(ContextConfig.CONTEXT_MENU.BARREL), nil, nil)
     Tooltips.attachWorldObjectIcon(barrelOption, barrel)
 
@@ -265,6 +267,8 @@ local function addSyncingSubMenu(context, barrel)
 
     local syncingOption = subMenu:addOption(Text.translate(ContextConfig.CONTEXT_MENU.SYNCING), nil, nil)
     syncingOption.notAvailable = true
+
+    AdminBarrelActions.addSubMenu(subMenu, barrel, player)
 end
 
 local function getWorldObject(value)
@@ -354,6 +358,7 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData or not barrelData:isRevealed() then
         addOpenBarrelOption(subMenu, barrel, player, canOpen, foundItems, missingItems, inRange)
+        AdminBarrelActions.addSubMenu(subMenu, barrel, player)
         return
     end
 
@@ -364,6 +369,7 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     addDrinkOption(subMenu, barrel, player, availability)
     addWashOption(subMenu, barrel, player, availability)
     addEmptyOption(subMenu, barrel, player, availability)
+    AdminBarrelActions.addSubMenu(subMenu, barrel, player)
 end
 
 ---@param playerIndex integer
@@ -388,7 +394,7 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
     local barrelData = BarrEx_BarrelData.get(barrel)
     if not barrelData or not barrelData.id or barrelData.revision == nil then
         BarrelStateClient.requestStateForBarrel(barrel, "context")
-        addSyncingSubMenu(context, barrel)
+        addSyncingSubMenu(context, barrel, player)
         return
     end
 

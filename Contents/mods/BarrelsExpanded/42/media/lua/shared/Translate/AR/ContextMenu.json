@@ -20,5 +20,13 @@
   "ContextMenu_BarrEx_FallbackYourself": "A vos mismo",
   "ContextMenu_BarrEx_FallbackWashAllClothing": "Toda la ropa",
   "ContextMenu_BarrEx_FallbackEmpty": "Vaciar",
-  "ContextMenu_BarrEx_FallbackInfo": "Información del barril"
+  "ContextMenu_BarrEx_FallbackInfo": "Información del barril",
+  "ContextMenu_BarrEx_AdminDebug": "Admin / Debug",
+  "ContextMenu_BarrEx_AdminInspect": "Inspeccionar / registrar snapshot",
+  "ContextMenu_BarrEx_AdminRepair": "Reparar / reconciliar",
+  "ContextMenu_BarrEx_AdminRevealInit": "Revelar / inicializar",
+  "ContextMenu_BarrEx_AdminEmpty": "Vaciar barril",
+  "ContextMenu_BarrEx_AdminSetLiquid": "Setear líquido",
+  "ContextMenu_BarrEx_AdminReroll": "Regenerar loot",
+  "ContextMenu_BarrEx_AdminFillPercent": "%1%"
 }

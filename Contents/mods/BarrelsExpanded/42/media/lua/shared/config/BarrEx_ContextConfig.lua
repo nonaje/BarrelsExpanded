@@ -22,6 +22,14 @@ ContextConfig.CONTEXT_MENU = {
     FALLBACK_WASH_ALL_CLOTHING = "ContextMenu_BarrEx_FallbackWashAllClothing",
     FALLBACK_EMPTY = "ContextMenu_BarrEx_FallbackEmpty",
     FALLBACK_INFO = "ContextMenu_BarrEx_FallbackInfo",
+    ADMIN_DEBUG = "ContextMenu_BarrEx_AdminDebug",
+    ADMIN_INSPECT = "ContextMenu_BarrEx_AdminInspect",
+    ADMIN_REPAIR = "ContextMenu_BarrEx_AdminRepair",
+    ADMIN_REVEAL_INIT = "ContextMenu_BarrEx_AdminRevealInit",
+    ADMIN_EMPTY = "ContextMenu_BarrEx_AdminEmpty",
+    ADMIN_SET_LIQUID = "ContextMenu_BarrEx_AdminSetLiquid",
+    ADMIN_REROLL = "ContextMenu_BarrEx_AdminReroll",
+    ADMIN_FILL_PERCENT = "ContextMenu_BarrEx_AdminFillPercent",
 }
 
 ContextConfig.TOOLTIP = {

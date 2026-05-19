@@ -36,9 +36,19 @@ Constant.NETWORK = {
     DRINK_FROM_BARREL = "drinkFromBarrel",
     WASH_FROM_BARREL = "washFromBarrel",
     EMPTY_BARREL = "emptyBarrel",
+    ADMIN_BARREL_ACTION = "adminBarrelAction",
     REQUEST_BARREL_STATE = "requestBarrelState",
     BARREL_STATE = "barrelState",
     BARREL_ACTION_RESULT = "barrelActionResult",
+}
+
+Constant.ADMIN_BARREL_OPERATION = {
+    INSPECT = "inspect",
+    REPAIR = "repair",
+    REVEAL = "reveal",
+    EMPTY = "empty",
+    SET_LIQUID = "set_liquid",
+    REROLL = "reroll",
 }
 
 Constant.MODDATA_KEYS = {

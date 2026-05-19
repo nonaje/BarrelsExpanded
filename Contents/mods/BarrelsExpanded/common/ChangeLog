@@ -1,3 +1,6 @@
+Version 1.0.8
+- Added admin/debug barrel context tools for authorized users to inspect, repair, initialize, empty, set liquid, and reroll clicked barrels.
+
 Version 1.0.7
 - Hardened Sandbox tool-list parsing, transfer tool validation, and barrel loot distribution handling.
 
