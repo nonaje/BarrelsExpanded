@@ -15,7 +15,7 @@ By submitting a pull request or contribution, you confirm that:
 - The contribution is your own work, or you have permission to submit it.
 - The contribution does not include copied code or assets from Project Zomboid, The Indie Stone, other mods, or third parties unless explicitly permitted.
 - The contribution may be incorporated into Barrels Expanded.
-- You grant the project author the right to use, modify, publish, distribute, and sublicense your contribution as part of the mod.
+- You agree that your contribution will be licensed under the same license as the project (see [LICENSE](LICENSE)).
 
 Please do not submit:
 
