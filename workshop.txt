@@ -91,6 +91,17 @@ description=This project was born after discovering [url=https://steamcommunity.
 description=
 description=[hr][/hr]
 description=
+description=[h1]🤝 Contributing[/h1]
+description=
+description=You can help Barrels Expanded by opening bug reports, suggesting improvements, testing multiplayer behavior, improving translations, updating documentation, or sending pull requests.
+description=
+description=Pull requests are welcome through the GitHub repository:
+description=[url=https://github.com/nonaje/BarrelsExpanded]https://github.com/nonaje/BarrelsExpanded[/url]
+description=
+description=Please do not submit copied Project Zomboid code, copied game assets, copied content from other mods, malicious code, obfuscated code, or large rewrites without opening an issue first.
+description=
+description=[hr][/hr]
+description=
 description=[h1]📋 Mod Info[/h1]
 description=[list]
 description=[*] [b]Workshop ID:[/b] 3727387302
