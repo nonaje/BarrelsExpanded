@@ -177,7 +177,7 @@ end
 
 --- Returns the timed-action duration in ticks for a transfer of `amount` units.
 --- Gasoline mirrors the vehicle radial-menu actions: adding fuel moves faster
---- than siphoning, and both advance by whole units in sync with the animation.
+--- than siphoning while preserving the same progress-driven transfer duration.
 ---@param amount number|nil
 ---@param mode string|nil
 ---@param liquidType string|nil

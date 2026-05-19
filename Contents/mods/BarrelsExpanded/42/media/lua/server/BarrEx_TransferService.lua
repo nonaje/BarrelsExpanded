@@ -701,6 +701,11 @@ end
 local function applyPendingProgress(playerKey, transfer, forceClose)
     if not playerKey or not transfer then return false end
 
+    if LockService.isLockedBy(transfer.barrelKey) ~= playerKey then
+        stopByKey(playerKey, transfer, "barrel_lock_lost", true)
+        return true
+    end
+
     local pendingProgress = clamp01(transfer.pendingClientProgress or transfer.clientProgress)
     local appliedProgress = clamp01(transfer.appliedProgress)
     if forceClose == true then
