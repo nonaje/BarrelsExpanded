@@ -864,7 +864,8 @@ function TransferService.onTick()
                     transfer.remainingAmount or 0,
                     math.max(targetMovedAmount - (transfer.movedAmount or 0), 0)
                 )
-                if requestedAmount > TRANSFER_EPSILON then
+                -- Emptying is intentionally unit-stepped; pour/extract keep proportional fluid deltas.
+                if requestedAmount > TRANSFER_EPSILON and transfer.mode == "empty" then
                     local wholeUnits = math.floor(requestedAmount)
                     if wholeUnits >= 1 then
                         requestedAmount = 1
