@@ -127,6 +127,14 @@ local function isWaitingForClientProgress(transfer)
     return clamp01(transfer.pendingClientProgress or transfer.clientProgress) < 1
 end
 
+local function hasPendingProgress(transfer)
+    if not transfer then return false end
+
+    local pendingProgress = clamp01(transfer.pendingClientProgress or transfer.clientProgress)
+    local appliedProgress = clamp01(transfer.appliedProgress)
+    return pendingProgress > appliedProgress + TRANSFER_EPSILON
+end
+
 local function isClientProgressStale(transfer)
     local staleTicks = math.max(tonumber(Constant.SERVER_TRANSFER_STALE_TICKS) or 0, 0)
     if staleTicks <= 0 or not isWaitingForClientProgress(transfer) then
@@ -165,10 +173,10 @@ local function itemFullTypeMatches(item, itemFullType)
     return item:getFullType() == itemFullType
 end
 
-local function inventoryContainsCachedItem(player, item)
+local function inventoryContainsCachedItem(player, item, inventory)
     if not player or not item or type(item.getID) ~= "function" then return false end
 
-    local inventory = player:getInventory()
+    inventory = inventory or player:getInventory()
     if not inventory then return false end
 
     if type(inventory.containsID) == "function" then
@@ -555,7 +563,7 @@ local function resolveActiveItem(transfer, missingReason)
     if item
         and itemIdMatches(item, transfer.itemId)
         and itemFullTypeMatches(item, transfer.itemFullType)
-        and inventoryContainsCachedItem(transfer.player, item)
+        and inventoryContainsCachedItem(transfer.player, item, transfer.inventory)
     then
         return item, nil
     end
@@ -914,6 +922,7 @@ function TransferService.start(player, mode, args)
         barrelId        = barrelData.id,
         lastBarrel      = barrel,
         barrelData      = barrelData,
+        inventory       = mode ~= "empty" and player:getInventory() or nil,
         item            = item,
         itemId          = mode ~= "empty" and (item and item:getID() or args.itemId) or nil,
         itemFullType    = mode ~= "empty" and (item and item:getFullType() or args.itemFullType) or nil,
@@ -976,8 +985,14 @@ function TransferService.updateProgress(player, args)
     if not transferMatches(transfer, args.mode, args.transferId) then return end
 
     local progress = clamp01(args.progress)
+    local previousPendingProgress = tonumber(transfer.pendingClientProgress) or 0
     transfer.clientProgress = math.max(tonumber(transfer.clientProgress) or 0, progress)
-    transfer.pendingClientProgress = math.max(tonumber(transfer.pendingClientProgress) or 0, progress)
+    if progress > previousPendingProgress then
+        transfer.pendingClientProgress = progress
+        if progress > (tonumber(transfer.appliedProgress) or 0) + TRANSFER_EPSILON then
+            transfer.ticksUntilStep = 0
+        end
+    end
     transfer.ticksSinceClientProgress = 0
 end
 
@@ -1090,12 +1105,9 @@ function TransferService.onTick()
     for playerKey, transfer in pairs(activeTransfers) do
         transfer.serverTicksElapsed = (transfer.serverTicksElapsed or 0) + 1
 
-        -- Abort if lock was taken by another player between steps.
-        if LockService.isLockedBy(transfer.barrelKey) ~= playerKey then
-            stopByKey(playerKey, transfer, "barrel_lock_lost", true)
-        elseif isClientProgressStale(transfer) then
+        if isClientProgressStale(transfer) then
             stopByKey(playerKey, transfer, "client_progress_timeout", true)
-        else
+        elseif hasPendingProgress(transfer) then
             transfer.ticksUntilStep = (transfer.ticksUntilStep or transfer.tickInterval or 1) - 1
 
             if transfer.ticksUntilStep <= 0 then

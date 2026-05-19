@@ -1,5 +1,5 @@
 Version 1.0.11
-- Continuous improvements to reduce server load when transferring liquids between containers, improving the user experience.
+- Reduced server tick work for multiplayer liquid transfers by only applying pending progress when pour, extract, or empty actions have new client progress to process.
 
 Version 1.0.10
 - Improved multiplayer pour, extract, and empty progress so server-side liquid movement follows the active animation and closes without post-animation draining.
