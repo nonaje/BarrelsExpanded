@@ -97,6 +97,20 @@ end
 
 ---@param barrel IsoObject
 ---@param player IsoPlayer
+---@param sourceItems table<integer, InventoryItem>
+function Actions.onPourAllIntoBarrel(barrel, player, sourceItems)
+    if not barrel or not player or not sourceItems then return end
+
+    for i = 1, #sourceItems do
+        local item = sourceItems[i]
+        if item then
+            queuePourAction(barrel, player, item)
+        end
+    end
+end
+
+---@param barrel IsoObject
+---@param player IsoPlayer
 ---@param targetItem InventoryItem
 function Actions.onExtractFromBarrel(barrel, player, targetItem)
     if not barrel or not player or not targetItem then return end

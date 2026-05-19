@@ -7,6 +7,7 @@
   "ContextMenu_BarrEx_BarrelInfo": "Barrel Info",
   "ContextMenu_BarrEx_RemoveCover": "Remove Cover",
   "ContextMenu_BarrEx_Pour": "Pour",
+  "ContextMenu_BarrEx_PourAll": "Pour all",
   "ContextMenu_BarrEx_Extract": "Extract Liquid",
   "ContextMenu_BarrEx_InfoPercent": "%1  %2%",
   "ContextMenu_BarrEx_GroupedContainer": "%1 (%2)",

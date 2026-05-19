@@ -48,6 +48,10 @@ local function addPourContainerSubMenu(parentMenu, parentOption, sourceItems, ba
     local itemMenu = parentMenu:getNew(parentMenu)
     parentMenu:addSubMenu(parentOption, itemMenu)
 
+    if #sourceItems > 1 then
+        itemMenu:addOption(Text.translate(ContextConfig.CONTEXT_MENU.POUR_ALL), barrel, Actions.onPourAllIntoBarrel, player, sourceItems)
+    end
+
     for i = 1, #sourceItems do
         local item = sourceItems[i]
         local liquidType = LiquidAdapter.getLiquidType(item)

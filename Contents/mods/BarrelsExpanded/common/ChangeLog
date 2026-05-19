@@ -1,5 +1,6 @@
 Version 1.0.9
 - Fixed pour/extract transfers so a full action moves the full proportional liquid amount instead of one unit per server step.
+- Added a Pour all barrel menu option that queues normal pour actions for each compatible source container.
 
 Version 1.0.8
 - Added admin/debug barrel context tools for authorized users to inspect, repair, initialize, empty, set liquid, and reroll clicked barrels.

@@ -8,6 +8,7 @@ ContextConfig.CONTEXT_MENU = {
     BARREL_INFO = "ContextMenu_BarrEx_BarrelInfo",
     REMOVE_THE_COVER = "ContextMenu_BarrEx_RemoveCover",
     POUR = "ContextMenu_BarrEx_Pour",
+    POUR_ALL = "ContextMenu_BarrEx_PourAll",
     EXTRACT = "ContextMenu_BarrEx_Extract",
     INFO_PERCENT = "ContextMenu_BarrEx_InfoPercent",
     GROUPED_CONTAINER = "ContextMenu_BarrEx_GroupedContainer",
