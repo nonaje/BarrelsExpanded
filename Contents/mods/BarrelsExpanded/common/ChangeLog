@@ -1,3 +1,6 @@
+Version 1.0.10
+- Improved multiplayer pour, extract, and empty progress so server-side liquid movement follows the active animation and closes without post-animation draining.
+
 Version 1.0.9
 - Fixed pour/extract transfers so a full action moves the full proportional liquid amount instead of one unit per server step.
 - Added a Pour all barrel menu option that queues normal pour actions for each compatible source container.

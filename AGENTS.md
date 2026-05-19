@@ -107,6 +107,10 @@ end
 
 - `start` de transferencia debe exigir `transferId`, barril resoluble, item resoluble, herramienta/rango validos y lock largo adquirido.
 - El vaciado progresivo usa el mismo lifecycle largo con `mode="empty"` y `transferId`, pero no requiere item resoluble.
+- Las transferencias largas (`pour`, `extract`, `empty`) avanzan por progreso cliente monotonicamente reportado: `update` solo registra `pendingClientProgress` y no muta mundo.
+- El servidor aplica deltas desde `appliedProgress` hacia `pendingClientProgress`, calculando cantidad desde `totalAmount`; el cliente nunca manda cantidades.
+- `complete` debe elevar `pendingClientProgress` a `1`, aplicar el remanente validado y cerrar la transferencia; no debe quedar drenaje/llenado post-animacion.
+- El contexto activo puede cachear `barrel`, `barrelData`, `item`, `liquidType`, `barrelId` e `itemId`, pero antes de cada mutacion debe revalidar lock, identidad y rango; si el cache falla, usa resolucion estricta.
 - `update`, `stop` y `complete` deben poder enviarse aunque el item ya no este resoluble en el inventario cliente; deben conservar `transferId`, `mode`, `barrelId`, `itemId` y el ultimo payload base conocido.
 - En `mode="empty"`, `update`, `stop` y `complete` deben conservar `transferId`, `mode`, `barrelId` y el ultimo payload base conocido.
 - La API publica de `BarrEx_TransferService.stop` y `BarrEx_TransferService.complete` nunca debe operar sin `transferId` explicito. Los cierres internos deben usar helpers internos como `stopActiveForPlayer(...)`.
