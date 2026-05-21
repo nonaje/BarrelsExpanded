@@ -472,4 +472,31 @@ function Tooltips.attachTransferTooltip(option, item, liquidType)
         :attach(option)
 end
 
+---@param option table|nil
+---@param sourceData BarrEx_Barrel|nil
+---@param targetData BarrEx_Barrel|nil
+function Tooltips.attachBarrelTransferTooltip(option, sourceData, targetData)
+    if not option or not sourceData or not targetData then return end
+
+    local amount = math.max(math.min(
+        tonumber(sourceData.amount) or 0,
+        targetData:getFreeCapacity()
+    ), 0)
+
+    Tooltips.newBuilder()
+        :keyValue(
+            Text.translate(ContextConfig.TOOLTIP.LIQUID),
+            Text.getLiquidDisplayName(sourceData.liquidType)
+        )
+        :keyValue(
+            Text.translate(ContextConfig.TOOLTIP.TRANSFER_AMOUNT),
+            Text.formatAmount(amount)
+        )
+        :keyValue(
+            Text.translate(ContextConfig.TOOLTIP.TARGET_BARREL),
+            Text.formatAmount(targetData.amount) .. "/" .. Text.formatAmount(targetData.capacity)
+        )
+        :attach(option)
+end
+
 return Tooltips

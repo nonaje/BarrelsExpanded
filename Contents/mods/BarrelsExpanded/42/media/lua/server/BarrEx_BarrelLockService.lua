@@ -7,6 +7,26 @@ local LockService = {}
 
 local byBarrel = {}
 
+local function normalizeKeys(barrelKeys)
+    local keys = {}
+    local seen = {}
+
+    if type(barrelKeys) ~= "table" then
+        return keys
+    end
+
+    for i = 1, #barrelKeys do
+        local key = barrelKeys[i]
+        if type(key) == "string" and key ~= "" and not seen[key] then
+            seen[key] = true
+            keys[#keys + 1] = key
+        end
+    end
+
+    table.sort(keys)
+    return keys
+end
+
 ---@param player IsoPlayer
 ---@return any|nil
 function LockService.getPlayerKey(player)
@@ -65,6 +85,35 @@ function LockService.acquire(playerKey, barrelKey, mode, actionId)
 end
 
 ---@param playerKey any
+---@param barrelKeys table<integer, string>
+---@param mode string
+---@param actionId string|number|nil
+---@return boolean
+---@return table|nil
+---@return string|nil
+function LockService.acquireMany(playerKey, barrelKeys, mode, actionId)
+    if not playerKey then return false, nil, nil end
+
+    local keys = normalizeKeys(barrelKeys)
+    if #keys == 0 then return false, nil, nil end
+
+    local acquired = {}
+    for i = 1, #keys do
+        local key = keys[i]
+        local ok, existing = LockService.acquire(playerKey, key, mode, actionId)
+        if not ok then
+            for j = 1, #acquired do
+                LockService.release(playerKey, acquired[j])
+            end
+            return false, existing, key
+        end
+        acquired[#acquired + 1] = key
+    end
+
+    return true, keys, nil
+end
+
+---@param playerKey any
 ---@param barrelKey string|nil
 function LockService.release(playerKey, barrelKey)
     if not barrelKey then return end
@@ -75,11 +124,38 @@ function LockService.release(playerKey, barrelKey)
     end
 end
 
+---@param playerKey any
+---@param barrelKeys table<integer, string>|nil
+function LockService.releaseMany(playerKey, barrelKeys)
+    local keys = normalizeKeys(barrelKeys)
+    for i = 1, #keys do
+        LockService.release(playerKey, keys[i])
+    end
+end
+
 ---@param barrelKey string|nil
 ---@return any|nil
 function LockService.isLockedBy(barrelKey)
     local existing = barrelKey and byBarrel[barrelKey] or nil
     return existing and existing.playerKey or nil
+end
+
+---@param playerKey any
+---@param barrelKeys table<integer, string>|nil
+---@return boolean
+function LockService.isLockedByAll(playerKey, barrelKeys)
+    if not playerKey then return false end
+
+    local keys = normalizeKeys(barrelKeys)
+    if #keys == 0 then return false end
+
+    for i = 1, #keys do
+        if LockService.isLockedBy(keys[i]) ~= playerKey then
+            return false
+        end
+    end
+
+    return true
 end
 
 ---@param barrelKey string|nil

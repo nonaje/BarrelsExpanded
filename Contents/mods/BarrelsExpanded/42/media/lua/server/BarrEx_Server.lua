@@ -101,6 +101,31 @@ local function onClientCommand(module, command, player, args)
         return
     end
 
+    if command == Constant.NETWORK.START_ENDPOINT_TRANSFER then
+        TransferService.start(player, type(args) == "table" and args.mode or "unknown", args)
+        return
+    end
+
+    if command == Constant.NETWORK.STOP_ENDPOINT_TRANSFER then
+        local mode = type(args) == "table" and args.mode or "unknown"
+        if not hasTransferId(args) then
+            TransferService.reject(player, mode, "missing_transfer_id", args)
+            return
+        end
+        TransferService.stop(player, mode, args and args.transferId, "client_stop")
+        return
+    end
+
+    if command == Constant.NETWORK.COMPLETE_ENDPOINT_TRANSFER then
+        local mode = type(args) == "table" and args.mode or "unknown"
+        if not hasTransferId(args) then
+            TransferService.reject(player, mode, "missing_transfer_id", args)
+            return
+        end
+        TransferService.complete(player, mode, args and args.transferId)
+        return
+    end
+
     if command == Constant.NETWORK.START_EXTRACT_FROM_BARREL then
         TransferService.start(player, "extract", args)
         return

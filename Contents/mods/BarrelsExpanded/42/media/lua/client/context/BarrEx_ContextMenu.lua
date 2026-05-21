@@ -4,6 +4,7 @@ local Constant = require("BarrEx_Constant")
 local ContextConfig = require("config/BarrEx_ContextConfig")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local TransferRules = require("core/BarrEx_TransferRules")
 local Text = require("context/BarrEx_ContextMenuText")
 local Tooltips = require("context/BarrEx_ContextMenuTooltips")
 local Inventory = require("context/BarrEx_ContextMenuInventory")
@@ -170,6 +171,106 @@ local function addFillOption(subMenu, barrel, player, availability)
     end
 
     Tooltips.attachFillRequirementsTooltip(fillOption, availability)
+end
+
+local function appendCompatibleTargetBarrel(found, seen, sourceBarrel, player, sourceData, targetBarrel)
+    if not targetBarrel or targetBarrel == sourceBarrel or seen[targetBarrel] then return end
+    if not PlayerUtils.isPlayerInRange(player, targetBarrel) then return end
+
+    local targetData = BarrEx_BarrelData.get(targetBarrel)
+
+    if not targetData then return end
+    if not TransferRules.canTransferBetweenBarrels(sourceData, targetData) then return end
+
+    seen[targetBarrel] = true
+    found[#found + 1] = {
+        barrel = targetBarrel,
+        data = targetData,
+    }
+end
+
+local function collectNearbyTransferTargets(sourceBarrel, player, sourceData)
+    local found = {}
+    local seen = {}
+    local sourceSquare = sourceBarrel and sourceBarrel:getSquare() or nil
+    if not sourceSquare or not sourceData then return found end
+
+    local cell = getCell()
+    if not cell then return found end
+
+    local radius = math.max(math.floor(tonumber(Constant.MAX_INTERACTION_DISTANCE) or 2), 1)
+    local sourceX = sourceSquare:getX()
+    local sourceY = sourceSquare:getY()
+    local sourceZ = sourceSquare:getZ()
+
+    for dx = -radius, radius do
+        for dy = -radius, radius do
+            local square = cell:getGridSquare(sourceX + dx, sourceY + dy, sourceZ)
+            local objects = square and square:getObjects() or nil
+            if objects then
+                for i = 0, objects:size() - 1 do
+                    local object = objects:get(i)
+                    if WorldUtils.isExpandableBarrel(object) then
+                        appendCompatibleTargetBarrel(found, seen, sourceBarrel, player, sourceData, object)
+                    end
+                end
+            end
+        end
+    end
+
+    table.sort(found, function(a, b)
+        local aData = a and a.data or nil
+        local bData = b and b.data or nil
+        local aAmount = tonumber(aData and aData.amount) or 0
+        local bAmount = tonumber(bData and bData.amount) or 0
+        return aAmount < bAmount
+    end)
+
+    return found
+end
+
+local function addBarrelTransferOption(subMenu, sourceBarrel, player, sourceData, inRange)
+    if not inRange then
+        local transferOption = subMenu:addOption(Text.translate(ContextConfig.CONTEXT_MENU.TRANSFER_TO_BARREL), nil, nil)
+        transferOption.notAvailable = true
+        Tooltips.attachTooFarTooltip(transferOption)
+        return
+    end
+
+    local targetBarrels = collectNearbyTransferTargets(sourceBarrel, player, sourceData)
+    local canTransfer = #targetBarrels > 0
+    local transferLabel = Text.translate(ContextConfig.CONTEXT_MENU.TRANSFER_TO_BARREL)
+    if canTransfer then
+        transferLabel = Text.withSubMenuShortcut(transferLabel)
+    end
+
+    local transferOption = subMenu:addOption(transferLabel, nil, nil)
+    transferOption.notAvailable = not canTransfer
+
+    if not canTransfer then
+        local reasonKey = sourceData and sourceData:isEmpty()
+            and ContextConfig.TOOLTIP.BARREL_EMPTY
+            or ContextConfig.TOOLTIP.NO_COMPATIBLE_BARREL
+        Tooltips.attachSimpleTooltip(transferOption, Text.translate(reasonKey))
+        return
+    end
+
+    local transferMenu = subMenu:getNew(subMenu)
+    subMenu:addSubMenu(transferOption, transferMenu)
+
+    for i = 1, #targetBarrels do
+        local target = targetBarrels[i]
+        local targetData = target.data
+        local option = transferMenu:addOption(
+            Text.buildBarrelTransferTargetLabel(targetData),
+            sourceBarrel,
+            Actions.onTransferToBarrel,
+            player,
+            target.barrel
+        )
+        Tooltips.attachWorldObjectIcon(option, target.barrel)
+        Tooltips.attachBarrelTransferTooltip(option, sourceData, targetData)
+    end
 end
 
 local function addDrinkOption(subMenu, barrel, player, availability)
@@ -367,13 +468,14 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     end
 
     local availability = Availability.build(player, barrelData, inRange)
+    AdminBarrelActions.addSubMenu(subMenu, barrel, player)
     addBarrelInfoOption(subMenu, barrelData)
     addFillOption(subMenu, barrel, player, availability)
     addPourOption(subMenu, barrel, player, barrelData, availability)
+    addBarrelTransferOption(subMenu, barrel, player, barrelData, inRange)
     addDrinkOption(subMenu, barrel, player, availability)
     addWashOption(subMenu, barrel, player, availability)
     addEmptyOption(subMenu, barrel, player, availability)
-    AdminBarrelActions.addSubMenu(subMenu, barrel, player)
 end
 
 ---@param playerIndex integer

@@ -21,6 +21,7 @@ local BarrelResolver    = require("BarrEx_BarrelResolver")
 local LockService       = require("BarrEx_BarrelLockService")
 local StateService      = require("BarrEx_BarrelStateService")
 local Notifier          = require("BarrEx_TransferNotifier")
+local EndpointResolver  = require("BarrEx_LiquidEndpointResolver")
 local Logger            = require("utils/BarrEx_Logger")
 
 local TransferService = {}
@@ -31,6 +32,7 @@ local activeTransfers = {}
 local closedTransfers = {}
 local CLOSED_TRANSFER_CACHE_LIMIT = 8
 local TRANSFER_EPSILON = 0.0001
+local BARREL_TO_BARREL_MODE = "barrel_to_barrel"
 
 local function log(message)
     Logger.info(message)
@@ -58,6 +60,10 @@ local function getPlayerName(player)
 end
 
 local function getTransferRevision(transfer)
+    if transfer and transfer.sourceEndpoint and transfer.sourceEndpoint.data then
+        return transfer.sourceEndpoint.data.revision or "unknown"
+    end
+
     local barrelData = transfer and transfer.lastBarrel and BarrEx_BarrelData.get(transfer.lastBarrel) or nil
     return barrelData and barrelData.revision or "unknown"
 end
@@ -72,6 +78,27 @@ local function buildNotifySource(args, barrel, barrelData)
         barrelId = (barrelData and barrelData.id) or args.barrelId,
         itemId = args.itemId,
         lastBarrel = barrel,
+    }
+end
+
+local function buildEndpointNotifySource(args, sourceEndpoint, targetEndpoint)
+    if type(args) ~= "table" then return nil end
+
+    local sourceSnapshot = EndpointResolver.snapshot(sourceEndpoint)
+    local targetSnapshot = EndpointResolver.snapshot(targetEndpoint)
+
+    return {
+        args = args,
+        transferId = args.transferId or args.actionId,
+        mode = args.mode or BARREL_TO_BARREL_MODE,
+        barrelId = sourceEndpoint and sourceEndpoint.barrelId or nil,
+        targetBarrelId = targetEndpoint and targetEndpoint.barrelId or nil,
+        lastBarrel = sourceEndpoint and sourceEndpoint.object or nil,
+        sourceEndpoint = sourceEndpoint,
+        targetEndpoint = targetEndpoint,
+        snapshot = sourceSnapshot,
+        sourceSnapshot = sourceSnapshot,
+        targetSnapshot = targetSnapshot,
     }
 end
 
@@ -112,10 +139,35 @@ end
 local function syncBarrel(transfer)
     if not transfer then return end
 
+    if transfer.sourceEndpoint or transfer.targetEndpoint then
+        EndpointResolver.sync(transfer.sourceEndpoint)
+        EndpointResolver.sync(transfer.targetEndpoint)
+        return
+    end
+
     local barrel = transfer.lastBarrel or BarrelResolver.getBarrelFromArgs(transfer.args)
     if barrel then
         barrel:transmitModData()
     end
+end
+
+local function releaseTransferLocks(playerKey, transfer)
+    if not transfer then return end
+    if transfer.lockKeys then
+        LockService.releaseMany(playerKey, transfer.lockKeys)
+        return
+    end
+
+    LockService.release(playerKey, transfer.barrelKey)
+end
+
+local function isTransferLockedBy(playerKey, transfer)
+    if not transfer then return false end
+    if transfer.lockKeys then
+        return LockService.isLockedByAll(playerKey, transfer.lockKeys)
+    end
+
+    return LockService.isLockedBy(transfer.barrelKey) == playerKey
 end
 
 local function isTransferCompleted(transfer)
@@ -228,7 +280,9 @@ local function cacheClosedTransfer(playerKey, transfer, reason, rejected, notifi
     if not playerKey or not transfer or not isValidTransferId(transfer.transferId) then return nil end
 
     local transferId = tostring(transfer.transferId)
-    local snapshot = transfer.snapshot or StateService.buildSnapshot(transfer.lastBarrel)
+    local sourceSnapshot = transfer.sourceSnapshot or EndpointResolver.snapshot(transfer.sourceEndpoint)
+    local targetSnapshot = transfer.targetSnapshot or EndpointResolver.snapshot(transfer.targetEndpoint)
+    local snapshot = transfer.snapshot or sourceSnapshot or StateService.buildSnapshot(transfer.lastBarrel)
     local closedTransfer = {
         player = transfer.player,
         transferId = transferId,
@@ -236,9 +290,12 @@ local function cacheClosedTransfer(playerKey, transfer, reason, rejected, notifi
         mode = transfer.mode,
         args = transfer.args,
         barrelId = transfer.barrelKey or (snapshot and snapshot.barrelId),
+        targetBarrelId = transfer.targetBarrelId or (targetSnapshot and targetSnapshot.barrelId),
         itemId = getTransferItemId(transfer),
         lastBarrel = transfer.lastBarrel,
         snapshot = snapshot,
+        sourceSnapshot = sourceSnapshot,
+        targetSnapshot = targetSnapshot,
         totalAmount = tonumber(transfer.totalAmount) or 0,
         movedAmount = tonumber(transfer.movedAmount) or 0,
         remainingAmount = tonumber(transfer.remainingAmount) or 0,
@@ -275,9 +332,7 @@ local function finishTransfer(playerKey, transfer, reason, notifyProgress)
         Notifier.progress(transfer.player, closedTransfer or transfer, true)
     end
 
-    if transfer then
-        LockService.release(playerKey, transfer.barrelKey)
-    end
+    releaseTransferLocks(playerKey, transfer)
     activeTransfers[playerKey] = nil
 
     log(string.format(
@@ -516,6 +571,128 @@ local function applyEmpty(barrel, barrelData, requestedAmount)
     return removed, nil, barrel
 end
 
+-- ---------------------------------------------------------------------------
+-- Endpoint transfer: validate + apply
+-- ---------------------------------------------------------------------------
+
+---@return table|nil, table|nil, string|nil, string|nil
+local function resolveEndpointTransfer(player, args)
+    if type(args) ~= "table" then
+        return nil, nil, nil, "invalid_args"
+    end
+
+    local sourceEndpoint, sourceReason = EndpointResolver.resolve(player, args.source)
+    if not sourceEndpoint then
+        return nil, nil, nil, sourceReason or "source_not_found"
+    end
+
+    local targetEndpoint, targetReason = EndpointResolver.resolve(player, args.target)
+    if not targetEndpoint then
+        return sourceEndpoint, nil, nil, targetReason or "target_not_found"
+    end
+
+    if sourceEndpoint.key == targetEndpoint.key then
+        return sourceEndpoint, targetEndpoint, nil, "same_endpoint"
+    end
+
+    if not EndpointResolver.canProvide(sourceEndpoint) then
+        local sourceLiquidType = EndpointResolver.getLiquidType(sourceEndpoint)
+        if not sourceLiquidType or sourceLiquidType == Constant.LIQUID_TYPE.EMPTY then
+            return sourceEndpoint, targetEndpoint, nil, "source_liquid_missing"
+        end
+        return sourceEndpoint, targetEndpoint, nil, "source_cannot_provide"
+    end
+
+    local liquidType = EndpointResolver.getLiquidType(sourceEndpoint)
+    if not EndpointResolver.canReceive(targetEndpoint, liquidType) then
+        if targetEndpoint.data and targetEndpoint.data:isFull() then
+            return sourceEndpoint, targetEndpoint, liquidType, "barrel_full"
+        end
+        return sourceEndpoint, targetEndpoint, liquidType, "incompatible_liquid"
+    end
+
+    return sourceEndpoint, targetEndpoint, liquidType, nil
+end
+
+---@return table|nil, table|nil, string|nil, string|nil
+local function resolveActiveEndpointContext(transfer)
+    local sourceEndpoint, sourceReason = EndpointResolver.refresh(transfer.player, transfer.sourceEndpoint)
+    if not sourceEndpoint then
+        return nil, nil, nil, sourceReason or "source_not_found"
+    end
+
+    local targetEndpoint, targetReason = EndpointResolver.refresh(transfer.player, transfer.targetEndpoint)
+    if not targetEndpoint then
+        return sourceEndpoint, nil, nil, targetReason or "target_not_found"
+    end
+
+    if sourceEndpoint.key == targetEndpoint.key then
+        return sourceEndpoint, targetEndpoint, nil, "same_endpoint"
+    end
+
+    if not EndpointResolver.canProvide(sourceEndpoint) then
+        return sourceEndpoint, targetEndpoint, nil, "source_liquid_missing"
+    end
+
+    local liquidType = EndpointResolver.getLiquidType(sourceEndpoint)
+    if liquidType ~= transfer.liquidType then
+        return sourceEndpoint, targetEndpoint, nil, "incompatible_liquid"
+    end
+
+    if not EndpointResolver.canReceive(targetEndpoint, liquidType) then
+        if targetEndpoint.data and targetEndpoint.data:isFull() then
+            return sourceEndpoint, targetEndpoint, liquidType, "barrel_full"
+        end
+        return sourceEndpoint, targetEndpoint, liquidType, "incompatible_liquid"
+    end
+
+    return sourceEndpoint, targetEndpoint, liquidType, nil
+end
+
+---@return number, string|nil, IsoObject|nil
+local function applyEndpointTransfer(transfer, requestedAmount)
+    local sourceEndpoint, targetEndpoint, liquidType, reason = resolveActiveEndpointContext(transfer)
+    if reason then
+        return 0, reason, sourceEndpoint and sourceEndpoint.object or nil
+    end
+    if not sourceEndpoint or not targetEndpoint or not liquidType then
+        return 0, reason, sourceEndpoint and sourceEndpoint.object or nil
+    end
+
+    local available = EndpointResolver.getAmount(sourceEndpoint)
+    local freeCapacity = EndpointResolver.getFreeCapacity(targetEndpoint)
+    local transferAmount = math.max(math.min(available, freeCapacity, requestedAmount or math.huge), 0)
+
+    if transferAmount <= 0 then
+        return 0, "no_transferable_amount", sourceEndpoint.object
+    end
+
+    local removed = EndpointResolver.removeLiquid(sourceEndpoint, transferAmount)
+    if removed <= 0 then
+        return 0, "source_remove_failed", sourceEndpoint.object
+    end
+
+    local added = EndpointResolver.addLiquid(targetEndpoint, liquidType, removed)
+    if added <= 0 then
+        EndpointResolver.addLiquid(sourceEndpoint, liquidType, removed)
+        return 0, "target_add_failed", sourceEndpoint.object
+    end
+
+    local overflow = removed - added
+    if overflow > 0 then
+        EndpointResolver.addLiquid(sourceEndpoint, liquidType, overflow)
+    end
+
+    transfer.sourceEndpoint = sourceEndpoint
+    transfer.targetEndpoint = targetEndpoint
+    transfer.lastBarrel = sourceEndpoint.object
+    transfer.sourceSnapshot = EndpointResolver.persist(sourceEndpoint, true, false)
+    transfer.targetSnapshot = EndpointResolver.persist(targetEndpoint, true, false)
+    transfer.snapshot = transfer.sourceSnapshot
+
+    return added, nil, sourceEndpoint.object
+end
+
 local function resolveActiveBarrel(transfer)
     if not transfer then
         return nil, nil, "missing_transfer"
@@ -660,6 +837,10 @@ local function advance(transfer, requestedAmount)
         return 0, "missing_transfer", nil
     end
 
+    if transfer.mode == BARREL_TO_BARREL_MODE then
+        return applyEndpointTransfer(transfer, requestedAmount)
+    end
+
     local barrel, barrelData, item, liquidType, reason = resolveActiveContext(transfer)
     if not barrel or not barrelData or (transfer.mode ~= "empty" and not item) or not liquidType then
         return 0, reason, barrel
@@ -686,7 +867,7 @@ end
 local function stopByKey(playerKey, transfer, reason, notify)
     syncBarrel(transfer)
     local closedTransfer = cacheClosedTransfer(playerKey, transfer, reason or "step_failed", true, notify == true)
-    LockService.release(playerKey, transfer.barrelKey)
+    releaseTransferLocks(playerKey, transfer)
     activeTransfers[playerKey] = nil
 
     if notify and transfer and transfer.player then
@@ -709,7 +890,7 @@ end
 local function applyPendingProgress(playerKey, transfer, forceClose)
     if not playerKey or not transfer then return false end
 
-    if LockService.isLockedBy(transfer.barrelKey) ~= playerKey then
+    if not isTransferLockedBy(playerKey, transfer) then
         stopByKey(playerKey, transfer, "barrel_lock_lost", true)
         return true
     end
@@ -808,7 +989,7 @@ local function stopActiveForPlayer(playerKey, reason, notifyProgress)
         Notifier.progress(transfer.player, closedTransfer or transfer, true)
     end
 
-    LockService.release(playerKey, transfer.barrelKey)
+    releaseTransferLocks(playerKey, transfer)
     activeTransfers[playerKey] = nil
 
     log(string.format(
@@ -848,8 +1029,16 @@ function TransferService.start(player, mode, args)
     end
 
     local barrel, barrelData, item, liquidType, reason
+    local sourceEndpoint, targetEndpoint
+    local endpointTransfer = mode == BARREL_TO_BARREL_MODE
 
-    if mode == "pour" then
+    if endpointTransfer then
+        sourceEndpoint, targetEndpoint, liquidType, reason = resolveEndpointTransfer(player, args)
+        if sourceEndpoint then
+            barrel = sourceEndpoint.object
+            barrelData = sourceEndpoint.data
+        end
+    elseif mode == "pour" then
         barrel, barrelData, item, liquidType, reason = resolvePour(player, args, true)
     elseif mode == "extract" then
         barrel, barrelData, item, liquidType, reason = resolveExtract(player, args, true)
@@ -860,14 +1049,26 @@ function TransferService.start(player, mode, args)
         return
     end
 
-    if not barrel or not barrelData or (mode ~= "empty" and not item) or not liquidType then
+    local notifySource = endpointTransfer
+        and buildEndpointNotifySource(args, sourceEndpoint, targetEndpoint)
+        or buildNotifySource(args, barrel, barrelData)
+
+    if reason then
+        logTransferRejected(player, mode, args, barrelData, reason)
+        Notifier.rejected(player, mode, reason, notifySource)
+        return
+    end
+
+    if not barrel or not barrelData or (mode ~= "empty" and not endpointTransfer and not item) or not liquidType then
         logTransferRejected(player, mode, args, barrelData, reason or "unknown")
-        Notifier.rejected(player, mode, reason or "unknown", buildNotifySource(args, barrel, barrelData))
+        Notifier.rejected(player, mode, reason or "unknown", notifySource)
         return
     end
 
     local totalAmount
-    if mode == "pour" then
+    if endpointTransfer then
+        totalAmount = TransferRules.getBarrelToBarrelAmount(sourceEndpoint and sourceEndpoint.data, targetEndpoint and targetEndpoint.data)
+    elseif mode == "pour" then
         totalAmount = TransferRules.getPourAmount(barrelData, item)
     elseif mode == "extract" then
         totalAmount = TransferRules.getExtractAmount(barrelData, item)
@@ -877,14 +1078,14 @@ function TransferService.start(player, mode, args)
 
     if totalAmount <= 0 then
         logTransferRejected(player, mode, args, barrelData, "no_transferable_amount")
-        Notifier.rejected(player, mode, "no_transferable_amount", buildNotifySource(args, barrel, barrelData))
+        Notifier.rejected(player, mode, "no_transferable_amount", notifySource)
         return
     end
 
     local playerKey = LockService.getPlayerKey(player)
     if playerKey == nil then
         logTransferRejected(player, mode, args, barrelData, "invalid_player")
-        Notifier.rejected(player, mode, "invalid_player", buildNotifySource(args, barrel, barrelData))
+        Notifier.rejected(player, mode, "invalid_player", notifySource)
         return
     end
 
@@ -893,16 +1094,26 @@ function TransferService.start(player, mode, args)
         stopActiveForPlayer(playerKey, "replaced_by_new_transfer", true)
     end
 
-    local barrelKey = LockService.getBarrelKey(barrel, barrelData)
+    local barrelKey = endpointTransfer and sourceEndpoint.key or LockService.getBarrelKey(barrel, barrelData)
     if not barrelKey then
         logTransferRejected(player, mode, args, barrelData, "barrel_id_missing")
-        Notifier.rejected(player, mode, "barrel_id_missing", buildNotifySource(args, barrel, barrelData))
+        Notifier.rejected(player, mode, "barrel_id_missing", notifySource)
         return
     end
 
-    if not LockService.acquire(playerKey, barrelKey, "long", args.transferId) then
+    local lockKeys = endpointTransfer
+        and { sourceEndpoint.key, targetEndpoint.key }
+        or nil
+    local lockAcquired = false
+    if endpointTransfer then
+        lockAcquired = LockService.acquireMany(playerKey, lockKeys, "long", args.transferId)
+    else
+        lockAcquired = LockService.acquire(playerKey, barrelKey, "long", args.transferId)
+    end
+
+    if not lockAcquired then
         logTransferRejected(player, mode, args, barrelData, "barrel_locked")
-        Notifier.rejected(player, mode, "barrel_locked", buildNotifySource(args, barrel, barrelData))
+        Notifier.rejected(player, mode, "barrel_locked", notifySource)
         return
     end
 
@@ -920,12 +1131,18 @@ function TransferService.start(player, mode, args)
         liquidType      = liquidType,
         barrelKey       = barrelKey,
         barrelId        = barrelData.id,
+        targetBarrelId  = targetEndpoint and targetEndpoint.barrelId or nil,
+        lockKeys        = lockKeys,
         lastBarrel      = barrel,
         barrelData      = barrelData,
-        inventory       = mode ~= "empty" and player:getInventory() or nil,
-        item            = item,
-        itemId          = mode ~= "empty" and (item and item:getID() or args.itemId) or nil,
-        itemFullType    = mode ~= "empty" and (item and item:getFullType() or args.itemFullType) or nil,
+        sourceEndpoint  = sourceEndpoint,
+        targetEndpoint  = targetEndpoint,
+        sourceSnapshot  = EndpointResolver.snapshot(sourceEndpoint),
+        targetSnapshot  = EndpointResolver.snapshot(targetEndpoint),
+        inventory       = (mode ~= "empty" and not endpointTransfer) and player:getInventory() or nil,
+        item            = endpointTransfer and nil or item,
+        itemId          = (mode ~= "empty" and not endpointTransfer) and (item and item:getID() or args.itemId) or nil,
+        itemFullType    = (mode ~= "empty" and not endpointTransfer) and (item and item:getFullType() or args.itemFullType) or nil,
         totalAmount     = totalAmount,
         remainingAmount = totalAmount,
         movedAmount     = 0,
@@ -1032,7 +1249,7 @@ function TransferService.stop(player, mode, transferId, reason)
     syncBarrel(transfer)
     local closedTransfer = cacheClosedTransfer(playerKey, transfer, reason or "cleared", false, true)
     Notifier.progress(player, closedTransfer or transfer, true)
-    LockService.release(playerKey, transfer.barrelKey)
+    releaseTransferLocks(playerKey, transfer)
     activeTransfers[playerKey] = nil
 
     log(string.format(

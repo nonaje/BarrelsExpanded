@@ -224,4 +224,19 @@ function Text.buildPourContainerOptionLabel(item, liquidType)
     )
 end
 
+---@param barrelData BarrEx_Barrel|nil
+---@return string
+function Text.buildBarrelTransferTargetLabel(barrelData)
+    if not barrelData then
+        return Text.translate(ContextConfig.CONTEXT_MENU.TRANSFER_TO_BARREL)
+    end
+
+    return Text.translate(
+        ContextConfig.CONTEXT_MENU.TRANSFER_TARGET_BARREL,
+        Text.getLiquidDisplayName(barrelData.liquidType),
+        Text.formatAmount(barrelData.amount),
+        Text.formatAmount(barrelData.capacity)
+    )
+end
+
 return Text

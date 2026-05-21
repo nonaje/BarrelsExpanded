@@ -172,6 +172,43 @@ function TransferRules.getEmptyAmount(barrelData)
 end
 
 -- ---------------------------------------------------------------------------
+-- Barrel-to-barrel rules
+-- ---------------------------------------------------------------------------
+
+--- Returns true when liquid can move from one revealed barrel to another.
+--- Does NOT check player range, locks, tools, or world-object identity.
+---@param sourceBarrelData BarrEx_Barrel
+---@param targetBarrelData BarrEx_Barrel
+---@return boolean
+function TransferRules.canTransferBetweenBarrels(sourceBarrelData, targetBarrelData)
+    if not sourceBarrelData or not targetBarrelData then return false end
+    if not sourceBarrelData:isRevealed() or not targetBarrelData:isRevealed() then return false end
+    if sourceBarrelData:isEmpty() or targetBarrelData:isFull() then return false end
+
+    local liquidType = sourceBarrelData.liquidType
+    if type(liquidType) ~= "string" then return false end
+    if LiquidConfig.LIQUID_TYPE[liquidType] == nil then return false end
+    if liquidType == LiquidConfig.LIQUID_TYPE.EMPTY then return false end
+
+    return targetBarrelData:canAcceptLiquid(liquidType, 1)
+end
+
+--- Returns the maximum units transferable from one barrel into another.
+---@param sourceBarrelData BarrEx_Barrel
+---@param targetBarrelData BarrEx_Barrel
+---@return number
+function TransferRules.getBarrelToBarrelAmount(sourceBarrelData, targetBarrelData)
+    if not TransferRules.canTransferBetweenBarrels(sourceBarrelData, targetBarrelData) then
+        return 0
+    end
+
+    return math.max(math.min(
+        tonumber(sourceBarrelData.amount) or 0,
+        targetBarrelData:getFreeCapacity()
+    ), 0)
+end
+
+-- ---------------------------------------------------------------------------
 -- Transfer duration
 -- ---------------------------------------------------------------------------
 

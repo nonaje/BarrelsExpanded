@@ -291,16 +291,33 @@ function BarrelStateClient.applySnapshot(snapshot)
     return true
 end
 
+local function applyPayloadSnapshots(args)
+    if type(args) ~= "table" then return false end
+
+    local applied = false
+    if BarrelStateClient.applySnapshot(args.snapshot) then
+        applied = true
+    end
+    if BarrelStateClient.applySnapshot(args.sourceSnapshot) then
+        applied = true
+    end
+    if BarrelStateClient.applySnapshot(args.targetSnapshot) then
+        applied = true
+    end
+
+    return applied
+end
+
 function BarrelStateClient.onBarrelState(args)
     if type(args) ~= "table" then return end
     clearPendingAction(args)
-    BarrelStateClient.applySnapshot(args.snapshot)
+    applyPayloadSnapshots(args)
 end
 
 function BarrelStateClient.onActionResult(args)
     if type(args) ~= "table" then return end
     clearPendingAction(args)
-    BarrelStateClient.applySnapshot(args.snapshot)
+    applyPayloadSnapshots(args)
 end
 
 function BarrelStateClient.trackAction(payload)

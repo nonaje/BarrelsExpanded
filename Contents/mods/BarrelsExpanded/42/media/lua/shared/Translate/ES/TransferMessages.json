@@ -7,6 +7,7 @@
   "UI_BarrEx_TransferRejection_BarrelEmpty": "El barril está vacío.",
   "UI_BarrEx_TransferRejection_SourceNotFound": "No se encontró el recipiente de origen.",
   "UI_BarrEx_TransferRejection_TargetNotFound": "No se encontró el recipiente de destino.",
+  "UI_BarrEx_TransferRejection_SameEndpoint": "Elige un barril destino distinto.",
   "UI_BarrEx_TransferRejection_SourceLiquidMissing": "El recipiente no tiene líquido transferible.",
   "UI_BarrEx_TransferRejection_SourceCannotProvide": "Ese recipiente no puede verter ese líquido.",
   "UI_BarrEx_TransferRejection_TargetCannotReceive": "Ese recipiente no puede recibir ese líquido.",

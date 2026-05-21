@@ -6,6 +6,7 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local BarrEx_OpenBarrelAction = require("actions/BarrEx_OpenBarrelAction")
 local BarrEx_PourIntoBarrelAction = require("actions/transfer/BarrEx_PourIntoBarrelAction")
 local BarrEx_ExtractFromBarrelAction = require("actions/transfer/BarrEx_ExtractFromBarrelAction")
+local BarrEx_BarrelToBarrelTransferAction = require("actions/transfer/BarrEx_BarrelToBarrelTransferAction")
 local BarrEx_DrinkFromBarrelAction = require("actions/BarrEx_DrinkFromBarrelAction")
 local BarrEx_WashFromBarrelAction = require("actions/BarrEx_WashFromBarrelAction")
 local BarrEx_EmptyBarrelAction = require("actions/BarrEx_EmptyBarrelAction")
@@ -130,6 +131,16 @@ function Actions.onExtractAllFromBarrel(barrel, player, targetItems)
             queueExtractAction(barrel, player, item)
         end
     end
+end
+
+---@param sourceBarrel IsoObject
+---@param player IsoPlayer
+---@param targetBarrel IsoObject
+function Actions.onTransferToBarrel(sourceBarrel, player, targetBarrel)
+    if not sourceBarrel or not player or not targetBarrel then return end
+
+    queueWalkToBarrel(player, sourceBarrel)
+    ISTimedActionQueue.add(BarrEx_BarrelToBarrelTransferAction:new(player, sourceBarrel, targetBarrel))
 end
 
 ---@param barrel IsoObject

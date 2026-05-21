@@ -39,8 +39,27 @@ end
 local function getSnapshot(source)
     if type(source) ~= "table" then return nil end
     if type(source.snapshot) == "table" then return source.snapshot end
+    if type(source.sourceSnapshot) == "table" then return source.sourceSnapshot end
     if type(source.closedSnapshot) == "table" then return source.closedSnapshot end
     return StateService.buildSnapshot(source.lastBarrel)
+end
+
+local function getSourceSnapshot(source)
+    if type(source) ~= "table" then return nil end
+    if type(source.sourceSnapshot) == "table" then return source.sourceSnapshot end
+    if type(source.sourceEndpoint) == "table" then
+        return StateService.buildSnapshot(source.sourceEndpoint.object, source.sourceEndpoint.data)
+    end
+    return nil
+end
+
+local function getTargetSnapshot(source)
+    if type(source) ~= "table" then return nil end
+    if type(source.targetSnapshot) == "table" then return source.targetSnapshot end
+    if type(source.targetEndpoint) == "table" then
+        return StateService.buildSnapshot(source.targetEndpoint.object, source.targetEndpoint.data)
+    end
+    return nil
 end
 
 --- Notifies the client that its transfer request was rejected.
@@ -53,6 +72,8 @@ function Notifier.rejected(player, mode, reason, source, options)
     if not player or type(sendServerCommand) ~= "function" then return end
 
     local snapshot = getSnapshot(source)
+    local sourceSnapshot = getSourceSnapshot(source)
+    local targetSnapshot = getTargetSnapshot(source)
 
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_REJECTED, {
         actionId   = getTransferId(source),
@@ -61,6 +82,7 @@ function Notifier.rejected(player, mode, reason, source, options)
         transferId = getTransferId(source),
         mode       = mode,
         barrelId   = getBarrelId(source) or (snapshot and snapshot.barrelId),
+        targetBarrelId = type(source) == "table" and source.targetBarrelId or nil,
         itemId     = getItemId(source),
         reason     = reason or "unknown",
         closedReason = type(source) == "table" and source.closedReason or nil,
@@ -68,6 +90,8 @@ function Notifier.rejected(player, mode, reason, source, options)
         playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
         revision   = snapshot and snapshot.revision or nil,
         snapshot   = snapshot,
+        sourceSnapshot = sourceSnapshot,
+        targetSnapshot = targetSnapshot,
     })
 end
 
@@ -79,6 +103,8 @@ function Notifier.started(player, transfer)
     if not player or not transfer or type(sendServerCommand) ~= "function" then return end
 
     local snapshot = getSnapshot(transfer)
+    local sourceSnapshot = getSourceSnapshot(transfer)
+    local targetSnapshot = getTargetSnapshot(transfer)
 
     sendServerCommand(player, Constant.NETWORK.MODULE, Constant.NETWORK.TRANSFER_STARTED, {
         actionId    = getTransferId(transfer),
@@ -87,12 +113,15 @@ function Notifier.started(player, transfer)
         transferId   = getTransferId(transfer),
         mode        = transfer.mode,
         barrelId    = getBarrelId(transfer) or (snapshot and snapshot.barrelId),
+        targetBarrelId = transfer.targetBarrelId,
         itemId      = getItemId(transfer),
         totalAmount = tonumber(transfer.totalAmount) or 0,
         actionTime  = tonumber(transfer.totalTicks) or 0,
         playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
         revision    = snapshot and snapshot.revision or nil,
         snapshot    = snapshot,
+        sourceSnapshot = sourceSnapshot,
+        targetSnapshot = targetSnapshot,
     })
 end
 
@@ -104,6 +133,8 @@ function Notifier.progress(player, transfer, completed)
     if not player or not transfer or type(sendServerCommand) ~= "function" then return end
 
     local snapshot = getSnapshot(transfer)
+    local sourceSnapshot = getSourceSnapshot(transfer)
+    local targetSnapshot = getTargetSnapshot(transfer)
 
     local totalAmount = tonumber(transfer.totalAmount) or 0
     local movedAmount = tonumber(transfer.movedAmount) or 0
@@ -122,6 +153,7 @@ function Notifier.progress(player, transfer, completed)
         transferId   = getTransferId(transfer),
         mode        = transfer.mode,
         barrelId    = getBarrelId(transfer) or (snapshot and snapshot.barrelId),
+        targetBarrelId = transfer.targetBarrelId,
         itemId      = getItemId(transfer),
         movedAmount = movedAmount,
         totalAmount = totalAmount,
@@ -131,6 +163,8 @@ function Notifier.progress(player, transfer, completed)
         playerOnlineId = type(player.getOnlineID) == "function" and player:getOnlineID() or nil,
         revision    = snapshot and snapshot.revision or nil,
         snapshot    = snapshot,
+        sourceSnapshot = sourceSnapshot,
+        targetSnapshot = targetSnapshot,
     })
 end
 

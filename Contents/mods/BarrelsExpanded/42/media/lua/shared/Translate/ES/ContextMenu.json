@@ -8,6 +8,8 @@
   "ContextMenu_BarrEx_RemoveCover": "Quitar la tapa",
   "ContextMenu_BarrEx_Pour": "Verter",
   "ContextMenu_BarrEx_PourAll": "Verter todo",
+  "ContextMenu_BarrEx_TransferToBarrel": "Transferir a otro barril",
+  "ContextMenu_BarrEx_TransferTargetBarrel": "%1 (%2/%3)",
   "ContextMenu_BarrEx_Extract": "Retirar líquido",
   "ContextMenu_BarrEx_InfoPercent": "%1  %2%",
   "ContextMenu_BarrEx_GroupedContainer": "%1 (%2)",

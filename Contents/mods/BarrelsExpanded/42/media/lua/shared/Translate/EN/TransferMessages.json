@@ -7,6 +7,7 @@
   "UI_BarrEx_TransferRejection_BarrelEmpty": "The barrel is empty.",
   "UI_BarrEx_TransferRejection_SourceNotFound": "The source container was not found.",
   "UI_BarrEx_TransferRejection_TargetNotFound": "The target container was not found.",
+  "UI_BarrEx_TransferRejection_SameEndpoint": "Choose a different target barrel.",
   "UI_BarrEx_TransferRejection_SourceLiquidMissing": "The container has no transferable liquid.",
   "UI_BarrEx_TransferRejection_SourceCannotProvide": "That container cannot pour that liquid.",
   "UI_BarrEx_TransferRejection_TargetCannotReceive": "That container cannot receive that liquid.",
