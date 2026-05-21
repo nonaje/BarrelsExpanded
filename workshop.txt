@@ -1,7 +1,7 @@
 version=1
 id=3727387302
 title=Barrels Expanded [MP + SP]
-description=description=[h3]🌍 [url=https://steamcommunity.com/workshop/filedetails/discussion/3727387302/836124807123790931/]¿Buscás la descripción en Español? Hacé clic acá para leerla.[/url][/h3]
+description=[h3]🌍 [url=https://steamcommunity.com/workshop/filedetails/discussion/3727387302/836124807123790931/]¿Buscás la descripción en Español? Hacé clic acá para leerla.[/url][/h3]
 description=
 description=[quote]
 description=[h1]🛢️ Barrels are no longer just decoration[/h1]
