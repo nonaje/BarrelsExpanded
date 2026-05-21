@@ -1,3 +1,7 @@
+Version 1.0.12
+- Added barrel-to-barrel liquid transfer through a new reusable endpoint-transfer base for future generator, vehicle tank, and plumbing integrations.
+- Added source and target barrel snapshots to transfer responses so multiplayer clients keep both barrels in sync after partial or completed transfers.
+
 Version 1.0.11
 - Reduced server tick work for multiplayer liquid transfers by only applying pending progress when pour, extract, or empty actions have new client progress to process.
 

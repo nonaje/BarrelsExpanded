@@ -1,0 +1,115 @@
+[quote]
+[h1]🛢️ Los barriles ya no son solo decoración[/h1]
+
+El condado de Knox está lleno de tanques industriales, barriles militares y contenedores olvidados. En el juego base (vanilla), la mayoría son puro decorado. Con [b]Barrels Expanded[/b], pasan a ser parte de tu historia de supervivencia.
+
+Abrí uno y capaz encontrás agua limpia, agua contaminada, nafta, lavandina o absolutamente nada. Capaz le salva la vida a tu grupo. Capaz le da a tu base una nueva reserva de combustible. O capaz es solo otra timba en un mundo que ya de por sí te odia.
+[/quote]
+
+[quote]
+[h1]👁️ ¿Qué le suma a tu mundo?[/h1]
+
+- [b]Exploración útil:[/b] Revisá barriles industriales, militares y fabricados en busca de recursos en vez de pasarles por al lado como si fueran simple decorado.
+
+- [b]Agua de emergencia:[/b] Tomá agua de los barriles cuando la sed empiece a ser un problema.
+
+- [b]Higiene en cualquier lado:[/b] Lavate el cuerpo, la ropa y los objetos lavables usando el agua del barril.
+
+- [b]Almacenamiento de líquidos:[/b] Volcá líquidos compatibles adentro de los barriles o llená recipientes desde ellos.
+
+- [b]Transferencia entre barriles:[/b] Pasá líquido directamente de un barril abierto a otro cercano para organizar mejor tu base.
+
+- [b]Vaciado progresivo:[/b] Vaciá los contenidos que no quieras con el tiempo; si frenás a la mitad, la cantidad que ya se vació queda así.
+
+- [b]Logística de la base:[/b] Agarrá, mové y poné barriles abiertos manteniendo su contenido y su peso dinámico.
+
+- [b]Herramientas de cartonero/scavenger:[/b] Las barretas, destornilladores, embudos, mangueras y herramientas parecidas le dan al uso de barriles un toque de supervivencia bien realista.
+
+- [b]Configuración de Sandbox:[/b] Ajustá la capacidad del barril, el peso vacío, la distancia de interacción, las herramientas para abrirlos, los requisitos para transferir y las probabilidades de aparición de líquidos según el tipo de barril.
+
+- [b]Solo y Multijugador:[/b] Funciona tanto para tus partidas en solitario como para bases multijugador.
+[/quote]
+
+[quote]
+[h1]🧰 Líquidos y herramientas actuales[/h1]
+
+- [b]Líquidos:[/b] Agua, agua contaminada, nafta, lavandina y barriles vacíos.
+
+- [b]Herramientas para abrir:[/b] Palanca/Barreta, barreta forjada, destornillador, llave de caño o tijera de cortar chapa.
+
+- [b]Herramientas de transferencia:[/b] Embudo para volcar dentro de los barriles, manguera de goma para llenar recipientes desde los barriles.
+
+- [b]Soporte opcional para mods:[/b] Los bidones militares de nafta y agua de DamnLib/USMIL funcionan con las transferencias de líquidos de los barriles.
+[/quote]
+
+[quote]
+[h1]🌐 Traducciones[/h1]
+
+Traducciones actuales:
+- Inglés
+- Español
+- Español Argentino
+
+[b]La ayuda de la comunidad con las traducciones es más que bienvenida. Si querés dar una mano para llevar Barrels Expanded a otro idioma o mejorar una traducción que ya esté, se re agradecen las sugerencias y colaboraciones.[/b]
+[/quote]
+
+[quote]
+[h1]🔮 Ideas a futuro[/h1]
+
+Estas características no están metidas todavía, pero son el tipo de agregados planeados para las próximas versiones:
+
+- Cargar generadores o vehículos directamente desde los barriles de nafta.
+
+- Cargar nafta de las estaciones de servicio directo a los barriles.
+
+- Agregar hallazgos de líquidos más raros, como barriles de leche o vino en los comercios.
+
+- Cortar la tapa de los barriles con un soplete de propano y reciclarlos como recolectores de agua de lluvia.
+
+- Conectar cañerías desde barriles cercanos o elevados para llevar agua a piletas, bañaderas y lavarropas.
+
+- Agregar etiquetas o marcas de propiedad para el almacenamiento en multijugador.
+[/quote]
+
+[quote]
+[h1]🧩 Compatibilidad[/h1]
+
+- [b]Versión del juego:[/b] Project Zomboid Build 42.
+
+- [b]Modos soportados:[/b] Un jugador y Multijugador. En multijugador, tanto el cliente como el servidor tienen que activar el mod.
+
+- [b]Instalación segura:[/b] Pensado para funcionar en partidas ya empezadas. Acordate de hacer siempre una copia de seguridad de tu partida guardada antes de activar o sacar mods.
+[/quote]
+
+[quote]
+[h1]❓ Preguntas frecuentes sobre partidas guardadas[/h1]
+
+[b]¿Puedo agregarlo a una partida ya empezada?[/b]
+Sí. Los barriles del mapa se vuelven interactivos a medida que explorás y cargás el mapa, no te hace falta crear un mundo nuevo.
+
+[b]¿Qué pasa si lo saco más adelante?[/b]
+El mod no mete mapas personalizados ni ítems nuevos obligatorios. Si lo desactivás, los barriles vuelven a ser simple decoración. Para evitar problemas raros en el inventario, soltá en el piso cualquier barril que estés cargando antes de desactivarlo.
+[/quote]
+
+[quote]
+[h1]✨ Mención especial[/h1]
+
+Este proyecto nació después de descubrir [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3436537035][B42] Useful Barrels[/url]. Mil gracias a su creador por la chispa original; me hizo mirar los barriles de Project Zomboid y darme cuenta de que podían dar para muchísimo más.
+[/quote]
+
+[quote]
+[h1]🤝 Cómo colaborar[/h1]
+
+[b]Podés dar una mano con Barrels Expanded reportando errores, sugiriendo mejoras, testeando cómo anda en multijugador, mejorando traducciones, actualizando la documentación o mandando pull requests[/b]
+
+Los pull requests son bienvenidos a través del repositorio de GitHub:
+[url=https://github.com/nonaje/BarrelsExpanded]https://github.com/nonaje/BarrelsExpanded[/url]
+
+Por favor, no mandes código copiado de Project Zomboid, assets copiados del juego, contenido de otros mods, código malicioso, oculto o reformas gigantescas sin abrir un hilo de discusión primero.
+[/quote]
+
+[quote]
+[h1]📋 Info del Mod[/h1]
+[b]Workshop ID:[/b] 3727387302
+[b]Mod ID:[/b] BarrelsExpanded42
+[/quote]
