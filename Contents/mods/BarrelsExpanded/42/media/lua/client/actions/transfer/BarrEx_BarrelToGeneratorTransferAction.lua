@@ -3,21 +3,23 @@ local BarrEx_BarrelData = require("BarrEx_BarrelData")
 local TransferRules = require("core/BarrEx_TransferRules")
 local PlayerUtils = require("utils/BarrEx_PlayerUtils")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
+local GeneratorUtils = require("utils/BarrEx_GeneratorUtils")
 local TransferSync = require("BarrEx_TransferSync")
 local BarrEx_BarrelActionBase = require("actions/BarrEx_BarrelActionBase")
 local BarrelStateClient = require("BarrEx_BarrelStateClient")
 
----@class BarrEx_BarrelToBarrelTransferAction : BarrEx_BarrelActionBase
+---@class BarrEx_BarrelToGeneratorTransferAction : BarrEx_BarrelActionBase
 ---@field sourceBarrel IsoObject
----@field targetBarrel IsoObject
+---@field generator IsoGenerator
 ---@field transferStarted boolean
 ---@field transferId string
 ---@field mode string
 ---@field totalAmount number
 ---@field liquidType string|nil
-local BarrEx_BarrelToBarrelTransferAction = BarrEx_BarrelActionBase:derive("BarrEx_BarrelToBarrelTransferAction")
+---@field toolItem InventoryItem|nil
+local BarrEx_BarrelToGeneratorTransferAction = BarrEx_BarrelActionBase:derive("BarrEx_BarrelToGeneratorTransferAction")
 
-local MODE = "barrel_to_barrel"
+local MODE = "barrel_to_generator"
 
 local function getCurrentTimestamp()
     if type(getTimestampMs) == "function" then
@@ -40,13 +42,13 @@ local function getBarrelId(barrel)
     return BarrEx_BarrelData.getId(barrel) or "nobarrel"
 end
 
-local function buildTransferId(player, sourceBarrel, targetBarrel)
+local function buildTransferId(player, sourceBarrel, generator)
     local playerId = player and type(player.getOnlineID) == "function" and player:getOnlineID() or "local"
 
     return MODE
         .. ":" .. tostring(playerId)
         .. ":" .. tostring(getBarrelId(sourceBarrel))
-        .. ":" .. tostring(getBarrelId(targetBarrel))
+        .. ":" .. tostring(GeneratorUtils.getKey(generator) or "nogenerator")
         .. ":" .. tostring(getCurrentTimestamp())
         .. ":" .. tostring(getRandomSuffix())
 end
@@ -58,7 +60,7 @@ local function clamp01(value)
     return numericValue
 end
 
-local function buildEndpointPayload(barrel)
+local function buildBarrelEndpointPayload(barrel)
     local square = barrel and barrel:getSquare()
     if not square then return nil end
 
@@ -76,11 +78,17 @@ local function buildEndpointPayload(barrel)
     }
 end
 
-local function getTransferSound(liquidType)
-    if liquidType == Constant.LIQUID_TYPE.WATER or liquidType == Constant.LIQUID_TYPE.TAINTED_WATER then
-        return "PourWaterIntoObject"
-    end
-    return "TransferLiquid"
+local function buildGeneratorEndpointPayload(generator)
+    local square = generator and generator:getSquare()
+    if not square then return nil end
+
+    return {
+        kind = "generator",
+        x = square:getX(),
+        y = square:getY(),
+        z = square:getZ(),
+        objectIndex = GeneratorUtils.getObjectIndex(generator),
+    }
 end
 
 local function stopSound(action)
@@ -89,11 +97,19 @@ local function stopSound(action)
     end
 end
 
+local function getStaticHandModel(item)
+    if item and type(item.getStaticModel) == "function" then
+        return item:getStaticModel()
+    end
+
+    return item
+end
+
 local function sendEndpointCommand(action, command, extraArgs)
     if not action or not command then return false end
 
-    local sourcePayload = buildEndpointPayload(action.sourceBarrel)
-    local targetPayload = buildEndpointPayload(action.targetBarrel)
+    local sourcePayload = buildBarrelEndpointPayload(action.sourceBarrel)
+    local targetPayload = buildGeneratorEndpointPayload(action.generator)
     if not sourcePayload or not targetPayload then
         return false
     end
@@ -103,7 +119,6 @@ local function sendEndpointCommand(action, command, extraArgs)
         mode = action.mode,
         source = sourcePayload,
         target = targetPayload,
-        targetBarrelId = targetPayload.barrelId,
     })
     if not payload then
         return false
@@ -124,33 +139,30 @@ local function sendEndpointCommand(action, command, extraArgs)
     return true
 end
 
-function BarrEx_BarrelToBarrelTransferAction:isValid()
-    if not self.sourceBarrel or not self.targetBarrel or self.sourceBarrel == self.targetBarrel then
+function BarrEx_BarrelToGeneratorTransferAction:isValid()
+    if not self.sourceBarrel or not GeneratorUtils.isAvailable(self.generator) then
         return false
     end
     if not PlayerUtils.isPlayerInRange(self.character, self.sourceBarrel) then
         return false
     end
-    if not PlayerUtils.isPlayerInRange(self.character, self.targetBarrel) then
+    if not PlayerUtils.isPlayerInRange(self.character, self.generator) then
         return false
     end
-    if not PlayerUtils.isObjectInRange(self.sourceBarrel, self.targetBarrel) then
+    if not PlayerUtils.isObjectInRange(self.sourceBarrel, self.generator) then
         return false
     end
 
     local sourceData = BarrEx_BarrelData.get(self.sourceBarrel)
-    local targetData = BarrEx_BarrelData.get(self.targetBarrel)
+    if not sourceData then return false end
 
-    if not sourceData or not targetData then
-        return false
-    end
-
-    return TransferRules.canTransferBetweenBarrels(sourceData, targetData)
+    return TransferRules.canFuelGeneratorFromBarrel(sourceData, self.generator)
 end
 
-function BarrEx_BarrelToBarrelTransferAction:start()
+function BarrEx_BarrelToGeneratorTransferAction:start()
     ISBaseTimedAction.start(self)
 
+    self.toolItem = PlayerUtils.findFirstRequiredItem(self.character, Constant.EXTRACT_REQUIRED_ITEMS)
     self.transferStarted = sendEndpointCommand(self, Constant.NETWORK.START_ENDPOINT_TRANSFER, { progress = 0 })
     if self.transferStarted then
         TransferSync.registerAction(self.transferId, self.mode, self, self.sourceBarrel, nil)
@@ -159,12 +171,12 @@ function BarrEx_BarrelToBarrelTransferAction:start()
         sendEndpointCommand(self, Constant.NETWORK.UPDATE_TRANSFER_PROGRESS, { progress = 0 })
     end
 
-    self:setActionAnim("fill_container_tap")
-    self:setOverrideHandModels(nil, nil)
-    self.sound = self.character:playSound(getTransferSound(self.liquidType))
+    self:setActionAnim("refuelgascan")
+    self:setOverrideHandModels(getStaticHandModel(self.toolItem), nil)
+    self.sound = self.character:playSound("GeneratorAddFuel")
 end
 
-function BarrEx_BarrelToBarrelTransferAction:update()
+function BarrEx_BarrelToGeneratorTransferAction:update()
     TransferSync.beforeActionUpdate(self)
 
     if self.transferStarted then
@@ -187,11 +199,11 @@ function BarrEx_BarrelToBarrelTransferAction:update()
     end
 
     ISBaseTimedAction.update(self)
-    self.character:faceThisObject(self.sourceBarrel)
-    self.character:setMetabolicTarget(Metabolics.LightDomestic)
+    self.character:faceThisObject(self.generator)
+    self.character:setMetabolicTarget(Metabolics.HeavyDomestic)
 end
 
-function BarrEx_BarrelToBarrelTransferAction:stop()
+function BarrEx_BarrelToGeneratorTransferAction:stop()
     stopSound(self)
     TransferSync.unregisterAction(self.transferId, self)
     if self.transferStarted then
@@ -201,7 +213,7 @@ function BarrEx_BarrelToBarrelTransferAction:stop()
     ISBaseTimedAction.stop(self)
 end
 
-function BarrEx_BarrelToBarrelTransferAction:perform()
+function BarrEx_BarrelToGeneratorTransferAction:perform()
     stopSound(self)
     TransferSync.unregisterAction(self.transferId, self)
     if self.transferStarted then
@@ -213,23 +225,21 @@ end
 
 ---@param player IsoPlayer
 ---@param sourceBarrel IsoObject
----@param targetBarrel IsoObject
----@return BarrEx_BarrelToBarrelTransferAction
-function BarrEx_BarrelToBarrelTransferAction:new(player, sourceBarrel, targetBarrel)
+---@param generator IsoGenerator
+---@return BarrEx_BarrelToGeneratorTransferAction
+function BarrEx_BarrelToGeneratorTransferAction:new(player, sourceBarrel, generator)
     local sourceData = BarrEx_BarrelData.get(sourceBarrel)
-    local targetData = BarrEx_BarrelData.get(targetBarrel)
     ---@cast sourceData BarrEx_Barrel
-    ---@cast targetData BarrEx_Barrel
     local liquidType = sourceData and sourceData.liquidType or nil
-    local totalAmount = TransferRules.getBarrelToBarrelAmount(sourceData, targetData)
+    local totalAmount = TransferRules.getBarrelToGeneratorAmount(sourceData, generator)
     local maxTime = TransferRules.getTransferActionTime(totalAmount, MODE, liquidType)
     local o = BarrEx_BarrelActionBase.new(self, player, sourceBarrel, MODE, nil, maxTime)
-    ---@cast o BarrEx_BarrelToBarrelTransferAction
+    ---@cast o BarrEx_BarrelToGeneratorTransferAction
 
     o.sourceBarrel = sourceBarrel
-    o.targetBarrel = targetBarrel
+    o.generator = generator
     o.mode = MODE
-    o.transferId = buildTransferId(player, sourceBarrel, targetBarrel)
+    o.transferId = buildTransferId(player, sourceBarrel, generator)
     o.actionId = o.transferId
     o.totalAmount = totalAmount
     o.liquidType = liquidType
@@ -241,4 +251,4 @@ function BarrEx_BarrelToBarrelTransferAction:new(player, sourceBarrel, targetBar
     return o
 end
 
-return BarrEx_BarrelToBarrelTransferAction
+return BarrEx_BarrelToGeneratorTransferAction

@@ -7,6 +7,7 @@ local BarrEx_OpenBarrelAction = require("actions/BarrEx_OpenBarrelAction")
 local BarrEx_PourIntoBarrelAction = require("actions/transfer/BarrEx_PourIntoBarrelAction")
 local BarrEx_ExtractFromBarrelAction = require("actions/transfer/BarrEx_ExtractFromBarrelAction")
 local BarrEx_BarrelToBarrelTransferAction = require("actions/transfer/BarrEx_BarrelToBarrelTransferAction")
+local BarrEx_BarrelToGeneratorTransferAction = require("actions/transfer/BarrEx_BarrelToGeneratorTransferAction")
 local BarrEx_DrinkFromBarrelAction = require("actions/BarrEx_DrinkFromBarrelAction")
 local BarrEx_WashFromBarrelAction = require("actions/BarrEx_WashFromBarrelAction")
 local BarrEx_EmptyBarrelAction = require("actions/BarrEx_EmptyBarrelAction")
@@ -141,6 +142,20 @@ function Actions.onTransferToBarrel(sourceBarrel, player, targetBarrel)
 
     queueWalkToBarrel(player, sourceBarrel)
     ISTimedActionQueue.add(BarrEx_BarrelToBarrelTransferAction:new(player, sourceBarrel, targetBarrel))
+end
+
+---@param sourceBarrel IsoObject
+---@param player IsoPlayer
+---@param generator IsoGenerator
+function Actions.onTransferToGenerator(sourceBarrel, player, generator)
+    if not sourceBarrel or not player or not generator then return end
+
+    local hose = PlayerUtils.findFirstRequiredItem(player, Constant.EXTRACT_REQUIRED_ITEMS)
+    queueWalkToBarrel(player, sourceBarrel)
+    if hose then
+        queueEquip(player, hose, true, false)
+    end
+    ISTimedActionQueue.add(BarrEx_BarrelToGeneratorTransferAction:new(player, sourceBarrel, generator))
 end
 
 ---@param barrel IsoObject

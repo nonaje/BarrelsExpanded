@@ -2,19 +2,45 @@ local Constant = require("BarrEx_Constant")
 
 local PlayerUtils = {}
 
+local function getObjectSquare(object)
+    if not object then return nil end
+    if type(object.getSquare) == "function" then
+        local square = object:getSquare()
+        if square then return square end
+    end
+    if type(object.getCurrentSquare) == "function" then
+        return object:getCurrentSquare()
+    end
+    return nil
+end
+
+---@param first any
+---@param second any
+---@return number
+function PlayerUtils.getObjectDistance(first, second)
+    local firstSquare = getObjectSquare(first)
+    local secondSquare = getObjectSquare(second)
+    if not firstSquare or not secondSquare then return math.huge end
+    if firstSquare:getZ() ~= secondSquare:getZ() then return math.huge end
+
+    local dx = math.abs(firstSquare:getX() - secondSquare:getX())
+    local dy = math.abs(firstSquare:getY() - secondSquare:getY())
+    return math.max(dx, dy)
+end
+
+---@param first any
+---@param second any
+---@param maxDistance number|nil
+---@return boolean
+function PlayerUtils.isObjectInRange(first, second, maxDistance)
+    return PlayerUtils.getObjectDistance(first, second) <= (tonumber(maxDistance) or Constant.MAX_INTERACTION_DISTANCE)
+end
+
 ---@param player IsoPlayer|nil
 ---@param barrel IsoObject|nil
 ---@return boolean
 function PlayerUtils.isPlayerInRange(player, barrel)
-    if not player or not barrel then return false end
-
-    local square = barrel:getSquare()
-    if not square then return false end
-
-    local dx = math.abs(player:getX() - square:getX())
-    local dy = math.abs(player:getY() - square:getY())
-
-    return math.max(dx, dy) <= Constant.MAX_INTERACTION_DISTANCE
+    return PlayerUtils.isObjectInRange(player, barrel, Constant.MAX_INTERACTION_DISTANCE)
 end
 
 ---@param player IsoPlayer|nil

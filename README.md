@@ -25,6 +25,8 @@ The mod adds interactive behavior to existing vanilla world barrels. You can:
 - Wash yourself, clothing, and washable items with barrel water.
 - Pour compatible liquids into barrels.
 - Fill compatible containers from barrels.
+- Move liquid directly between nearby opened barrels.
+- Refuel nearby generators from gasoline barrels through the Barrel menu or the generator Add Fuel menu.
 - Empty barrels progressively when you want to clean them out or change their contents.
 - Pick up, move, and place opened barrels while preserving their contents and weight.
 
@@ -49,15 +51,18 @@ Once generated, barrel state is saved in the world and shared in multiplayer.
    - Soap is optional, but affects wash speed/cleaning behavior.
 5. **Pour into barrel** from compatible inventory containers, requiring a Funnel.
 6. **Fill containers from barrel** using compatible inventory containers, requiring a Rubber Hose.
-7. **Fill all / grouped fill menu** with vanilla-style container grouping.
-8. **Progressive emptying** that drains liquid during the timed action; interrupted actions keep the amount already drained.
-9. **Randomized first-open content** based on barrel tile category.
-10. **Persistent barrel state** that survives saves, reloads, pickup/place, and server restarts.
-11. **Server-safe multiplayer behavior** with protection against overlapping use of the same barrel.
-12. **Dynamic barrel weight** based on liquid type and amount.
-13. **Singleplayer and multiplayer support**.
-14. **Optional mod compatibility** for DamnLib/USMIL military gas and water cans in barrel liquid transfers.
-15. **Current translations**: English, Spanish, and Argentinian Spanish.
+7. **Barrel-to-barrel transfer** between nearby opened barrels.
+8. **Generator refueling** from nearby gasoline barrels through the Barrel menu or the generator Add Fuel menu, requiring a Rubber Hose when hose requirements are enabled.
+9. **Fill all / grouped fill menu** with vanilla-style container grouping.
+10. **Progressive emptying** that drains liquid during the timed action; interrupted actions keep the amount already drained.
+11. **Randomized first-open content** based on barrel tile category.
+12. **Sandbox tuning** for capacity, empty weight, interaction distance, opening tools, transfer tool requirements, and liquid spawn weights by barrel type.
+13. **Persistent barrel state** that survives saves, reloads, pickup/place, and server restarts.
+14. **Server-safe multiplayer behavior** with protection against overlapping use of the same barrel.
+15. **Dynamic barrel weight** based on liquid type and amount.
+16. **Singleplayer and multiplayer support**.
+17. **Optional mod compatibility** for DamnLib/USMIL military gas and water cans in barrel liquid transfers.
+18. **Current translations**: English, Spanish, and Argentinian Spanish.
 
 ### Gameplay Data
 
@@ -68,7 +73,7 @@ Once generated, barrel state is saved in the world and shared in multiplayer.
 | Drink amount | 0.12 units per drink action |
 | Wash unit cost | 1 unit per washed body/item segment |
 | Supported barrel tiles | Industrial, military, and crafted barrel tiles |
-| Transfer tools | Funnel for pouring in, Rubber Hose for filling containers |
+| Transfer tools | Funnel for pouring in, Rubber Hose for filling containers and refueling generators |
 
 ---
 
@@ -76,10 +81,9 @@ Once generated, barrel state is saved in the world and shared in multiplayer.
 
 These are ideas for future versions, not current features:
 
-- **Fuel logistics**: refuel generators or vehicles from gasoline barrels.
-- **Barrel-to-barrel transfer**: organize supplies between base storage barrels.
+- **Fuel logistics**: refuel vehicles from gasoline barrels.
+- **Fuel station logistics**: pump gasoline from fuel stations directly into barrels.
 - **Barrel labels or ownership markers**: easier multiplayer base organization.
-- **Sandbox options**: tune rarity, capacity, spawn profiles, tool requirements, and behavior.
 - **Barrel condition system**: rust, damage, leaks, contamination, or reliability risks.
 - **Water treatment interactions**: gameplay steps for making tainted water safer.
 

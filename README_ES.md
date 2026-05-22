@@ -25,6 +25,8 @@ El mod agrega comportamiento interactivo a barriles vanilla del mundo. Puedes:
 - Lavarte, lavar ropa y lavar objetos compatibles usando agua del barril.
 - Verter liquidos compatibles al barril.
 - Llenar recipientes compatibles desde el barril.
+- Mover liquido directamente entre barriles abiertos cercanos.
+- Reabastecer generadores cercanos desde barriles con gasolina desde el menu del barril o desde Add Fuel del generador.
 - Vaciar barriles de forma progresiva cuando necesitas limpiarlos o cambiar su contenido.
 - Levantar, mover y colocar barriles abiertos conservando su contenido y peso.
 
@@ -49,15 +51,18 @@ Una vez generado, el estado del barril queda guardado en el mundo y compartido e
    - El jabon es opcional, pero afecta la velocidad/comportamiento de limpieza.
 5. **Verter al barril** desde recipientes compatibles del inventario, requiere Embudo.
 6. **Llenar recipientes desde el barril** usando recipientes compatibles del inventario, requiere Manguera de Goma.
-7. **Llenar todo / menu agrupado** con agrupacion de recipientes estilo vanilla.
-8. **Vaciado progresivo** que drena liquido durante la accion temporizada; si se interrumpe, conserva la cantidad ya drenada.
-9. **Contenido aleatorio en primera apertura** segun categoria del tile.
-10. **Estado persistente del barril** que sobrevive guardados, recargas, levantar/colocar y reinicios del servidor.
-11. **Comportamiento multiplayer seguro** con proteccion contra uso solapado del mismo barril.
-12. **Peso dinamico del barril** segun tipo y cantidad de liquido.
-13. **Soporte singleplayer y multiplayer**.
-14. **Compatibilidad opcional con mods** para bidones militares de gasolina y agua de DamnLib/USMIL en transferencias de liquidos.
-15. **Traducciones actuales**: Ingles, Espanol y Espanol Argentino.
+7. **Transferencia barril a barril** entre barriles abiertos cercanos.
+8. **Reabastecimiento de generadores** desde barriles cercanos con gasolina desde el menu del barril o desde Add Fuel del generador, requiere Manguera de Goma cuando ese requisito esta activado.
+9. **Llenar todo / menu agrupado** con agrupacion de recipientes estilo vanilla.
+10. **Vaciado progresivo** que drena liquido durante la accion temporizada; si se interrumpe, conserva la cantidad ya drenada.
+11. **Contenido aleatorio en primera apertura** segun categoria del tile.
+12. **Opciones Sandbox** para capacidad, peso vacio, distancia de interaccion, herramientas de apertura, requisitos de herramientas de transferencia y pesos de aparicion de liquidos por tipo de barril.
+13. **Estado persistente del barril** que sobrevive guardados, recargas, levantar/colocar y reinicios del servidor.
+14. **Comportamiento multiplayer seguro** con proteccion contra uso solapado del mismo barril.
+15. **Peso dinamico del barril** segun tipo y cantidad de liquido.
+16. **Soporte singleplayer y multiplayer**.
+17. **Compatibilidad opcional con mods** para bidones militares de gasolina y agua de DamnLib/USMIL en transferencias de liquidos.
+18. **Traducciones actuales**: Ingles, Espanol y Espanol Argentino.
 
 ### Datos de juego
 
@@ -68,7 +73,7 @@ Una vez generado, el estado del barril queda guardado en el mundo y compartido e
 | Consumo por beber | 0.12 unidades por accion de beber |
 | Costo por lavado | 1 unidad por segmento de cuerpo/item lavado |
 | Tiles soportados | Barriles industriales, militares y crafteados |
-| Herramientas de transferencia | Embudo para verter, Manguera de Goma para llenar recipientes |
+| Herramientas de transferencia | Embudo para verter, Manguera de Goma para llenar recipientes y reabastecer generadores |
 
 ---
 
@@ -76,10 +81,9 @@ Una vez generado, el estado del barril queda guardado en el mundo y compartido e
 
 Estas son ideas para versiones futuras, no funciones actuales:
 
-- **Logistica de gasolina**: recargar generadores o vehiculos desde barriles de gasolina.
-- **Transferencia barril a barril**: organizar recursos entre barriles de una base.
+- **Logistica de gasolina**: recargar vehiculos desde barriles de gasolina.
+- **Logistica de estaciones de servicio**: cargar nafta desde surtidores directo a barriles.
 - **Etiquetas o marcadores de propiedad**: mejor organizacion en bases multiplayer.
-- **Opciones Sandbox**: ajustar rareza, capacidad, perfiles de aparicion, herramientas requeridas y comportamiento.
 - **Sistema de condicion del barril**: oxido, dano, fugas, contaminacion o riesgos de confiabilidad.
 - **Tratamiento de agua**: pasos de gameplay para volver mas segura el agua contaminada.
 

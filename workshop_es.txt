@@ -7,7 +7,7 @@ Abrí uno y capaz encontrás agua limpia, agua contaminada, nafta, lavandina o a
 [/quote]
 
 [quote]
-[h1]👁️ ¿Qué le suma a tu mundo?[/h1]
+[h1]⭐ ¿Qué le suma a tu mundo?[/h1]
 
 - [b]Exploración útil:[/b] Revisá barriles industriales, militares y fabricados en busca de recursos en vez de pasarles por al lado como si fueran simple decorado.
 
@@ -18,6 +18,8 @@ Abrí uno y capaz encontrás agua limpia, agua contaminada, nafta, lavandina o a
 - [b]Almacenamiento de líquidos:[/b] Volcá líquidos compatibles adentro de los barriles o llená recipientes desde ellos.
 
 - [b]Transferencia entre barriles:[/b] Pasá líquido directamente de un barril abierto a otro cercano para organizar mejor tu base.
+
+- [b]Reabastecimiento de generadores:[/b] Cargá generadores cercanos desde barriles con nafta, ya sea desde el menú del barril o desde [i]Add Fuel[/i] del generador.
 
 - [b]Vaciado progresivo:[/b] Vaciá los contenidos que no quieras con el tiempo; si frenás a la mitad, la cantidad que ya se vació queda así.
 
@@ -37,7 +39,7 @@ Abrí uno y capaz encontrás agua limpia, agua contaminada, nafta, lavandina o a
 
 - [b]Herramientas para abrir:[/b] Palanca/Barreta, barreta forjada, destornillador, llave de caño o tijera de cortar chapa.
 
-- [b]Herramientas de transferencia:[/b] Embudo para volcar dentro de los barriles, manguera de goma para llenar recipientes desde los barriles.
+- [b]Herramientas de transferencia:[/b] Embudo para volcar dentro de los barriles, manguera de goma para llenar recipientes desde los barriles o reabastecer generadores.
 
 - [b]Soporte opcional para mods:[/b] Los bidones militares de nafta y agua de DamnLib/USMIL funcionan con las transferencias de líquidos de los barriles.
 [/quote]
@@ -58,7 +60,7 @@ Traducciones actuales:
 
 Estas características no están metidas todavía, pero son el tipo de agregados planeados para las próximas versiones:
 
-- Cargar generadores o vehículos directamente desde los barriles de nafta.
+- Cargar vehículos directamente desde los barriles de nafta.
 
 - Cargar nafta de las estaciones de servicio directo a los barriles.
 

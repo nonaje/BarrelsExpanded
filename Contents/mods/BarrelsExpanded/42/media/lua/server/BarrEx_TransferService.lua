@@ -23,6 +23,7 @@ local StateService      = require("BarrEx_BarrelStateService")
 local Notifier          = require("BarrEx_TransferNotifier")
 local EndpointResolver  = require("BarrEx_LiquidEndpointResolver")
 local Logger            = require("utils/BarrEx_Logger")
+local PlayerUtils       = require("utils/BarrEx_PlayerUtils")
 
 local TransferService = {}
 
@@ -33,6 +34,11 @@ local closedTransfers = {}
 local CLOSED_TRANSFER_CACHE_LIMIT = 8
 local TRANSFER_EPSILON = 0.0001
 local BARREL_TO_BARREL_MODE = "barrel_to_barrel"
+local BARREL_TO_GENERATOR_MODE = "barrel_to_generator"
+local ENDPOINT_TRANSFER_MODES = {
+    [BARREL_TO_BARREL_MODE] = true,
+    [BARREL_TO_GENERATOR_MODE] = true,
+}
 
 local function log(message)
     Logger.info(message)
@@ -41,6 +47,10 @@ end
 local function isValidTransferId(transferId)
     return (type(transferId) == "string" and transferId ~= "")
         or type(transferId) == "number"
+end
+
+local function isEndpointTransferMode(mode)
+    return ENDPOINT_TRANSFER_MODES[mode] == true
 end
 
 local function clamp01(value)
@@ -595,6 +605,32 @@ local function resolveEndpointTransfer(player, args)
         return sourceEndpoint, targetEndpoint, nil, "same_endpoint"
     end
 
+    if args.mode == BARREL_TO_BARREL_MODE then
+        if sourceEndpoint.kind ~= EndpointResolver.KIND.BARREL
+            or targetEndpoint.kind ~= EndpointResolver.KIND.BARREL
+        then
+            return sourceEndpoint, targetEndpoint, nil, "endpoint_mismatch"
+        end
+    elseif args.mode == BARREL_TO_GENERATOR_MODE then
+        if sourceEndpoint.kind ~= EndpointResolver.KIND.BARREL
+            or targetEndpoint.kind ~= EndpointResolver.KIND.GENERATOR
+        then
+            return sourceEndpoint, targetEndpoint, nil, "endpoint_mismatch"
+        end
+    end
+
+    if args.mode == BARREL_TO_GENERATOR_MODE
+        and not InteractionRules.playerHasRequiredTool(player, Constant.EXTRACT_REQUIRED_ITEMS)
+    then
+        return sourceEndpoint, targetEndpoint, nil, "interaction_invalid"
+    end
+
+    if isEndpointTransferMode(args.mode)
+        and not PlayerUtils.isObjectInRange(sourceEndpoint.object, targetEndpoint.object)
+    then
+        return sourceEndpoint, targetEndpoint, nil, "interaction_invalid"
+    end
+
     if not EndpointResolver.canProvide(sourceEndpoint) then
         local sourceLiquidType = EndpointResolver.getLiquidType(sourceEndpoint)
         if not sourceLiquidType or sourceLiquidType == Constant.LIQUID_TYPE.EMPTY then
@@ -607,6 +643,15 @@ local function resolveEndpointTransfer(player, args)
     if not EndpointResolver.canReceive(targetEndpoint, liquidType) then
         if targetEndpoint.data and targetEndpoint.data:isFull() then
             return sourceEndpoint, targetEndpoint, liquidType, "barrel_full"
+        end
+        if targetEndpoint.kind == EndpointResolver.KIND.GENERATOR then
+            if EndpointResolver.getFreeCapacity(targetEndpoint) <= 0 then
+                return sourceEndpoint, targetEndpoint, liquidType, "generator_full"
+            end
+            if liquidType ~= Constant.LIQUID_TYPE.GASOLINE then
+                return sourceEndpoint, targetEndpoint, liquidType, "generator_requires_gasoline"
+            end
+            return sourceEndpoint, targetEndpoint, liquidType, "target_cannot_receive"
         end
         return sourceEndpoint, targetEndpoint, liquidType, "incompatible_liquid"
     end
@@ -630,6 +675,12 @@ local function resolveActiveEndpointContext(transfer)
         return sourceEndpoint, targetEndpoint, nil, "same_endpoint"
     end
 
+    if isEndpointTransferMode(transfer.mode)
+        and not PlayerUtils.isObjectInRange(sourceEndpoint.object, targetEndpoint.object)
+    then
+        return sourceEndpoint, targetEndpoint, nil, "interaction_invalid"
+    end
+
     if not EndpointResolver.canProvide(sourceEndpoint) then
         return sourceEndpoint, targetEndpoint, nil, "source_liquid_missing"
     end
@@ -643,10 +694,27 @@ local function resolveActiveEndpointContext(transfer)
         if targetEndpoint.data and targetEndpoint.data:isFull() then
             return sourceEndpoint, targetEndpoint, liquidType, "barrel_full"
         end
+        if targetEndpoint.kind == EndpointResolver.KIND.GENERATOR then
+            if EndpointResolver.getFreeCapacity(targetEndpoint) <= 0 then
+                return sourceEndpoint, targetEndpoint, liquidType, "generator_full"
+            end
+            if liquidType ~= Constant.LIQUID_TYPE.GASOLINE then
+                return sourceEndpoint, targetEndpoint, liquidType, "generator_requires_gasoline"
+            end
+            return sourceEndpoint, targetEndpoint, liquidType, "target_cannot_receive"
+        end
         return sourceEndpoint, targetEndpoint, liquidType, "incompatible_liquid"
     end
 
     return sourceEndpoint, targetEndpoint, liquidType, nil
+end
+
+local function getTargetAddFailedReason(endpoint)
+    if endpoint and endpoint.kind == EndpointResolver.KIND.GENERATOR then
+        return "generator_add_failed"
+    end
+
+    return "target_add_failed"
 end
 
 ---@return number, string|nil, IsoObject|nil
@@ -675,7 +743,7 @@ local function applyEndpointTransfer(transfer, requestedAmount)
     local added = EndpointResolver.addLiquid(targetEndpoint, liquidType, removed)
     if added <= 0 then
         EndpointResolver.addLiquid(sourceEndpoint, liquidType, removed)
-        return 0, "target_add_failed", sourceEndpoint.object
+        return 0, getTargetAddFailedReason(targetEndpoint), sourceEndpoint.object
     end
 
     local overflow = removed - added
@@ -837,7 +905,7 @@ local function advance(transfer, requestedAmount)
         return 0, "missing_transfer", nil
     end
 
-    if transfer.mode == BARREL_TO_BARREL_MODE then
+    if isEndpointTransferMode(transfer.mode) then
         return applyEndpointTransfer(transfer, requestedAmount)
     end
 
@@ -1030,7 +1098,7 @@ function TransferService.start(player, mode, args)
 
     local barrel, barrelData, item, liquidType, reason
     local sourceEndpoint, targetEndpoint
-    local endpointTransfer = mode == BARREL_TO_BARREL_MODE
+    local endpointTransfer = isEndpointTransferMode(mode)
 
     if endpointTransfer then
         sourceEndpoint, targetEndpoint, liquidType, reason = resolveEndpointTransfer(player, args)
@@ -1067,7 +1135,7 @@ function TransferService.start(player, mode, args)
 
     local totalAmount
     if endpointTransfer then
-        totalAmount = TransferRules.getBarrelToBarrelAmount(sourceEndpoint and sourceEndpoint.data, targetEndpoint and targetEndpoint.data)
+        totalAmount = TransferRules.getEndpointTransferAmount(sourceEndpoint, targetEndpoint)
     elseif mode == "pour" then
         totalAmount = TransferRules.getPourAmount(barrelData, item)
     elseif mode == "extract" then

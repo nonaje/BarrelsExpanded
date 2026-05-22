@@ -1,7 +1,7 @@
 -- BarrEx_LiquidEndpointResolver: resolves liquid endpoints for reusable transfers.
 --
--- V1 registers only world barrels. Future adapters can add generators, vehicle
--- fuel tanks, or persistent supply links without changing the transfer lifecycle.
+-- V1 registers world barrels and generators. Future adapters can add vehicle
+-- fuel tanks, gas-station pumps, or persistent supply links without changing the transfer lifecycle.
 
 local Constant          = require("BarrEx_Constant")
 local BarrEx_BarrelData = require("BarrEx_BarrelData")
@@ -9,11 +9,13 @@ local BarrelResolver    = require("BarrEx_BarrelResolver")
 local InteractionRules  = require("core/BarrEx_InteractionRules")
 local LockService       = require("BarrEx_BarrelLockService")
 local StateService      = require("BarrEx_BarrelStateService")
+local GeneratorUtils    = require("utils/BarrEx_GeneratorUtils")
 
 local EndpointResolver = {}
 
 EndpointResolver.KIND = {
     BARREL = "barrel",
+    GENERATOR = "generator",
 }
 
 local function isValidLiquidType(liquidType)
@@ -115,6 +117,86 @@ local function buildBarrelEndpoint(barrel, barrelData, args, key)
     })
 end
 
+local function refreshGeneratorState(endpoint)
+    local generator = type(endpoint) == "table" and endpoint.object or nil
+    endpoint.liquidType = Constant.LIQUID_TYPE.GASOLINE
+    endpoint.amount = GeneratorUtils.getFuel(generator)
+    endpoint.capacity = GeneratorUtils.getMaxFuel(generator)
+    endpoint.freeCapacity = GeneratorUtils.getFreeFuelCapacity(generator)
+    return endpoint
+end
+
+local function generatorSnapshot(endpoint)
+    local generator = type(endpoint) == "table" and endpoint.object or nil
+    if not GeneratorUtils.isGenerator(generator) then return nil end
+
+    local square = generator:getSquare()
+    return {
+        kind = EndpointResolver.KIND.GENERATOR,
+        generatorKey = endpoint.key,
+        liquidType = Constant.LIQUID_TYPE.GASOLINE,
+        amount = GeneratorUtils.getFuel(generator),
+        capacity = GeneratorUtils.getMaxFuel(generator),
+        freeCapacity = GeneratorUtils.getFreeFuelCapacity(generator),
+        fuelPercent = GeneratorUtils.getFuelPercent(generator),
+        x = square and square:getX() or nil,
+        y = square and square:getY() or nil,
+        z = square and square:getZ() or nil,
+        objectIndex = GeneratorUtils.getObjectIndex(generator),
+    }
+end
+
+local function generatorSync(endpoint)
+    GeneratorUtils.sync(type(endpoint) == "table" and endpoint.object or nil)
+end
+
+local function generatorPersist(endpoint, _bumpRevision, transmit)
+    refreshGeneratorState(endpoint)
+    if transmit == true then
+        generatorSync(endpoint)
+    end
+
+    return generatorSnapshot(endpoint)
+end
+
+local function generatorCanProvide(_endpoint)
+    return false
+end
+
+local function generatorCanReceive(endpoint, liquidType)
+    if liquidType ~= Constant.LIQUID_TYPE.GASOLINE then return false end
+
+    return GeneratorUtils.canReceiveFuel(type(endpoint) == "table" and endpoint.object or nil)
+end
+
+local function generatorRemoveLiquid(_endpoint, _amount)
+    return 0
+end
+
+local function generatorAddLiquid(endpoint, liquidType, amount)
+    if liquidType ~= Constant.LIQUID_TYPE.GASOLINE then return 0 end
+
+    local added = GeneratorUtils.addFuel(type(endpoint) == "table" and endpoint.object or nil, amount)
+    refreshGeneratorState(endpoint)
+    return added
+end
+
+local function buildGeneratorEndpoint(generator, args, key)
+    return refreshGeneratorState({
+        kind = EndpointResolver.KIND.GENERATOR,
+        key = key,
+        object = generator,
+        args = args,
+        canProvide = generatorCanProvide,
+        canReceive = generatorCanReceive,
+        removeLiquid = generatorRemoveLiquid,
+        addLiquid = generatorAddLiquid,
+        persist = generatorPersist,
+        sync = generatorSync,
+        snapshot = generatorSnapshot,
+    })
+end
+
 local function resolveBarrel(player, args)
     local barrel, resolveReason = BarrelResolver.resolveStrict(args)
     if not barrel then
@@ -138,6 +220,40 @@ local function resolveBarrel(player, args)
     return buildBarrelEndpoint(barrel, barrelData, args, key), nil
 end
 
+local function getCellSquare(x, y, z)
+    local cell = getCell()
+    if not cell then return nil end
+    return cell:getGridSquare(x, y, z)
+end
+
+local function resolveGenerator(player, args)
+    if type(args) ~= "table" then
+        return nil, "invalid_endpoint"
+    end
+    if type(args.x) ~= "number" or type(args.y) ~= "number" or type(args.z) ~= "number" then
+        return nil, "invalid_endpoint"
+    end
+
+    local generator, reason = GeneratorUtils.resolveOnSquare(getCellSquare(args.x, args.y, args.z), args)
+    if not generator then
+        if reason == "target_not_found" then
+            return nil, "generator_not_found"
+        end
+        return nil, reason or "generator_not_found"
+    end
+
+    if not InteractionRules.validateInteraction(generator, player, {}, false) then
+        return nil, "interaction_invalid"
+    end
+
+    local key = GeneratorUtils.getKey(generator)
+    if not key then
+        return nil, "generator_not_found"
+    end
+
+    return buildGeneratorEndpoint(generator, args, key), nil
+end
+
 ---@param player IsoPlayer
 ---@param args table|nil
 ---@return table|nil
@@ -148,6 +264,9 @@ function EndpointResolver.resolve(player, args)
     end
 
     local kind = args.kind or EndpointResolver.KIND.BARREL
+    if kind == EndpointResolver.KIND.GENERATOR then
+        return resolveGenerator(player, args)
+    end
     if kind ~= EndpointResolver.KIND.BARREL then
         return nil, "unsupported_endpoint"
     end
@@ -177,7 +296,11 @@ function EndpointResolver.refresh(player, endpoint)
     endpoint.data = refreshed.data
     endpoint.barrelId = refreshed.barrelId
     endpoint.key = refreshed.key
-    refreshBarrelState(endpoint)
+    if endpoint.kind == EndpointResolver.KIND.GENERATOR then
+        refreshGeneratorState(endpoint)
+    else
+        refreshBarrelState(endpoint)
+    end
     return endpoint, nil
 end
 
@@ -190,6 +313,9 @@ function EndpointResolver.snapshot(endpoint)
     end
     if endpoint.kind == EndpointResolver.KIND.BARREL then
         return barrelSnapshot(endpoint)
+    end
+    if endpoint.kind == EndpointResolver.KIND.GENERATOR then
+        return generatorSnapshot(endpoint)
     end
     return nil
 end
@@ -204,6 +330,9 @@ function EndpointResolver.sync(endpoint)
     if endpoint.kind == EndpointResolver.KIND.BARREL and endpoint.object then
         barrelSync(endpoint)
     end
+    if endpoint.kind == EndpointResolver.KIND.GENERATOR and endpoint.object then
+        generatorSync(endpoint)
+    end
 end
 
 ---@param endpoint table|nil
@@ -214,6 +343,9 @@ function EndpointResolver.persist(endpoint, bumpRevision, transmit)
     if type(endpoint) ~= "table" then return nil end
     if type(endpoint.persist) == "function" then
         return endpoint.persist(endpoint, bumpRevision, transmit)
+    end
+    if endpoint.kind == EndpointResolver.KIND.GENERATOR then
+        return generatorPersist(endpoint, bumpRevision, transmit)
     end
     if endpoint.kind ~= EndpointResolver.KIND.BARREL then return nil end
     if not endpoint.object or not endpoint.data then return nil end

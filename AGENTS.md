@@ -61,6 +61,7 @@ Este archivo es la guia viva de arquitectura para agentes. Si una decision nueva
 - `BarrEx_BarrelActionBase.lua` concentra payload base, `actionId`, identidad de barril y revision cliente.
 - `BarrEx_BarrelStateService.lua` concentra snapshots autoritativos y respuestas `requestBarrelState`.
 - `BarrEx_BarrelActionService.lua` concentra mutaciones cortas: abrir, beber y lavar; el vaciado progresivo usa `BarrEx_TransferService.lua`.
+- `BarrEx_LiquidEndpointResolver.lua` concentra endpoints liquidos de mundo como barriles y generadores; futuros vehiculos o repostadores/surtidores deben entrar como nuevos adapters ahi antes de tocar el lifecycle general.
 - Evita que archivos de UI muten estado real del mundo.
 
 ## Optimizacion para PZ/Kahlua
@@ -92,6 +93,22 @@ end
 - Reutiliza textos via traducciones/configuracion en vez de strings sueltos.
 - Si agregas textos, actualiza EN y ES cuando corresponda.
 
+### Pauta visual para menus y tooltips
+
+- Prioriza una experiencia parecida a vanilla: labels cortos, opciones estables y tooltips para explicar condiciones.
+- No repitas razones de bloqueo en cada label. La opcion debe conservar su nombre normal y la razon debe vivir en el tooltip.
+- Usa `Text.withDisabledReason(...)` solo si no hay otra forma clara de mostrar el bloqueo; por defecto preferi label limpio + tooltip.
+- Si una accion completa no se puede ejecutar por una sola razon global, deshabilita la opcion padre y no muestres un submenu lleno de opciones bloqueadas.
+- Agrega el sufijo ` >` solo cuando la opcion realmente abre un submenu util con acciones disponibles.
+- Para estados no disponibles usa `Tooltips.attachUnavailableTooltip(...)`, `Tooltips.attachActionUnavailableTooltip(...)` o `TooltipBuilder:unavailable(...)`; esos mensajes usan `Tooltips.COLORS.BAD`.
+- No agregues headers genericos como `Status:`/`Estado:` para una unica razon de bloqueo; mostra la razon directa en el tooltip.
+- Para alertas o advertencias que no bloquean necesariamente la accion, como beber agua contaminada, usa `Tooltips.COLORS.WARN`.
+- Si la misma condicion bloquea una opcion concreta, como lavar vendas con agua contaminada, tratala como no disponible y usa `Tooltips.COLORS.BAD`.
+- Para requisitos encontrados usa `Tooltips.COLORS.GOOD`; para requisitos faltantes o incompatibles usa `Tooltips.COLORS.BAD`.
+- Para datos informativos, cantidades, liquidos, capacidades y nombres de contenedores usa colores neutros (`TEXT`, `MUTED`, `HEADER`).
+- Los tooltips complejos deben armarse en `BarrEx_ContextMenuTooltips.lua` con `Tooltips.newBuilder()`; no concatenes colores o `<LINE>` desde `BarrEx_ContextMenu.lua`.
+- La UI puede ocultar o deshabilitar opciones para mantener limpieza visual, pero el servidor debe seguir validando la accion completa.
+
 ## Multiplayer y red
 
 - Los comandos de cliente deben llevar identificadores suficientes, pero el servidor debe resolver objetos/items por su cuenta.
@@ -110,6 +127,8 @@ end
 - Las transferencias largas (`pour`, `extract`, `empty`) avanzan por progreso cliente monotonicamente reportado: `update` solo registra `pendingClientProgress` y no muta mundo.
 - El servidor aplica deltas desde `appliedProgress` hacia `pendingClientProgress`, calculando cantidad desde `totalAmount`; el cliente nunca manda cantidades.
 - `complete` debe elevar `pendingClientProgress` a `1`, aplicar el remanente validado y cerrar la transferencia; no debe quedar drenaje/llenado post-animacion.
+- Las transferencias endpoint-backed (`barrel_to_barrel`, `barrel_to_generator` y futuros modos para vehiculos/repostadores) deben reutilizar el mismo lifecycle largo y validar combinacion de endpoints, rango, herramienta cuando corresponda y locks antes de mutar.
+- Los endpoints no barril no escriben `BarrEx_BarrelData`; deben sincronizarse con la API vanilla correspondiente, por ejemplo `generator:sync()` despues de cambiar combustible.
 - El contexto activo puede cachear `barrel`, `barrelData`, `item`, `liquidType`, `barrelId` e `itemId`, pero antes de cada mutacion debe revalidar lock, identidad y rango; si el cache falla, usa resolucion estricta.
 - `update`, `stop` y `complete` deben poder enviarse aunque el item ya no este resoluble en el inventario cliente; deben conservar `transferId`, `mode`, `barrelId`, `itemId` y el ultimo payload base conocido.
 - En `mode="empty"`, `update`, `stop` y `complete` deben conservar `transferId`, `mode`, `barrelId` y el ultimo payload base conocido.

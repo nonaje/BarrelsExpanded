@@ -16,6 +16,7 @@
 local LiquidConfig   = require("config/BarrEx_LiquidConfig")
 local TransferConfig = require("config/BarrEx_TransferConfig")
 local LiquidAdapter  = require("BarrEx_LiquidContainerAdapter")
+local GeneratorUtils = require("utils/BarrEx_GeneratorUtils")
 
 local TransferRules = {}
 
@@ -209,6 +210,57 @@ function TransferRules.getBarrelToBarrelAmount(sourceBarrelData, targetBarrelDat
 end
 
 -- ---------------------------------------------------------------------------
+-- Barrel-to-generator rules
+-- ---------------------------------------------------------------------------
+
+--- Returns true when a revealed gasoline barrel can refuel a generator.
+--- Does NOT check player range, locks, tools, or world-object identity.
+---@param sourceBarrelData BarrEx_Barrel
+---@param generator IsoGenerator
+---@return boolean
+function TransferRules.canFuelGeneratorFromBarrel(sourceBarrelData, generator)
+    if not sourceBarrelData or not GeneratorUtils.canReceiveFuel(generator) then return false end
+    if not sourceBarrelData:isRevealed() or sourceBarrelData:isEmpty() then return false end
+    if sourceBarrelData.liquidType ~= LiquidConfig.LIQUID_TYPE.GASOLINE then return false end
+
+    return (tonumber(sourceBarrelData.amount) or 0) > 0
+end
+
+--- Returns the maximum units transferable from a gasoline barrel into a generator.
+---@param sourceBarrelData BarrEx_Barrel
+---@param generator IsoGenerator
+---@return number
+function TransferRules.getBarrelToGeneratorAmount(sourceBarrelData, generator)
+    if not TransferRules.canFuelGeneratorFromBarrel(sourceBarrelData, generator) then
+        return 0
+    end
+
+    return math.max(math.min(
+        tonumber(sourceBarrelData.amount) or 0,
+        GeneratorUtils.getFreeFuelCapacity(generator)
+    ), 0)
+end
+
+-- ---------------------------------------------------------------------------
+-- Generic endpoint rules
+-- ---------------------------------------------------------------------------
+
+--- Returns the maximum units transferable between resolved endpoint objects.
+---@param sourceEndpoint table|nil
+---@param targetEndpoint table|nil
+---@return number
+function TransferRules.getEndpointTransferAmount(sourceEndpoint, targetEndpoint)
+    if type(sourceEndpoint) ~= "table" or type(targetEndpoint) ~= "table" then
+        return 0
+    end
+
+    return math.max(math.min(
+        tonumber(sourceEndpoint.amount) or 0,
+        tonumber(targetEndpoint.freeCapacity) or 0
+    ), 0)
+end
+
+-- ---------------------------------------------------------------------------
 -- Transfer duration
 -- ---------------------------------------------------------------------------
 
@@ -224,6 +276,10 @@ function TransferRules.getTransferActionTime(amount, mode, liquidType)
     local baseDuration = getVanillaMinTransferTime()
 
     if normalizedAmount > 0 then
+        if liquidType == LiquidConfig.LIQUID_TYPE.GASOLINE and mode == "barrel_to_generator" then
+            return math.max(math.floor(70 + (normalizedAmount * 50)), 1)
+        end
+
         if mode == "empty" then
             local timePerUnit = tonumber(TransferConfig.EMPTY_ACTION_TIME_PER_UNIT) or 5
             if timePerUnit <= 0 then

@@ -1,6 +1,7 @@
 local Constant = require("BarrEx_Constant")
 local ContextConfig = require("config/BarrEx_ContextConfig")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
+local GeneratorUtils = require("utils/BarrEx_GeneratorUtils")
 
 local Text = {}
 
@@ -129,6 +130,13 @@ function Text.withSubMenuShortcut(label)
     return tostring(label or "") .. SUBMENU_SHORTCUT_SUFFIX
 end
 
+---@param label string|nil
+---@param reason string|nil
+---@return string
+function Text.withDisabledReason(label, reason)
+    return Text.translate(ContextConfig.CONTEXT_MENU.DISABLED_REASON, tostring(label or ""), tostring(reason or ""))
+end
+
 ---@param amount number|nil
 ---@return string
 function Text.formatAmount(amount)
@@ -233,6 +241,31 @@ function Text.buildBarrelTransferTargetLabel(barrelData)
 
     return Text.translate(
         ContextConfig.CONTEXT_MENU.TRANSFER_TARGET_BARREL,
+        Text.getLiquidDisplayName(barrelData.liquidType),
+        Text.formatAmount(barrelData.amount),
+        Text.formatAmount(barrelData.capacity)
+    )
+end
+
+---@param generator IsoGenerator|nil
+---@return string
+function Text.buildGeneratorTransferTargetLabel(generator)
+    return Text.translate(
+        ContextConfig.CONTEXT_MENU.TRANSFER_TARGET_GENERATOR,
+        Text.formatAmount(GeneratorUtils.getFuel(generator)),
+        Text.formatAmount(GeneratorUtils.getMaxFuel(generator))
+    )
+end
+
+---@param barrelData BarrEx_Barrel|nil
+---@return string
+function Text.buildGeneratorTransferSourceBarrelLabel(barrelData)
+    if not barrelData then
+        return Text.translate(ContextConfig.CONTEXT_MENU.BARREL)
+    end
+
+    return Text.translate(
+        ContextConfig.CONTEXT_MENU.TRANSFER_SOURCE_BARREL,
         Text.getLiquidDisplayName(barrelData.liquidType),
         Text.formatAmount(barrelData.amount),
         Text.formatAmount(barrelData.capacity)

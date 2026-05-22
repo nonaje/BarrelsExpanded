@@ -12,8 +12,10 @@ local Availability = require("context/BarrEx_ContextMenuAvailability")
 local Actions = require("context/BarrEx_ContextMenuActions")
 local AdminBarrelActions = require("context/BarrEx_AdminBarrelActions")
 local BarrelStateClient = require("BarrEx_BarrelStateClient")
+local GeneratorUtils = require("utils/BarrEx_GeneratorUtils")
 
 local ContextMenu = {}
+local collectBarrelsOnSquare
 
 local function attachReasonTooltip(option, reason)
     Tooltips.attachActionUnavailableTooltip(option, reason)
@@ -251,7 +253,7 @@ local function addBarrelTransferOption(subMenu, sourceBarrel, player, sourceData
         local reasonKey = sourceData and sourceData:isEmpty()
             and ContextConfig.TOOLTIP.BARREL_EMPTY
             or ContextConfig.TOOLTIP.NO_COMPATIBLE_BARREL
-        Tooltips.attachSimpleTooltip(transferOption, Text.translate(reasonKey))
+        Tooltips.attachUnavailableTooltip(transferOption, Text.translate(reasonKey))
         return
     end
 
@@ -270,6 +272,458 @@ local function addBarrelTransferOption(subMenu, sourceBarrel, player, sourceData
         )
         Tooltips.attachWorldObjectIcon(option, target.barrel)
         Tooltips.attachBarrelTransferTooltip(option, sourceData, targetData)
+    end
+end
+
+local function appendNearbyTargetGenerator(found, seen, sourceBarrel, player, generator)
+    if not generator or seen[generator] then return end
+    if not PlayerUtils.isPlayerInRange(player, generator) then return end
+    if not PlayerUtils.isObjectInRange(sourceBarrel, generator) then return end
+
+    seen[generator] = true
+    found[#found + 1] = generator
+end
+
+local function collectNearbyGenerators(sourceBarrel, player)
+    local found = {}
+    local seen = {}
+    local sourceSquare = sourceBarrel and sourceBarrel:getSquare() or nil
+    if not sourceSquare then return found end
+
+    local cell = getCell()
+    if not cell then return found end
+
+    local radius = math.max(math.floor(tonumber(Constant.MAX_INTERACTION_DISTANCE) or 2), 1)
+    local sourceX = sourceSquare:getX()
+    local sourceY = sourceSquare:getY()
+    local sourceZ = sourceSquare:getZ()
+
+    for dx = -radius, radius do
+        for dy = -radius, radius do
+            local square = cell:getGridSquare(sourceX + dx, sourceY + dy, sourceZ)
+            local generators = GeneratorUtils.collectGeneratorsOnSquare(square)
+            for i = 1, #generators do
+                appendNearbyTargetGenerator(found, seen, sourceBarrel, player, generators[i])
+            end
+        end
+    end
+
+    return found
+end
+
+local function collectCompatibleGeneratorTargets(generators, sourceData)
+    local found = {}
+
+    for i = 1, #(generators or {}) do
+        local generator = generators[i]
+        if TransferRules.canFuelGeneratorFromBarrel(sourceData, generator) then
+            found[#found + 1] = generator
+        end
+    end
+
+    table.sort(found, function(a, b)
+        return GeneratorUtils.getFuel(a) < GeneratorUtils.getFuel(b)
+    end)
+
+    return found
+end
+
+local function getGeneratorTargetUnavailableReason(sourceData, generators, hasTool)
+    if not sourceData or not sourceData:isRevealed() then
+        return ContextConfig.TOOLTIP.BARREL_CLOSED, nil
+    end
+    if sourceData:isEmpty() or (tonumber(sourceData.amount) or 0) <= 0 then
+        return ContextConfig.TOOLTIP.BARREL_EMPTY, nil
+    end
+    if sourceData.liquidType ~= Constant.LIQUID_TYPE.GASOLINE then
+        return ContextConfig.TOOLTIP.NEED_GASOLINE_BARREL, nil
+    end
+
+    local hasGenerator = false
+    local fullGenerator = nil
+    for i = 1, #(generators or {}) do
+        local generator = generators[i]
+        if GeneratorUtils.isAvailable(generator) then
+            hasGenerator = true
+            if GeneratorUtils.isFull(generator) then
+                fullGenerator = fullGenerator or generator
+            else
+                if not hasTool then
+                    return ContextConfig.TOOLTIP.MISSING_REQUIRED_TOOL, generator
+                end
+                return ContextConfig.TOOLTIP.NO_COMPATIBLE_GENERATOR, generator
+            end
+        end
+    end
+
+    if fullGenerator then
+        return ContextConfig.TOOLTIP.GENERATOR_FULL, fullGenerator
+    end
+    if not hasGenerator then
+        return ContextConfig.TOOLTIP.NO_COMPATIBLE_GENERATOR, nil
+    end
+
+    return ContextConfig.TOOLTIP.NO_COMPATIBLE_GENERATOR, nil
+end
+
+local function appendCompatibleSourceBarrel(found, generator, barrel)
+    if not barrel then return end
+
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    if not barrelData or not barrelData:isRevealed() then return end
+    if not PlayerUtils.isObjectInRange(barrel, generator) then return end
+
+    found[#found + 1] = {
+        barrel = barrel,
+        data = barrelData,
+    }
+end
+
+local function getGeneratorRefuelUnavailableReason(sourceData, generator, hasTool)
+    if not sourceData or not sourceData:isRevealed() then
+        return ContextConfig.TOOLTIP.BARREL_CLOSED
+    end
+    if sourceData:isEmpty() or (tonumber(sourceData.amount) or 0) <= 0 then
+        return ContextConfig.TOOLTIP.BARREL_EMPTY
+    end
+    if sourceData.liquidType ~= Constant.LIQUID_TYPE.GASOLINE then
+        return ContextConfig.TOOLTIP.NEED_GASOLINE_BARREL
+    end
+    if not GeneratorUtils.isAvailable(generator) then
+        return ContextConfig.TOOLTIP.NO_COMPATIBLE_GENERATOR
+    end
+    if GeneratorUtils.isFull(generator) then
+        return ContextConfig.TOOLTIP.GENERATOR_FULL
+    end
+    if not hasTool then
+        return ContextConfig.TOOLTIP.MISSING_REQUIRED_TOOL
+    end
+
+    return nil
+end
+
+local function collectNearbyGeneratorSourceBarrels(generator, player)
+    local found = {}
+    local generatorSquare = generator and generator:getSquare() or nil
+    if not generatorSquare or not PlayerUtils.isPlayerInRange(player, generator) then return found end
+
+    local cell = getCell()
+    if not cell then return found end
+
+    local barrels = {}
+    local seen = {}
+    local radius = math.max(math.floor(tonumber(Constant.MAX_INTERACTION_DISTANCE) or 2), 1)
+    local generatorX = generatorSquare:getX()
+    local generatorY = generatorSquare:getY()
+    local generatorZ = generatorSquare:getZ()
+
+    for dx = -radius, radius do
+        for dy = -radius, radius do
+            local square = cell:getGridSquare(generatorX + dx, generatorY + dy, generatorZ)
+            collectBarrelsOnSquare(square, barrels, seen)
+        end
+    end
+
+    for i = 1, #barrels do
+        appendCompatibleSourceBarrel(found, generator, barrels[i])
+    end
+
+    table.sort(found, function(a, b)
+        local amountA = tonumber(a and a.data and a.data.amount) or 0
+        local amountB = tonumber(b and b.data and b.data.amount) or 0
+        return amountA > amountB
+    end)
+
+    return found
+end
+
+local function findOptionByName(menu, optionName)
+    if not menu or not menu.options or not optionName then return nil end
+
+    for i = 1, #menu.options do
+        local option = menu.options[i]
+        if option and option.name == optionName then
+            return option
+        end
+    end
+
+    return nil
+end
+
+local function optionNameMatches(option, optionName)
+    if not option or not option.name or not optionName then return false end
+    return option.name == optionName or string.find(option.name, optionName, 1, true) == 1
+end
+
+local function getOptionSubMenu(menu, option)
+    if not menu or not option or not option.subOption or type(menu.getSubMenu) ~= "function" then return nil end
+    return menu:getSubMenu(option.subOption)
+end
+
+local function getOrCreateOptionSubMenu(menu, option)
+    if not menu or not option then return nil end
+
+    local subMenu = getOptionSubMenu(menu, option)
+    if subMenu then return subMenu end
+
+    subMenu = menu:getNew(menu)
+    menu:addSubMenu(option, subMenu)
+    return subMenu
+end
+
+local function findOptionSubMenuRecursive(menu, optionName, maxDepth)
+    local depth = tonumber(maxDepth) or 0
+    if not menu or not optionName or depth < 0 then return nil end
+
+    local option = findOptionByName(menu, optionName)
+    local subMenu = getOptionSubMenu(menu, option)
+    if subMenu then return subMenu, option, menu end
+
+    if depth == 0 or not menu.options then return nil end
+
+    for i = 1, #menu.options do
+        local childOption = menu.options[i]
+        local childMenu = getOptionSubMenu(menu, childOption)
+        if childMenu then
+            local foundMenu, foundOption, parentMenu = findOptionSubMenuRecursive(childMenu, optionName, depth - 1)
+            if foundMenu then
+                return foundMenu, foundOption, parentMenu
+            end
+        end
+    end
+
+    return nil
+end
+
+local function refreshMenuSize(menu)
+    if not menu then return end
+    if type(menu.calcHeight) == "function" then
+        menu:calcHeight()
+    end
+    if type(menu.calcWidth) == "function" and type(menu.setWidth) == "function" then
+        menu:setWidth(menu:calcWidth())
+    end
+end
+
+local function markMenuOptionUnavailable(option, reasonKey, appendReason, detachSubMenu)
+    if not option or not reasonKey then return end
+
+    local reasonText = Text.translate(reasonKey)
+    option.notAvailable = true
+    if detachSubMenu == true then
+        option.subOption = nil
+    end
+    if appendReason ~= false and option.name and reasonText and not string.find(option.name, reasonText, 1, true) then
+        option.name = Text.withDisabledReason(option.name, reasonText)
+    end
+    Tooltips.attachUnavailableTooltip(option, reasonText)
+end
+
+local function markMenuOptionsUnavailable(menu, reasonKey, appendReason, detachSubMenu)
+    if not menu or not menu.options or not reasonKey then return end
+
+    for i = 1, #menu.options do
+        local option = menu.options[i]
+        markMenuOptionUnavailable(option, reasonKey, appendReason, detachSubMenu)
+
+        local subMenu = getOptionSubMenu(menu, option)
+        if subMenu then
+            markMenuOptionsUnavailable(subMenu, reasonKey, appendReason, detachSubMenu)
+        end
+    end
+
+    refreshMenuSize(menu)
+end
+
+local function collectNamedMenuOptions(menu, optionName, found, maxDepth)
+    local depth = tonumber(maxDepth) or 0
+    if not menu or not menu.options or not optionName or depth < 0 then return found end
+
+    for i = 1, #menu.options do
+        local option = menu.options[i]
+        local subMenu = getOptionSubMenu(menu, option)
+        if optionNameMatches(option, optionName) then
+            found[#found + 1] = {
+                menu = menu,
+                option = option,
+                subMenu = subMenu,
+            }
+        end
+        if subMenu and depth > 0 then
+            collectNamedMenuOptions(subMenu, optionName, found, depth - 1)
+        end
+    end
+
+    return found
+end
+
+local function markNamedMenuOptionsUnavailable(menu, optionName, reasonKey, appendReason, detachSubMenu, markSubMenuOptions)
+    if not menu or not optionName or not reasonKey then return end
+
+    local entries = collectNamedMenuOptions(menu, optionName, {}, 4)
+    for i = 1, #entries do
+        local entry = entries[i]
+        markMenuOptionUnavailable(entry.option, reasonKey, appendReason, detachSubMenu)
+        if markSubMenuOptions ~= false then
+            markMenuOptionsUnavailable(entry.subMenu, reasonKey, appendReason, detachSubMenu)
+        end
+        refreshMenuSize(entry.menu)
+    end
+end
+
+local function getGeneratorSubMenu(context)
+    if not context then return nil end
+
+    local generatorLabel = getText("ContextMenu_Generator")
+    local generatorOption = findOptionByName(context, generatorLabel)
+    local generatorMenu = getOptionSubMenu(context, generatorOption)
+    if generatorMenu then return generatorMenu end
+
+    return findOptionSubMenuRecursive(context, generatorLabel, 3)
+end
+
+local function getOrCreateGeneratorSubMenu(context, generator)
+    if not context then return nil end
+
+    local generatorMenu = getGeneratorSubMenu(context)
+    if generatorMenu then return generatorMenu end
+
+    local generatorLabel = getText("ContextMenu_Generator")
+    local generatorOption = findOptionByName(context, generatorLabel)
+    if generatorOption then
+        return getOrCreateOptionSubMenu(context, generatorOption)
+    end
+
+    generatorOption = context:addOption(generatorLabel, nil, nil)
+    Tooltips.attachWorldObjectIcon(generatorOption, generator)
+    return getOrCreateOptionSubMenu(context, generatorOption)
+end
+
+local function getOrCreateGeneratorAddFuelOption(context, generator)
+    local generatorMenu = getOrCreateGeneratorSubMenu(context, generator)
+    if not generatorMenu then return nil end
+
+    local addFuelOption = findOptionByName(generatorMenu, getText("ContextMenu_GeneratorAddFuel"))
+    if addFuelOption then return addFuelOption end
+
+    return generatorMenu:addOption(getText("ContextMenu_GeneratorAddFuel"), nil, nil)
+end
+
+local function getGeneratorAddFuelSubMenu(context)
+    local generatorMenu = getGeneratorSubMenu(context)
+    if not generatorMenu then return nil end
+
+    local addFuelOption = findOptionByName(generatorMenu, getText("ContextMenu_GeneratorAddFuel"))
+    if not addFuelOption or addFuelOption.notAvailable then return nil end
+    return getOptionSubMenu(generatorMenu, addFuelOption)
+end
+
+local function getOrCreateGeneratorAddFuelSubMenu(context, generator)
+    local generatorMenu = getOrCreateGeneratorSubMenu(context, generator)
+    if not generatorMenu then return nil end
+
+    local addFuelOption = findOptionByName(generatorMenu, getText("ContextMenu_GeneratorAddFuel"))
+    if addFuelOption then
+        if addFuelOption.notAvailable then return nil end
+        return getOrCreateOptionSubMenu(generatorMenu, addFuelOption)
+    end
+
+    addFuelOption = generatorMenu:addOption(getText("ContextMenu_GeneratorAddFuel"), nil, nil)
+    return getOrCreateOptionSubMenu(generatorMenu, addFuelOption)
+end
+
+local function markGeneratorAddFuelFull(context)
+    markNamedMenuOptionsUnavailable(
+        context,
+        getText("ContextMenu_GeneratorAddFuel"),
+        ContextConfig.TOOLTIP.GENERATOR_FULL,
+        false,
+        true,
+        false
+    )
+end
+
+local function addGeneratorSourceBarrelOptions(context, player, generator)
+    local sourceBarrels = collectNearbyGeneratorSourceBarrels(generator, player)
+    local generatorFull = GeneratorUtils.isAvailable(generator) and GeneratorUtils.isFull(generator)
+
+    if generatorFull then
+        if #sourceBarrels > 0 then
+            getOrCreateGeneratorAddFuelOption(context, generator)
+        end
+        markGeneratorAddFuelFull(context)
+        return
+    end
+
+    if #sourceBarrels == 0 then return end
+
+    local addFuelMenu = getOrCreateGeneratorAddFuelSubMenu(context, generator)
+    if not addFuelMenu then return end
+
+    local hasTool, foundItems, missingItems = PlayerUtils.getRequiredItemStatus(player, Constant.EXTRACT_REQUIRED_ITEMS)
+    for i = 1, #sourceBarrels do
+        local source = sourceBarrels[i]
+        local sourceBarrel = source.barrel
+        local sourceData = source.data
+        local reasonKey = getGeneratorRefuelUnavailableReason(sourceData, generator, hasTool)
+        local option = addFuelMenu:addGetUpOption(
+            Text.buildGeneratorTransferSourceBarrelLabel(sourceData),
+            sourceBarrel,
+            Actions.onTransferToGenerator,
+            player,
+            generator
+        )
+
+        option.notAvailable = reasonKey ~= nil
+        Tooltips.attachWorldObjectIcon(option, sourceBarrel)
+        if not reasonKey then
+            Tooltips.attachGeneratorTransferTooltip(option, sourceData, generator)
+        else
+            Tooltips.attachGeneratorRefuelRequirementsTooltip(option, sourceData, foundItems, missingItems, generator, reasonKey)
+        end
+    end
+end
+
+local function addGeneratorTransferOption(subMenu, sourceBarrel, player, sourceData, inRange)
+    if not inRange then
+        local transferOption = subMenu:addOption(Text.translate(ContextConfig.CONTEXT_MENU.TRANSFER_TO_GENERATOR), nil, nil)
+        transferOption.notAvailable = true
+        Tooltips.attachTooFarTooltip(transferOption)
+        return
+    end
+
+    local hasTool, foundItems, missingItems = PlayerUtils.getRequiredItemStatus(player, Constant.EXTRACT_REQUIRED_ITEMS)
+    local nearbyGenerators = collectNearbyGenerators(sourceBarrel, player)
+    local targetGenerators = collectCompatibleGeneratorTargets(nearbyGenerators, sourceData)
+    local canTransfer = hasTool and #targetGenerators > 0
+    local transferLabel = Text.translate(ContextConfig.CONTEXT_MENU.TRANSFER_TO_GENERATOR)
+    if canTransfer then
+        transferLabel = Text.withSubMenuShortcut(transferLabel)
+    end
+
+    local transferOption = subMenu:addOption(transferLabel, nil, nil)
+    transferOption.notAvailable = not canTransfer
+
+    if not canTransfer then
+        local reasonKey, reasonGenerator = getGeneratorTargetUnavailableReason(sourceData, nearbyGenerators, hasTool)
+        Tooltips.attachGeneratorRefuelRequirementsTooltip(transferOption, sourceData, foundItems, missingItems, reasonGenerator, reasonKey)
+        return
+    end
+
+    local transferMenu = subMenu:getNew(subMenu)
+    subMenu:addSubMenu(transferOption, transferMenu)
+
+    for i = 1, #targetGenerators do
+        local generator = targetGenerators[i]
+        local option = transferMenu:addOption(
+            Text.buildGeneratorTransferTargetLabel(generator),
+            sourceBarrel,
+            Actions.onTransferToGenerator,
+            player,
+            generator
+        )
+        Tooltips.attachWorldObjectIcon(option, generator)
+        Tooltips.attachGeneratorTransferTooltip(option, sourceData, generator)
     end
 end
 
@@ -389,7 +843,13 @@ local function appendUniqueBarrel(found, seen, barrel)
     found[#found + 1] = barrel
 end
 
-local function collectBarrelsOnSquare(square, found, seen)
+local function appendUniqueGenerator(found, seen, generator)
+    if not GeneratorUtils.isGenerator(generator) or seen[generator] then return end
+    seen[generator] = true
+    found[#found + 1] = generator
+end
+
+function collectBarrelsOnSquare(square, found, seen)
     if not square then return end
 
     local objects = square:getObjects()
@@ -425,7 +885,7 @@ local function findContextBarrel(worldObjects)
                 appendUniqueBarrel(found, seen, object)
             end
 
-            local square = object:getSquare()
+            local square = type(object.getSquare) == "function" and object:getSquare() or nil
             if square and not squareSeen[square] then
                 squareSeen[square] = true
                 squares[#squares + 1] = square
@@ -444,6 +904,88 @@ local function findContextBarrel(worldObjects)
     local sameSquareBarrel = chooseOnly(found)
     if sameSquareBarrel then return sameSquareBarrel end
     return nil
+end
+
+---@param worldObjects IsoObject[]|nil
+---@return IsoGenerator|nil
+local function findContextGenerator(worldObjects)
+    if not worldObjects or #worldObjects == 0 then return nil end
+
+    local found = {}
+    local seen = {}
+    local squares = {}
+    local squareSeen = {}
+
+    for i = 1, #worldObjects do
+        local object = getWorldObject(worldObjects[i])
+        if object then
+            if GeneratorUtils.isGenerator(object) and not seen[object] then
+                seen[object] = true
+                found[#found + 1] = object
+            end
+
+            local square = type(object.getSquare) == "function" and object:getSquare() or nil
+            if square and not squareSeen[square] then
+                squareSeen[square] = true
+                squares[#squares + 1] = square
+            end
+        end
+    end
+
+    local directGenerator = chooseOnly(found)
+    if directGenerator then return directGenerator end
+    if #found > 1 then return nil end
+
+    for i = 1, #squares do
+        GeneratorUtils.collectGeneratorsOnSquare(squares[i], found, seen)
+    end
+
+    local sameSquareGenerator = chooseOnly(found)
+    if sameSquareGenerator then return sameSquareGenerator end
+    return nil
+end
+
+local function appendGeneratorOptionValue(found, seen, value)
+    local object = getWorldObject(value)
+    if GeneratorUtils.isGenerator(object) then
+        appendUniqueGenerator(found, seen, object)
+    end
+end
+
+local function collectGeneratorsFromMenu(menu, found, seen, maxDepth)
+    local depth = tonumber(maxDepth) or 0
+    if not menu or not menu.options or depth < 0 then return end
+
+    for i = 1, #menu.options do
+        local option = menu.options[i]
+        if option then
+            appendGeneratorOptionValue(found, seen, option.target)
+            appendGeneratorOptionValue(found, seen, option.param1)
+            appendGeneratorOptionValue(found, seen, option.param2)
+            appendGeneratorOptionValue(found, seen, option.param3)
+            appendGeneratorOptionValue(found, seen, option.param4)
+            appendGeneratorOptionValue(found, seen, option.param5)
+            appendGeneratorOptionValue(found, seen, option.param6)
+            appendGeneratorOptionValue(found, seen, option.param7)
+            appendGeneratorOptionValue(found, seen, option.param8)
+            appendGeneratorOptionValue(found, seen, option.param9)
+            appendGeneratorOptionValue(found, seen, option.param10)
+
+            local subMenu = getOptionSubMenu(menu, option)
+            if subMenu and depth > 0 then
+                collectGeneratorsFromMenu(subMenu, found, seen, depth - 1)
+            end
+        end
+    end
+end
+
+---@param context ISContextMenu
+---@return IsoGenerator|nil
+local function findContextGeneratorFromMenu(context)
+    local found = {}
+    local seen = {}
+    collectGeneratorsFromMenu(context, found, seen, 4)
+    return chooseOnly(found)
 end
 
 ---@param context ISContextMenu
@@ -473,9 +1015,22 @@ local function addBarrelSubMenu(context, barrel, player, canOpen, foundItems, mi
     addFillOption(subMenu, barrel, player, availability)
     addPourOption(subMenu, barrel, player, barrelData, availability)
     addBarrelTransferOption(subMenu, barrel, player, barrelData, inRange)
+    addGeneratorTransferOption(subMenu, barrel, player, barrelData, inRange)
     addDrinkOption(subMenu, barrel, player, availability)
     addWashOption(subMenu, barrel, player, availability)
     addEmptyOption(subMenu, barrel, player, availability)
+end
+
+local function patchVanillaGeneratorAddFuelGuard()
+    if not ISWorldObjectContextMenu or ISWorldObjectContextMenu.BarrEx_GeneratorAddFuelPatched then return end
+    local original = ISWorldObjectContextMenu.doAddFuelGenerator
+    if type(original) ~= "function" then return end
+
+    ISWorldObjectContextMenu.doAddFuelGenerator = function(worldobjects, generator, fuelContainerList, fuelContainer, player)
+        if GeneratorUtils.isFull(generator) then return end
+        return original(worldobjects, generator, fuelContainerList, fuelContainer, player)
+    end
+    ISWorldObjectContextMenu.BarrEx_GeneratorAddFuelPatched = true
 end
 
 ---@param playerIndex integer
@@ -484,12 +1039,18 @@ end
 ---@param test boolean
 function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObjects, test)
     if test then return end
-
-    local barrel = findContextBarrel(worldObjects)
-    if not barrel then return end
+    patchVanillaGeneratorAddFuelGuard()
 
     local player = getSpecificPlayer(playerIndex)
     if not player then return end
+
+    local generator = findContextGenerator(worldObjects) or findContextGeneratorFromMenu(context)
+    if generator then
+        addGeneratorSourceBarrelOptions(context, player, generator)
+    end
+
+    local barrel = findContextBarrel(worldObjects)
+    if not barrel then return end
 
     local canOpen, foundItems, missingItems = PlayerUtils.getRequiredItemStatus(
         player,
@@ -508,5 +1069,6 @@ function ContextMenu.onFillWorldObjectContextMenu(playerIndex, context, worldObj
 end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.onFillWorldObjectContextMenu)
+patchVanillaGeneratorAddFuelGuard()
 
 return ContextMenu

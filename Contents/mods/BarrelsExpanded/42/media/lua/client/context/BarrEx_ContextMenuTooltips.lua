@@ -1,8 +1,10 @@
 local ContextConfig = require("config/BarrEx_ContextConfig")
 local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 local Constant = require("BarrEx_Constant")
+local TransferRules = require("core/BarrEx_TransferRules")
 local Text = require("context/BarrEx_ContextMenuText")
 local WorldUtils = require("utils/BarrEx_WorldUtils")
+local GeneratorUtils = require("utils/BarrEx_GeneratorUtils")
 
 local Tooltips = {}
 
@@ -31,7 +33,7 @@ local REASON_TOOLTIP_KEYS = {
 }
 
 local MAX_COMPATIBLE_CONTAINER_LINES = 5
-local appendReasonStatus
+local appendUnavailableReason
 
 ---@return ISToolTip
 local function newTooltip()
@@ -66,6 +68,18 @@ end
 function TooltipBuilder:line(text, color)
     self.lines[#self.lines + 1] = buildLine(color or Tooltips.COLORS.TEXT, text)
     return self
+end
+
+---@param text string|number|nil
+---@return table
+function TooltipBuilder:unavailable(text)
+    return self:line(text, Tooltips.COLORS.BAD)
+end
+
+---@param text string|number|nil
+---@return table
+function TooltipBuilder:warning(text)
+    return self:line(text, Tooltips.COLORS.WARN)
 end
 
 ---@param label string|nil
@@ -149,8 +163,18 @@ function Tooltips.attachSimpleTooltip(option, message)
 end
 
 ---@param option table|nil
+---@param message string|nil
+function Tooltips.attachUnavailableTooltip(option, message)
+    if not option or not message then return end
+
+    Tooltips.newBuilder()
+        :unavailable(message)
+        :attach(option)
+end
+
+---@param option table|nil
 function Tooltips.attachTooFarTooltip(option)
-    Tooltips.attachSimpleTooltip(option, Text.translate(ContextConfig.TOOLTIP.TOO_FAR))
+    Tooltips.attachUnavailableTooltip(option, Text.translate(ContextConfig.TOOLTIP.TOO_FAR))
 end
 
 ---@param option table|nil
@@ -165,7 +189,7 @@ function Tooltips.attachReasonTooltip(option, reason)
 
     local translationKey = REASON_TOOLTIP_KEYS[reason]
     if translationKey then
-        Tooltips.attachSimpleTooltip(option, Text.translate(translationKey))
+        Tooltips.attachUnavailableTooltip(option, Text.translate(translationKey))
     end
 end
 
@@ -299,7 +323,7 @@ end
 ---@param option table|nil
 function Tooltips.attachTaintedWaterTooltip(option)
     Tooltips.newBuilder()
-        :line(Text.translate(ContextConfig.TOOLTIP.TAINTED_WATER), Tooltips.COLORS.WARN)
+        :unavailable(Text.translate(ContextConfig.TOOLTIP.TAINTED_WATER))
         :attach(option)
 end
 
@@ -310,10 +334,10 @@ function Tooltips.attachDrinkTooltip(option, availability)
 
     local builder = Tooltips.newBuilder()
     if availability.isTaintedWater then
-        builder:line(Text.translate(ContextConfig.TOOLTIP.TAINTED_WATER), Tooltips.COLORS.WARN)
+        builder:warning(Text.translate(ContextConfig.TOOLTIP.TAINTED_WATER))
     end
     if not availability.canDrink then
-        appendReasonStatus(builder, availability.drinkReason)
+        appendUnavailableReason(builder, availability.drinkReason)
     end
     builder:attach(option)
 end
@@ -353,11 +377,10 @@ end
 
 ---@param builder table
 ---@param reason string|nil
-function appendReasonStatus(builder, reason)
+function appendUnavailableReason(builder, reason)
     local translationKey = REASON_TOOLTIP_KEYS[reason]
     if translationKey then
-        builder:header(Text.translate(ContextConfig.TOOLTIP.STATUS))
-            :line(Text.translate(translationKey), Tooltips.COLORS.BAD)
+        builder:unavailable(Text.translate(translationKey))
     end
 end
 
@@ -367,7 +390,7 @@ function Tooltips.attachActionUnavailableTooltip(option, reason)
     if not option or not reason then return end
 
     local builder = Tooltips.newBuilder()
-    appendReasonStatus(builder, reason)
+    appendUnavailableReason(builder, reason)
     builder:attach(option)
 end
 
@@ -377,7 +400,7 @@ function Tooltips.attachFillRequirementsTooltip(option, availability)
     if not option or not availability then return end
 
     local builder = Tooltips.newBuilder()
-    appendReasonStatus(builder, availability.fillReason)
+    appendUnavailableReason(builder, availability.fillReason)
 
     local liquidType = availability.liquidType
     if liquidType and liquidType ~= Constant.LIQUID_TYPE.EMPTY then
@@ -390,7 +413,7 @@ function Tooltips.attachFillRequirementsTooltip(option, availability)
     builder:requiredItems(availability.fillFoundItems, availability.fillMissingItems)
 
     if availability.fillReason == "no_target_items" then
-        builder:line(Text.translate(ContextConfig.TOOLTIP.NEED_CONTAINER_WITH_SPACE), Tooltips.COLORS.WARN)
+        builder:unavailable(Text.translate(ContextConfig.TOOLTIP.NEED_CONTAINER_WITH_SPACE))
         appendCompatibleContainers(builder, liquidType)
     end
 
@@ -404,7 +427,7 @@ function Tooltips.attachPourRequirementsTooltip(option, availability, barrelData
     if not option or not availability then return end
 
     local builder = Tooltips.newBuilder()
-    appendReasonStatus(builder, availability.pourReason)
+    appendUnavailableReason(builder, availability.pourReason)
     builder:requiredItems(availability.pourFoundItems, availability.pourMissingItems)
 
     local liquidType = barrelData and barrelData.liquidType or nil
@@ -413,10 +436,10 @@ function Tooltips.attachPourRequirementsTooltip(option, availability, barrelData
             Text.translate(ContextConfig.TOOLTIP.CURRENT_LIQUID),
             Text.getLiquidDisplayName(liquidType)
         )
-        builder:line(Text.translate(ContextConfig.TOOLTIP.NEED_MATCHING_LIQUID), Tooltips.COLORS.WARN)
+        builder:unavailable(Text.translate(ContextConfig.TOOLTIP.NEED_MATCHING_LIQUID))
         appendCompatibleContainers(builder, liquidType)
     elseif availability.pourReason == "no_source_items" then
-        builder:line(Text.translate(ContextConfig.TOOLTIP.NEED_CONTAINER_WITH_LIQUID), Tooltips.COLORS.WARN)
+        builder:unavailable(Text.translate(ContextConfig.TOOLTIP.NEED_CONTAINER_WITH_LIQUID))
     end
 
     builder:attach(option)
@@ -497,6 +520,84 @@ function Tooltips.attachBarrelTransferTooltip(option, sourceData, targetData)
             Text.formatAmount(targetData.amount) .. "/" .. Text.formatAmount(targetData.capacity)
         )
         :attach(option)
+end
+
+---@param option table|nil
+---@param sourceData BarrEx_Barrel|nil
+---@param generator IsoGenerator|nil
+function Tooltips.attachGeneratorTransferTooltip(option, sourceData, generator)
+    if not option or not sourceData or not generator then return end
+
+    local amount = TransferRules.getBarrelToGeneratorAmount(sourceData, generator)
+
+    Tooltips.newBuilder()
+        :keyValue(
+            Text.translate(ContextConfig.TOOLTIP.LIQUID),
+            Text.getLiquidDisplayName(sourceData.liquidType)
+        )
+        :keyValue(
+            Text.translate(ContextConfig.TOOLTIP.TRANSFER_AMOUNT),
+            Text.formatAmount(amount)
+        )
+        :keyValue(
+            Text.translate(ContextConfig.TOOLTIP.GENERATOR_FUEL),
+            Text.formatAmount(GeneratorUtils.getFuel(generator)) .. "/" .. Text.formatAmount(GeneratorUtils.getMaxFuel(generator))
+        )
+        :attach(option)
+end
+
+---@param option table|nil
+---@param sourceData BarrEx_Barrel|nil
+---@param foundItems table<string>|nil
+---@param missingItems table<string>|nil
+---@param generator IsoGenerator|nil
+---@param reasonKey string|nil
+function Tooltips.attachGeneratorRefuelRequirementsTooltip(option, sourceData, foundItems, missingItems, generator, reasonKey)
+    if not option then return end
+
+    local builder = Tooltips.newBuilder()
+
+    if reasonKey then
+        builder:unavailable(Text.translate(reasonKey))
+    elseif not sourceData or not sourceData:isRevealed() then
+        reasonKey = ContextConfig.TOOLTIP.BARREL_CLOSED
+        builder:unavailable(Text.translate(reasonKey))
+    elseif sourceData:isEmpty() then
+        reasonKey = ContextConfig.TOOLTIP.BARREL_EMPTY
+        builder:unavailable(Text.translate(reasonKey))
+    elseif sourceData.liquidType ~= Constant.LIQUID_TYPE.GASOLINE then
+        reasonKey = ContextConfig.TOOLTIP.NEED_GASOLINE_BARREL
+        builder:unavailable(Text.translate(reasonKey))
+    elseif generator and GeneratorUtils.isAvailable(generator) and GeneratorUtils.isFull(generator) then
+        reasonKey = ContextConfig.TOOLTIP.GENERATOR_FULL
+        builder:unavailable(Text.translate(reasonKey))
+    elseif missingItems and #missingItems > 0 then
+        reasonKey = ContextConfig.TOOLTIP.MISSING_REQUIRED_TOOL
+        builder:unavailable(Text.translate(reasonKey))
+    else
+        reasonKey = ContextConfig.TOOLTIP.NO_COMPATIBLE_GENERATOR
+        builder:unavailable(Text.translate(reasonKey))
+    end
+
+    if reasonKey == ContextConfig.TOOLTIP.NEED_GASOLINE_BARREL and sourceData then
+        builder:keyValue(
+            Text.translate(ContextConfig.TOOLTIP.CURRENT_LIQUID),
+            Text.getLiquidDisplayName(sourceData.liquidType)
+        )
+    end
+
+    if reasonKey == ContextConfig.TOOLTIP.GENERATOR_FULL and generator then
+        builder:keyValue(
+            Text.translate(ContextConfig.TOOLTIP.GENERATOR_FUEL),
+            Text.formatAmount(GeneratorUtils.getFuel(generator)) .. "/" .. Text.formatAmount(GeneratorUtils.getMaxFuel(generator))
+        )
+    end
+
+    if reasonKey == ContextConfig.TOOLTIP.MISSING_REQUIRED_TOOL then
+        builder:requiredItems(foundItems, missingItems)
+    end
+
+    builder:attach(option)
 end
 
 return Tooltips

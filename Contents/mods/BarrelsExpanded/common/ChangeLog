@@ -1,3 +1,18 @@
+Version 1.0.13
+- Added generator refueling from nearby gasoline barrels through the endpoint-transfer system.
+- Integrated nearby gasoline barrels into the vanilla Generator > Add Fuel source list.
+- Disabled generator refuel menu entries with visible reasons when the source barrel has no gasoline or the generator is already full.
+- Treat generators as full when the vanilla info window displays 100%, and disabled all visible Add Fuel entries for full generators.
+- Kept full-generator Add Fuel menus visually compact by using a single disabled Add Fuel row with a tooltip instead of repeated inline warnings.
+- Kept Barrel > Refuel Generator labels clean when blocked, moving generator-full and requirement reasons into consistent unavailable tooltips.
+- Removed generic Status/Estado headers from unavailable tooltips so blocked menu options show the reason directly.
+- Documented the context-menu UX style guide for disabled labels, warning colors, tooltip colors, and submenu behavior.
+- Added a vanilla Add Fuel guard so inventory-container fuel actions cannot start their animation against a displayed-full generator.
+- Fixed generator menu scanning so non-object vanilla menu parameters no longer error when right-clicking barrels.
+- Added source-to-target distance validation for endpoint transfers so barrels must be close to the target barrel or generator.
+- Added generator endpoint validation, locking, progress sync, and generator fuel synchronization for multiplayer transfers.
+- Added Barrel menu options, tooltips, and EN/ES/AR transfer messages for generator refueling.
+
 Version 1.0.12
 - Added barrel-to-barrel liquid transfer through a new reusable endpoint-transfer base for future generator, vehicle tank, and plumbing integrations.
 - Added source and target barrel snapshots to transfer responses so multiplayer clients keep both barrels in sync after partial or completed transfers.

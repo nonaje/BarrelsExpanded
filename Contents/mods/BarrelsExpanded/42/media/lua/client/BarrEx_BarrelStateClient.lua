@@ -235,6 +235,7 @@ end
 
 function BarrelStateClient.applySnapshot(snapshot)
     if type(snapshot) ~= "table" then return false end
+    if snapshot.kind and snapshot.kind ~= "barrel" then return false end
 
     local barrel, reason = findBarrel(snapshot)
     if not barrel then
