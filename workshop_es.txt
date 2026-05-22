@@ -29,6 +29,8 @@ Abrí uno y capaz encontrás agua limpia, agua contaminada, nafta, lavandina o a
 
 - [b]Configuración de Sandbox:[/b] Ajustá la capacidad del barril, el peso vacío, la distancia de interacción, las herramientas para abrirlos, los requisitos para transferir y las probabilidades de aparición de líquidos según el tipo de barril.
 
+- [b]Panel Admin / Debug:[/b] Los admins autorizados pueden inspeccionar barriles, reparar/reconciliar su estado, revelar o inicializar contenidos, vaciarlos, setear líquidos o regenerar loot desde el menú del barril.
+
 - [b]Solo y Multijugador:[/b] Funciona tanto para tus partidas en solitario como para bases multijugador.
 [/quote]
 
