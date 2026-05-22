@@ -85,6 +85,15 @@ end
 - Considera `table.newarray()` solo para listas temporales puramente locales. No lo uses en `modData`, comandos de red ni datos que deban serializarse.
 - No sacrifiques arquitectura por micro-optimizaciones fuera de rutas calientes.
 
+## Tipado LuaLS
+
+- Usa anotaciones EmmyLua/LuaLS en funciones nuevas o modificadas, especialmente en modulos compartidos, server-side y acciones temporizadas.
+- Anota funciones publicas y helpers locales no triviales con `---@param` y `---@return`; no dejes contratos importantes como tablas anonimas si el analizador puede ayudarte.
+- Cuando una tabla cruza capas, comandos de red, snapshots, endpoints o estados activos, define `---@class` o `---@alias` cerca del modulo que la produce.
+- Prefere tipos concretos del juego cuando existan (`IsoPlayer`, `IsoObject`, `IsoGridSquare`, `IsoGenerator`, `InventoryItem`) y usa `any` solo en bordes defensivos con Java/Kahlua.
+- Si una funcion devuelve `nil, reason`, documenta ambos retornos para que el caller tenga visible el contrato de error.
+- Mantene las anotaciones sincronizadas con la logica real; un tipo demasiado amplio oculta bugs y uno falso genera ruido.
+
 ## Context menus y UX
 
 - El menu contextual debe ser liviano: construir opciones, tooltips y acciones, no cambiar estado real.

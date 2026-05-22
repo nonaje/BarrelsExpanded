@@ -1,11 +1,22 @@
 local GeneratorUtils = {}
 local FULL_FUEL_PERCENT = 100
 
+---@class BarrEx_GeneratorEndpointArgs
+---@field x number|nil
+---@field y number|nil
+---@field z number|nil
+---@field objectIndex number|nil
+
+---@param object any
+---@return boolean
 local function isIndexableObject(object)
     local objectType = type(object)
     return objectType == "table" or objectType == "userdata"
 end
 
+---@param object any
+---@param className string
+---@return boolean
 local function isInstanceOf(object, className)
     if type(instanceof) ~= "function" then return false end
 
@@ -13,6 +24,9 @@ local function isInstanceOf(object, className)
     return ok and result == true
 end
 
+---@param object any
+---@param methodName string
+---@return boolean
 local function hasMethod(object, methodName)
     if not isIndexableObject(object) then return false end
 
@@ -59,6 +73,7 @@ end
 ---@return number
 function GeneratorUtils.getFuel(generator)
     if not GeneratorUtils.isGenerator(generator) then return 0 end
+    if not generator then return 0 end
     return math.max(tonumber(generator:getFuel()) or 0, 0)
 end
 
@@ -66,9 +81,12 @@ end
 ---@return number
 function GeneratorUtils.getMaxFuel(generator)
     if not GeneratorUtils.isGenerator(generator) then return 0 end
+    if not generator then return 0 end
     return math.max(tonumber(generator:getMaxFuel()) or 0, 0)
 end
 
+---@param generator IsoGenerator|nil
+---@return number
 local function getRawFreeFuelCapacity(generator)
     return math.max(GeneratorUtils.getMaxFuel(generator) - GeneratorUtils.getFuel(generator), 0)
 end
@@ -84,6 +102,7 @@ end
 ---@return number
 function GeneratorUtils.getFuelPercent(generator)
     if not GeneratorUtils.isGenerator(generator) then return 0 end
+    if not generator then return 0 end
     if type(generator.getFuelPercentage) == "function" then
         return math.max(math.min(tonumber(generator:getFuelPercentage()) or 0, 100), 0)
     end
@@ -120,6 +139,7 @@ end
 ---@return number
 function GeneratorUtils.addFuel(generator, amount)
     if not GeneratorUtils.canReceiveFuel(generator) then return 0 end
+    if not generator then return 0 end
 
     local added = math.max(math.min(
         tonumber(amount) or 0,
@@ -128,16 +148,20 @@ function GeneratorUtils.addFuel(generator, amount)
     if added <= 0 then return 0 end
 
     generator:setFuel(GeneratorUtils.getFuel(generator) + added)
+
     return added
 end
 
 ---@param generator IsoGenerator|nil
 function GeneratorUtils.sync(generator)
-    if GeneratorUtils.isGenerator(generator) and type(generator.sync) == "function" then
+    if generator and GeneratorUtils.isGenerator(generator) and type(generator.sync) == "function" then
         generator:sync()
     end
 end
 
+---@param found table<integer, IsoGenerator>
+---@param seen table<any, boolean>
+---@param object any
 local function appendGenerator(found, seen, object)
     if not GeneratorUtils.isGenerator(object) or seen[object] then return end
 
@@ -145,6 +169,9 @@ local function appendGenerator(found, seen, object)
     found[#found + 1] = object
 end
 
+---@param objects any
+---@param found table<integer, IsoGenerator>
+---@param seen table<any, boolean>
 local function collectFromJavaList(objects, found, seen)
     if not objects then return end
 
@@ -170,7 +197,7 @@ function GeneratorUtils.collectGeneratorsOnSquare(square, found, seen)
 end
 
 ---@param generator IsoGenerator|nil
----@param args table|nil
+---@param args BarrEx_GeneratorEndpointArgs|nil
 ---@return boolean
 function GeneratorUtils.matchesArgs(generator, args)
     if not GeneratorUtils.isAvailable(generator) then return false end
@@ -186,7 +213,7 @@ function GeneratorUtils.matchesArgs(generator, args)
 end
 
 ---@param square IsoGridSquare|nil
----@param args table|nil
+---@param args BarrEx_GeneratorEndpointArgs|nil
 ---@return IsoGenerator|nil
 ---@return string|nil
 function GeneratorUtils.resolveOnSquare(square, args)
@@ -210,6 +237,7 @@ end
 ---@return string|nil
 function GeneratorUtils.getKey(generator)
     if not GeneratorUtils.isAvailable(generator) then return nil end
+    if not generator then return nil end
 
     local square = generator:getSquare()
     if not square then return nil end

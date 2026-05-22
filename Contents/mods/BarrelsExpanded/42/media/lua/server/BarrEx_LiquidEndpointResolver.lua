@@ -13,17 +13,59 @@ local GeneratorUtils    = require("utils/BarrEx_GeneratorUtils")
 
 local EndpointResolver = {}
 
+---@alias BarrEx_LiquidEndpointKind "barrel"|"generator"
+
+---@class BarrEx_LiquidEndpointArgs : BarrEx_GeneratorEndpointArgs
+---@field kind BarrEx_LiquidEndpointKind|nil
+---@field barrelId string|nil
+---@field clientRevision number|nil
+---@field spriteName string|nil
+
+---@class BarrEx_LiquidEndpoint
+---@field kind BarrEx_LiquidEndpointKind
+---@field key string
+---@field object IsoObject|IsoGenerator
+---@field args BarrEx_LiquidEndpointArgs
+---@field liquidType string|nil
+---@field amount number
+---@field capacity number
+---@field freeCapacity number
+---@field barrelId string|nil
+---@field data BarrEx_Barrel|nil
+---@field canProvide fun(endpoint:BarrEx_LiquidEndpoint):boolean
+---@field canReceive fun(endpoint:BarrEx_LiquidEndpoint, liquidType:string|nil):boolean
+---@field removeLiquid fun(endpoint:BarrEx_LiquidEndpoint, amount:number|nil):number
+---@field addLiquid fun(endpoint:BarrEx_LiquidEndpoint, liquidType:string|nil, amount:number|nil):number
+---@field persist fun(endpoint:BarrEx_LiquidEndpoint, bumpRevision:boolean|nil, transmit:boolean|nil):table|nil
+---@field sync fun(endpoint:BarrEx_LiquidEndpoint)
+---@field snapshot fun(endpoint:BarrEx_LiquidEndpoint):table|nil
+
+---@class BarrEx_BarrelEndpoint : BarrEx_LiquidEndpoint
+---@field kind "barrel"
+---@field object IsoObject
+---@field data BarrEx_Barrel
+---@field barrelId string
+
+---@class BarrEx_GeneratorEndpoint : BarrEx_LiquidEndpoint
+---@field kind "generator"
+---@field object IsoGenerator
+---@field data nil
+
 EndpointResolver.KIND = {
     BARREL = "barrel",
     GENERATOR = "generator",
 }
 
+---@param liquidType string|nil
+---@return boolean
 local function isValidLiquidType(liquidType)
     return type(liquidType) == "string"
         and Constant.LIQUID_TYPE[liquidType] ~= nil
         and liquidType ~= Constant.LIQUID_TYPE.EMPTY
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
+---@return BarrEx_BarrelEndpoint
 local function refreshBarrelState(endpoint)
     local barrelData = type(endpoint) == "table" and endpoint.data or nil
     endpoint.liquidType = barrelData and barrelData.liquidType or nil
@@ -33,16 +75,23 @@ local function refreshBarrelState(endpoint)
     return endpoint
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
+---@return table|nil
 local function barrelSnapshot(endpoint)
     return StateService.buildSnapshot(endpoint.object, endpoint.data)
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
 local function barrelSync(endpoint)
     if endpoint.object then
         endpoint.object:transmitModData()
     end
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
+---@param bumpRevision boolean|nil
+---@param transmit boolean|nil
+---@return table|nil
 local function barrelPersist(endpoint, bumpRevision, transmit)
     if not endpoint.object or not endpoint.data then return nil end
 
@@ -60,6 +109,8 @@ local function barrelPersist(endpoint, bumpRevision, transmit)
     return barrelSnapshot(endpoint)
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
+---@return boolean
 local function barrelCanProvide(endpoint)
     local barrelData = type(endpoint) == "table" and endpoint.data or nil
     if not barrelData or not barrelData:isRevealed() or barrelData:isEmpty() then
@@ -69,6 +120,9 @@ local function barrelCanProvide(endpoint)
     return isValidLiquidType(barrelData.liquidType)
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
+---@param liquidType string|nil
+---@return boolean
 local function barrelCanReceive(endpoint, liquidType)
     local barrelData = type(endpoint) == "table" and endpoint.data or nil
     if not barrelData or not barrelData:isRevealed() or barrelData:isFull() then
@@ -77,28 +131,49 @@ local function barrelCanReceive(endpoint, liquidType)
     if not isValidLiquidType(liquidType) then
         return false
     end
+    ---@cast liquidType string
 
     return barrelData:canAcceptLiquid(liquidType, 1)
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
+---@param amount number|nil
+---@return number
 local function barrelRemoveLiquid(endpoint, amount)
     local barrelData = type(endpoint) == "table" and endpoint.data or nil
     if not barrelData then return 0 end
 
-    local removed = barrelData:removeLiquid(amount)
+    local requestedAmount = math.max(tonumber(amount) or 0, 0)
+    if requestedAmount <= 0 then return 0 end
+
+    local removed = barrelData:removeLiquid(requestedAmount)
     refreshBarrelState(endpoint)
     return removed
 end
 
+---@param endpoint BarrEx_BarrelEndpoint
+---@param liquidType string|nil
+---@param amount number|nil
+---@return number
 local function barrelAddLiquid(endpoint, liquidType, amount)
     local barrelData = type(endpoint) == "table" and endpoint.data or nil
     if not barrelData then return 0 end
+    if not isValidLiquidType(liquidType) then return 0 end
+    ---@cast liquidType string
 
-    local added = barrelData:addLiquid(liquidType, amount)
+    local requestedAmount = math.max(tonumber(amount) or 0, 0)
+    if requestedAmount <= 0 then return 0 end
+
+    local added = barrelData:addLiquid(liquidType, requestedAmount)
     refreshBarrelState(endpoint)
     return added
 end
 
+---@param barrel IsoObject
+---@param barrelData BarrEx_Barrel
+---@param args BarrEx_LiquidEndpointArgs
+---@param key string
+---@return BarrEx_BarrelEndpoint
 local function buildBarrelEndpoint(barrel, barrelData, args, key)
     return refreshBarrelState({
         kind = EndpointResolver.KIND.BARREL,
@@ -107,6 +182,10 @@ local function buildBarrelEndpoint(barrel, barrelData, args, key)
         object = barrel,
         data = barrelData,
         args = args,
+        liquidType = nil,
+        amount = 0,
+        capacity = 0,
+        freeCapacity = 0,
         canProvide = barrelCanProvide,
         canReceive = barrelCanReceive,
         removeLiquid = barrelRemoveLiquid,
@@ -117,6 +196,8 @@ local function buildBarrelEndpoint(barrel, barrelData, args, key)
     })
 end
 
+---@param endpoint BarrEx_GeneratorEndpoint
+---@return BarrEx_GeneratorEndpoint
 local function refreshGeneratorState(endpoint)
     local generator = type(endpoint) == "table" and endpoint.object or nil
     endpoint.liquidType = Constant.LIQUID_TYPE.GASOLINE
@@ -126,9 +207,12 @@ local function refreshGeneratorState(endpoint)
     return endpoint
 end
 
+---@param endpoint BarrEx_GeneratorEndpoint
+---@return table|nil
 local function generatorSnapshot(endpoint)
     local generator = type(endpoint) == "table" and endpoint.object or nil
     if not GeneratorUtils.isGenerator(generator) then return nil end
+    if not generator then return nil end
 
     local square = generator:getSquare()
     return {
@@ -146,10 +230,15 @@ local function generatorSnapshot(endpoint)
     }
 end
 
+---@param endpoint BarrEx_GeneratorEndpoint
 local function generatorSync(endpoint)
     GeneratorUtils.sync(type(endpoint) == "table" and endpoint.object or nil)
 end
 
+---@param endpoint BarrEx_GeneratorEndpoint
+---@param _bumpRevision boolean|nil
+---@param transmit boolean|nil
+---@return table|nil
 local function generatorPersist(endpoint, _bumpRevision, transmit)
     refreshGeneratorState(endpoint)
     if transmit == true then
@@ -159,20 +248,32 @@ local function generatorPersist(endpoint, _bumpRevision, transmit)
     return generatorSnapshot(endpoint)
 end
 
+---@param _endpoint BarrEx_GeneratorEndpoint
+---@return boolean
 local function generatorCanProvide(_endpoint)
     return false
 end
 
+---@param endpoint BarrEx_GeneratorEndpoint
+---@param liquidType string|nil
+---@return boolean
 local function generatorCanReceive(endpoint, liquidType)
     if liquidType ~= Constant.LIQUID_TYPE.GASOLINE then return false end
 
     return GeneratorUtils.canReceiveFuel(type(endpoint) == "table" and endpoint.object or nil)
 end
 
+---@param _endpoint BarrEx_GeneratorEndpoint
+---@param _amount number|nil
+---@return number
 local function generatorRemoveLiquid(_endpoint, _amount)
     return 0
 end
 
+---@param endpoint BarrEx_GeneratorEndpoint
+---@param liquidType string|nil
+---@param amount number|nil
+---@return number
 local function generatorAddLiquid(endpoint, liquidType, amount)
     if liquidType ~= Constant.LIQUID_TYPE.GASOLINE then return 0 end
 
@@ -181,12 +282,21 @@ local function generatorAddLiquid(endpoint, liquidType, amount)
     return added
 end
 
+---@param generator IsoGenerator
+---@param args BarrEx_LiquidEndpointArgs
+---@param key string
+---@return BarrEx_GeneratorEndpoint
 local function buildGeneratorEndpoint(generator, args, key)
     return refreshGeneratorState({
         kind = EndpointResolver.KIND.GENERATOR,
         key = key,
         object = generator,
         args = args,
+        liquidType = nil,
+        amount = 0,
+        capacity = 0,
+        freeCapacity = 0,
+        data = nil,
         canProvide = generatorCanProvide,
         canReceive = generatorCanReceive,
         removeLiquid = generatorRemoveLiquid,
@@ -197,6 +307,10 @@ local function buildGeneratorEndpoint(generator, args, key)
     })
 end
 
+---@param player IsoPlayer
+---@param args BarrEx_LiquidEndpointArgs
+---@return BarrEx_LiquidEndpoint|nil
+---@return string|nil
 local function resolveBarrel(player, args)
     local barrel, resolveReason = BarrelResolver.resolveStrict(args)
     if not barrel then
@@ -220,12 +334,20 @@ local function resolveBarrel(player, args)
     return buildBarrelEndpoint(barrel, barrelData, args, key), nil
 end
 
+---@param x number
+---@param y number
+---@param z number
+---@return IsoGridSquare|nil
 local function getCellSquare(x, y, z)
     local cell = getCell()
     if not cell then return nil end
     return cell:getGridSquare(x, y, z)
 end
 
+---@param player IsoPlayer
+---@param args BarrEx_LiquidEndpointArgs|nil
+---@return BarrEx_LiquidEndpoint|nil
+---@return string|nil
 local function resolveGenerator(player, args)
     if type(args) ~= "table" then
         return nil, "invalid_endpoint"
@@ -255,8 +377,8 @@ local function resolveGenerator(player, args)
 end
 
 ---@param player IsoPlayer
----@param args table|nil
----@return table|nil
+---@param args BarrEx_LiquidEndpointArgs|nil
+---@return BarrEx_LiquidEndpoint|nil
 ---@return string|nil
 function EndpointResolver.resolve(player, args)
     if type(args) ~= "table" then
@@ -275,8 +397,8 @@ function EndpointResolver.resolve(player, args)
 end
 
 ---@param player IsoPlayer
----@param endpoint table|nil
----@return table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
+---@return BarrEx_LiquidEndpoint|nil
 ---@return string|nil
 function EndpointResolver.refresh(player, endpoint)
     if type(endpoint) ~= "table" then
@@ -297,14 +419,16 @@ function EndpointResolver.refresh(player, endpoint)
     endpoint.barrelId = refreshed.barrelId
     endpoint.key = refreshed.key
     if endpoint.kind == EndpointResolver.KIND.GENERATOR then
+        ---@cast endpoint BarrEx_GeneratorEndpoint
         refreshGeneratorState(endpoint)
     else
+        ---@cast endpoint BarrEx_BarrelEndpoint
         refreshBarrelState(endpoint)
     end
     return endpoint, nil
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@return table|nil
 function EndpointResolver.snapshot(endpoint)
     if type(endpoint) ~= "table" then return nil end
@@ -312,15 +436,17 @@ function EndpointResolver.snapshot(endpoint)
         return endpoint.snapshot(endpoint)
     end
     if endpoint.kind == EndpointResolver.KIND.BARREL then
+        ---@cast endpoint BarrEx_BarrelEndpoint
         return barrelSnapshot(endpoint)
     end
     if endpoint.kind == EndpointResolver.KIND.GENERATOR then
+        ---@cast endpoint BarrEx_GeneratorEndpoint
         return generatorSnapshot(endpoint)
     end
     return nil
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 function EndpointResolver.sync(endpoint)
     if type(endpoint) ~= "table" then return end
     if type(endpoint.sync) == "function" then
@@ -328,14 +454,16 @@ function EndpointResolver.sync(endpoint)
         return
     end
     if endpoint.kind == EndpointResolver.KIND.BARREL and endpoint.object then
+        ---@cast endpoint BarrEx_BarrelEndpoint
         barrelSync(endpoint)
     end
     if endpoint.kind == EndpointResolver.KIND.GENERATOR and endpoint.object then
+        ---@cast endpoint BarrEx_GeneratorEndpoint
         generatorSync(endpoint)
     end
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@param bumpRevision boolean|nil
 ---@param transmit boolean|nil
 ---@return table|nil
@@ -345,40 +473,42 @@ function EndpointResolver.persist(endpoint, bumpRevision, transmit)
         return endpoint.persist(endpoint, bumpRevision, transmit)
     end
     if endpoint.kind == EndpointResolver.KIND.GENERATOR then
+        ---@cast endpoint BarrEx_GeneratorEndpoint
         return generatorPersist(endpoint, bumpRevision, transmit)
     end
     if endpoint.kind ~= EndpointResolver.KIND.BARREL then return nil end
     if not endpoint.object or not endpoint.data then return nil end
 
+    ---@cast endpoint BarrEx_BarrelEndpoint
     return barrelPersist(endpoint, bumpRevision, transmit)
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@return string|nil
 function EndpointResolver.getLiquidType(endpoint)
     if type(endpoint) ~= "table" then return nil end
     return endpoint.liquidType
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@return number
 function EndpointResolver.getAmount(endpoint)
     return math.max(tonumber(type(endpoint) == "table" and endpoint.amount) or 0, 0)
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@return number
 function EndpointResolver.getCapacity(endpoint)
     return math.max(tonumber(type(endpoint) == "table" and endpoint.capacity) or 0, 0)
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@return number
 function EndpointResolver.getFreeCapacity(endpoint)
     return math.max(tonumber(type(endpoint) == "table" and endpoint.freeCapacity) or 0, 0)
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@return boolean
 function EndpointResolver.canProvide(endpoint)
     if type(endpoint) ~= "table" then return false end
@@ -389,7 +519,7 @@ function EndpointResolver.canProvide(endpoint)
     return false
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@param liquidType string|nil
 ---@return boolean
 function EndpointResolver.canReceive(endpoint, liquidType)
@@ -401,7 +531,7 @@ function EndpointResolver.canReceive(endpoint, liquidType)
     return false
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@param amount number|nil
 ---@return number
 function EndpointResolver.removeLiquid(endpoint, amount)
@@ -412,7 +542,7 @@ function EndpointResolver.removeLiquid(endpoint, amount)
     return 0
 end
 
----@param endpoint table|nil
+---@param endpoint BarrEx_LiquidEndpoint|nil
 ---@param liquidType string|nil
 ---@param amount number|nil
 ---@return number

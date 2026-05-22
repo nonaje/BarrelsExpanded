@@ -20,6 +20,7 @@ local GeneratorUtils = require("utils/BarrEx_GeneratorUtils")
 
 local TransferRules = {}
 
+---@return number
 local function getVanillaTransferTimePerUnit()
     if ISFluidUtil and type(ISFluidUtil.getTransferActionTimePerLiter) == "function" then
         local timePerUnit = tonumber(ISFluidUtil.getTransferActionTimePerLiter())
@@ -31,6 +32,7 @@ local function getVanillaTransferTimePerUnit()
     return 50
 end
 
+---@return number
 local function getVanillaMinTransferTime()
     if ISFluidUtil and type(ISFluidUtil.getMinTransferActionTime) == "function" then
         local minTime = tonumber(ISFluidUtil.getMinTransferActionTime())
@@ -215,8 +217,8 @@ end
 
 --- Returns true when a revealed gasoline barrel can refuel a generator.
 --- Does NOT check player range, locks, tools, or world-object identity.
----@param sourceBarrelData BarrEx_Barrel
----@param generator IsoGenerator
+---@param sourceBarrelData BarrEx_Barrel|nil
+---@param generator IsoGenerator|nil
 ---@return boolean
 function TransferRules.canFuelGeneratorFromBarrel(sourceBarrelData, generator)
     if not sourceBarrelData or not GeneratorUtils.canReceiveFuel(generator) then return false end
@@ -227,13 +229,14 @@ function TransferRules.canFuelGeneratorFromBarrel(sourceBarrelData, generator)
 end
 
 --- Returns the maximum units transferable from a gasoline barrel into a generator.
----@param sourceBarrelData BarrEx_Barrel
----@param generator IsoGenerator
+---@param sourceBarrelData BarrEx_Barrel|nil
+---@param generator IsoGenerator|nil
 ---@return number
 function TransferRules.getBarrelToGeneratorAmount(sourceBarrelData, generator)
     if not TransferRules.canFuelGeneratorFromBarrel(sourceBarrelData, generator) then
         return 0
     end
+    if not sourceBarrelData then return 0 end
 
     return math.max(math.min(
         tonumber(sourceBarrelData.amount) or 0,
@@ -246,8 +249,8 @@ end
 -- ---------------------------------------------------------------------------
 
 --- Returns the maximum units transferable between resolved endpoint objects.
----@param sourceEndpoint table|nil
----@param targetEndpoint table|nil
+---@param sourceEndpoint BarrEx_LiquidEndpoint|nil
+---@param targetEndpoint BarrEx_LiquidEndpoint|nil
 ---@return number
 function TransferRules.getEndpointTransferAmount(sourceEndpoint, targetEndpoint)
     if type(sourceEndpoint) ~= "table" or type(targetEndpoint) ~= "table" then

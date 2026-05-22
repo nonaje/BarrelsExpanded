@@ -10,6 +10,7 @@ local TransferSync = require("BarrEx_TransferSync")
 ---@field transferStarted boolean
 ---@field transferId string
 ---@field mode string
+---@field totalAmount number
 local BarrEx_EmptyBarrelAction = BarrEx_BarrelActionBase:derive("BarrEx_EmptyBarrelAction")
 
 local function clamp01(value)

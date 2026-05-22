@@ -1,2 +1,4 @@
 .vscode
+.luals-log/
+.luarc.codex.json
 Contents/mods/BarrelsExpanded/42/media/lua/shared/config/BarrEx_LogConfigLocal.lua

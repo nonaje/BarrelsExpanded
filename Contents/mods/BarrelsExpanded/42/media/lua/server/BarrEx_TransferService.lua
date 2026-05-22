@@ -40,19 +40,26 @@ local ENDPOINT_TRANSFER_MODES = {
     [BARREL_TO_GENERATOR_MODE] = true,
 }
 
+---@param message string
 local function log(message)
     Logger.info(message)
 end
 
+---@param transferId any
+---@return boolean
 local function isValidTransferId(transferId)
     return (type(transferId) == "string" and transferId ~= "")
         or type(transferId) == "number"
 end
 
+---@param mode string|nil
+---@return boolean
 local function isEndpointTransferMode(mode)
     return ENDPOINT_TRANSFER_MODES[mode] == true
 end
 
+---@param value number|string|nil
+---@return number
 local function clamp01(value)
     local numericValue = tonumber(value) or 0
     if numericValue < 0 then return 0 end
@@ -60,15 +67,21 @@ local function clamp01(value)
     return numericValue
 end
 
+---@param args table|nil
+---@return string|number|nil
 local function getActionId(args)
     if type(args) ~= "table" then return nil end
     return args.actionId or args.transferId
 end
 
+---@param player IsoPlayer|nil
+---@return string
 local function getPlayerName(player)
     return tostring(player and player:getUsername() or "unknown")
 end
 
+---@param transfer table|nil
+---@return number|string
 local function getTransferRevision(transfer)
     if transfer and transfer.sourceEndpoint and transfer.sourceEndpoint.data then
         return transfer.sourceEndpoint.data.revision or "unknown"
@@ -78,6 +91,10 @@ local function getTransferRevision(transfer)
     return barrelData and barrelData.revision or "unknown"
 end
 
+---@param args table|nil
+---@param barrel IsoObject|nil
+---@param barrelData BarrEx_Barrel|nil
+---@return table|nil
 local function buildNotifySource(args, barrel, barrelData)
     if type(args) ~= "table" then return nil end
 
@@ -91,6 +108,10 @@ local function buildNotifySource(args, barrel, barrelData)
     }
 end
 
+---@param args table|nil
+---@param sourceEndpoint BarrEx_LiquidEndpoint|nil
+---@param targetEndpoint BarrEx_LiquidEndpoint|nil
+---@return table|nil
 local function buildEndpointNotifySource(args, sourceEndpoint, targetEndpoint)
     if type(args) ~= "table" then return nil end
 
@@ -585,7 +606,12 @@ end
 -- Endpoint transfer: validate + apply
 -- ---------------------------------------------------------------------------
 
----@return table|nil, table|nil, string|nil, string|nil
+---@param player IsoPlayer
+---@param args table|nil
+---@return BarrEx_LiquidEndpoint|nil sourceEndpoint
+---@return BarrEx_LiquidEndpoint|nil targetEndpoint
+---@return string|nil liquidType
+---@return string|nil reason
 local function resolveEndpointTransfer(player, args)
     if type(args) ~= "table" then
         return nil, nil, nil, "invalid_args"
@@ -659,7 +685,11 @@ local function resolveEndpointTransfer(player, args)
     return sourceEndpoint, targetEndpoint, liquidType, nil
 end
 
----@return table|nil, table|nil, string|nil, string|nil
+---@param transfer table
+---@return BarrEx_LiquidEndpoint|nil sourceEndpoint
+---@return BarrEx_LiquidEndpoint|nil targetEndpoint
+---@return string|nil liquidType
+---@return string|nil reason
 local function resolveActiveEndpointContext(transfer)
     local sourceEndpoint, sourceReason = EndpointResolver.refresh(transfer.player, transfer.sourceEndpoint)
     if not sourceEndpoint then
@@ -709,6 +739,8 @@ local function resolveActiveEndpointContext(transfer)
     return sourceEndpoint, targetEndpoint, liquidType, nil
 end
 
+---@param endpoint BarrEx_LiquidEndpoint|nil
+---@return string
 local function getTargetAddFailedReason(endpoint)
     if endpoint and endpoint.kind == EndpointResolver.KIND.GENERATOR then
         return "generator_add_failed"
@@ -717,7 +749,11 @@ local function getTargetAddFailedReason(endpoint)
     return "target_add_failed"
 end
 
----@return number, string|nil, IsoObject|nil
+---@param transfer table
+---@param requestedAmount number|nil
+---@return number movedAmount
+---@return string|nil reason
+---@return IsoObject|nil sourceObject
 local function applyEndpointTransfer(transfer, requestedAmount)
     local sourceEndpoint, targetEndpoint, liquidType, reason = resolveActiveEndpointContext(transfer)
     if reason then
@@ -766,6 +802,7 @@ local function resolveActiveBarrel(transfer)
         return nil, nil, "missing_transfer"
     end
 
+    ---@type IsoObject|nil
     local barrel = transfer.lastBarrel
     if not barrelMatchesTransfer(barrel, transfer) then
         barrel = nil
@@ -804,6 +841,7 @@ end
 local function resolveActiveItem(transfer, missingReason)
     if not transfer or transfer.mode == "empty" then return nil, nil end
 
+    ---@type InventoryItem|nil
     local item = transfer.item
     if item
         and itemIdMatches(item, transfer.itemId)
@@ -1137,8 +1175,18 @@ function TransferService.start(player, mode, args)
     if endpointTransfer then
         totalAmount = TransferRules.getEndpointTransferAmount(sourceEndpoint, targetEndpoint)
     elseif mode == "pour" then
+        if not item then
+            logTransferRejected(player, mode, args, barrelData, "source_not_found")
+            Notifier.rejected(player, mode, "source_not_found", notifySource)
+            return
+        end
         totalAmount = TransferRules.getPourAmount(barrelData, item)
     elseif mode == "extract" then
+        if not item then
+            logTransferRejected(player, mode, args, barrelData, "target_not_found")
+            Notifier.rejected(player, mode, "target_not_found", notifySource)
+            return
+        end
         totalAmount = TransferRules.getExtractAmount(barrelData, item)
     else
         totalAmount = TransferRules.getEmptyAmount(barrelData)
@@ -1162,16 +1210,26 @@ function TransferService.start(player, mode, args)
         stopActiveForPlayer(playerKey, "replaced_by_new_transfer", true)
     end
 
-    local barrelKey = endpointTransfer and sourceEndpoint.key or LockService.getBarrelKey(barrel, barrelData)
+    local barrelKey
+    local lockKeys
+    if endpointTransfer then
+        if not sourceEndpoint or not targetEndpoint then
+            logTransferRejected(player, mode, args, barrelData, "invalid_endpoint")
+            Notifier.rejected(player, mode, "invalid_endpoint", notifySource)
+            return
+        end
+        barrelKey = sourceEndpoint.key
+        lockKeys = { sourceEndpoint.key, targetEndpoint.key }
+    else
+        barrelKey = LockService.getBarrelKey(barrel, barrelData)
+    end
+
     if not barrelKey then
         logTransferRejected(player, mode, args, barrelData, "barrel_id_missing")
         Notifier.rejected(player, mode, "barrel_id_missing", notifySource)
         return
     end
 
-    local lockKeys = endpointTransfer
-        and { sourceEndpoint.key, targetEndpoint.key }
-        or nil
     local lockAcquired = false
     if endpointTransfer then
         lockAcquired = LockService.acquireMany(playerKey, lockKeys, "long", args.transferId)

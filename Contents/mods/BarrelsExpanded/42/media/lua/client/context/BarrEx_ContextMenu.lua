@@ -17,6 +17,14 @@ local GeneratorUtils = require("utils/BarrEx_GeneratorUtils")
 local ContextMenu = {}
 local collectBarrelsOnSquare
 
+---@class BarrEx_BarrelTransferTargetEntry
+---@field barrel IsoObject
+---@field data BarrEx_Barrel
+
+---@class BarrEx_GeneratorSourceBarrelEntry
+---@field barrel IsoObject
+---@field data BarrEx_Barrel
+
 local function attachReasonTooltip(option, reason)
     Tooltips.attachActionUnavailableTooltip(option, reason)
 end
@@ -275,6 +283,11 @@ local function addBarrelTransferOption(subMenu, sourceBarrel, player, sourceData
     end
 end
 
+---@param found table<integer, IsoGenerator>
+---@param seen table<IsoGenerator, boolean>
+---@param sourceBarrel IsoObject
+---@param player IsoPlayer
+---@param generator IsoGenerator|nil
 local function appendNearbyTargetGenerator(found, seen, sourceBarrel, player, generator)
     if not generator or seen[generator] then return end
     if not PlayerUtils.isPlayerInRange(player, generator) then return end
@@ -284,6 +297,9 @@ local function appendNearbyTargetGenerator(found, seen, sourceBarrel, player, ge
     found[#found + 1] = generator
 end
 
+---@param sourceBarrel IsoObject
+---@param player IsoPlayer
+---@return table<integer, IsoGenerator>
 local function collectNearbyGenerators(sourceBarrel, player)
     local found = {}
     local seen = {}
@@ -311,12 +327,16 @@ local function collectNearbyGenerators(sourceBarrel, player)
     return found
 end
 
+---@param generators table<integer, IsoGenerator>|nil
+---@param sourceData BarrEx_Barrel|nil
+---@return table<integer, IsoGenerator>
 local function collectCompatibleGeneratorTargets(generators, sourceData)
     local found = {}
+    if not generators then return found end
 
-    for i = 1, #(generators or {}) do
+    for i = 1, #generators do
         local generator = generators[i]
-        if TransferRules.canFuelGeneratorFromBarrel(sourceData, generator) then
+        if generator and TransferRules.canFuelGeneratorFromBarrel(sourceData, generator) then
             found[#found + 1] = generator
         end
     end
@@ -328,6 +348,11 @@ local function collectCompatibleGeneratorTargets(generators, sourceData)
     return found
 end
 
+---@param sourceData BarrEx_Barrel|nil
+---@param generators table<integer, IsoGenerator>|nil
+---@param hasTool boolean
+---@return string
+---@return IsoGenerator|nil
 local function getGeneratorTargetUnavailableReason(sourceData, generators, hasTool)
     if not sourceData or not sourceData:isRevealed() then
         return ContextConfig.TOOLTIP.BARREL_CLOSED, nil
@@ -341,9 +366,13 @@ local function getGeneratorTargetUnavailableReason(sourceData, generators, hasTo
 
     local hasGenerator = false
     local fullGenerator = nil
-    for i = 1, #(generators or {}) do
+    if not generators then
+        return ContextConfig.TOOLTIP.NO_COMPATIBLE_GENERATOR, nil
+    end
+
+    for i = 1, #generators do
         local generator = generators[i]
-        if GeneratorUtils.isAvailable(generator) then
+        if generator and GeneratorUtils.isAvailable(generator) then
             hasGenerator = true
             if GeneratorUtils.isFull(generator) then
                 fullGenerator = fullGenerator or generator
@@ -366,6 +395,9 @@ local function getGeneratorTargetUnavailableReason(sourceData, generators, hasTo
     return ContextConfig.TOOLTIP.NO_COMPATIBLE_GENERATOR, nil
 end
 
+---@param found table<integer, BarrEx_GeneratorSourceBarrelEntry>
+---@param generator IsoGenerator
+---@param barrel IsoObject|nil
 local function appendCompatibleSourceBarrel(found, generator, barrel)
     if not barrel then return end
 
@@ -379,6 +411,10 @@ local function appendCompatibleSourceBarrel(found, generator, barrel)
     }
 end
 
+---@param sourceData BarrEx_Barrel|nil
+---@param generator IsoGenerator|nil
+---@param hasTool boolean
+---@return string|nil
 local function getGeneratorRefuelUnavailableReason(sourceData, generator, hasTool)
     if not sourceData or not sourceData:isRevealed() then
         return ContextConfig.TOOLTIP.BARREL_CLOSED
@@ -402,6 +438,9 @@ local function getGeneratorRefuelUnavailableReason(sourceData, generator, hasToo
     return nil
 end
 
+---@param generator IsoGenerator
+---@param player IsoPlayer
+---@return table<integer, BarrEx_GeneratorSourceBarrelEntry>
 local function collectNearbyGeneratorSourceBarrels(generator, player)
     local found = {}
     local generatorSquare = generator and generator:getSquare() or nil
@@ -437,6 +476,9 @@ local function collectNearbyGeneratorSourceBarrels(generator, player)
     return found
 end
 
+---@param menu ISContextMenu|nil
+---@param optionName string|nil
+---@return table|nil
 local function findOptionByName(menu, optionName)
     if not menu or not menu.options or not optionName then return nil end
 
@@ -450,16 +492,25 @@ local function findOptionByName(menu, optionName)
     return nil
 end
 
+---@param option table|nil
+---@param optionName string|nil
+---@return boolean
 local function optionNameMatches(option, optionName)
     if not option or not option.name or not optionName then return false end
     return option.name == optionName or string.find(option.name, optionName, 1, true) == 1
 end
 
+---@param menu ISContextMenu|nil
+---@param option table|nil
+---@return ISContextMenu|nil
 local function getOptionSubMenu(menu, option)
     if not menu or not option or not option.subOption or type(menu.getSubMenu) ~= "function" then return nil end
     return menu:getSubMenu(option.subOption)
 end
 
+---@param menu ISContextMenu|nil
+---@param option table|nil
+---@return ISContextMenu|nil
 local function getOrCreateOptionSubMenu(menu, option)
     if not menu or not option then return nil end
 
@@ -471,6 +522,12 @@ local function getOrCreateOptionSubMenu(menu, option)
     return subMenu
 end
 
+---@param menu ISContextMenu|nil
+---@param optionName string|nil
+---@param maxDepth number|nil
+---@return ISContextMenu|nil
+---@return table|nil
+---@return ISContextMenu|nil
 local function findOptionSubMenuRecursive(menu, optionName, maxDepth)
     local depth = tonumber(maxDepth) or 0
     if not menu or not optionName or depth < 0 then return nil end
@@ -495,6 +552,7 @@ local function findOptionSubMenuRecursive(menu, optionName, maxDepth)
     return nil
 end
 
+---@param menu ISContextMenu|nil
 local function refreshMenuSize(menu)
     if not menu then return end
     if type(menu.calcHeight) == "function" then
@@ -505,6 +563,10 @@ local function refreshMenuSize(menu)
     end
 end
 
+---@param option table|nil
+---@param reasonKey string|nil
+---@param appendReason boolean|nil
+---@param detachSubMenu boolean|nil
 local function markMenuOptionUnavailable(option, reasonKey, appendReason, detachSubMenu)
     if not option or not reasonKey then return end
 
@@ -519,6 +581,10 @@ local function markMenuOptionUnavailable(option, reasonKey, appendReason, detach
     Tooltips.attachUnavailableTooltip(option, reasonText)
 end
 
+---@param menu ISContextMenu|nil
+---@param reasonKey string|nil
+---@param appendReason boolean|nil
+---@param detachSubMenu boolean|nil
 local function markMenuOptionsUnavailable(menu, reasonKey, appendReason, detachSubMenu)
     if not menu or not menu.options or not reasonKey then return end
 
@@ -535,7 +601,13 @@ local function markMenuOptionsUnavailable(menu, reasonKey, appendReason, detachS
     refreshMenuSize(menu)
 end
 
+---@param menu ISContextMenu|nil
+---@param optionName string|nil
+---@param found table<integer, table>|nil
+---@param maxDepth number|nil
+---@return table<integer, table>
 local function collectNamedMenuOptions(menu, optionName, found, maxDepth)
+    found = found or {}
     local depth = tonumber(maxDepth) or 0
     if not menu or not menu.options or not optionName or depth < 0 then return found end
 
@@ -557,6 +629,12 @@ local function collectNamedMenuOptions(menu, optionName, found, maxDepth)
     return found
 end
 
+---@param menu ISContextMenu|nil
+---@param optionName string|nil
+---@param reasonKey string|nil
+---@param appendReason boolean|nil
+---@param detachSubMenu boolean|nil
+---@param markSubMenuOptions boolean|nil
 local function markNamedMenuOptionsUnavailable(menu, optionName, reasonKey, appendReason, detachSubMenu, markSubMenuOptions)
     if not menu or not optionName or not reasonKey then return end
 
@@ -571,6 +649,8 @@ local function markNamedMenuOptionsUnavailable(menu, optionName, reasonKey, appe
     end
 end
 
+---@param context ISContextMenu|nil
+---@return ISContextMenu|nil
 local function getGeneratorSubMenu(context)
     if not context then return nil end
 
@@ -582,6 +662,9 @@ local function getGeneratorSubMenu(context)
     return findOptionSubMenuRecursive(context, generatorLabel, 3)
 end
 
+---@param context ISContextMenu|nil
+---@param generator IsoGenerator|nil
+---@return ISContextMenu|nil
 local function getOrCreateGeneratorSubMenu(context, generator)
     if not context then return nil end
 
@@ -599,6 +682,9 @@ local function getOrCreateGeneratorSubMenu(context, generator)
     return getOrCreateOptionSubMenu(context, generatorOption)
 end
 
+---@param context ISContextMenu
+---@param generator IsoGenerator
+---@return table|nil
 local function getOrCreateGeneratorAddFuelOption(context, generator)
     local generatorMenu = getOrCreateGeneratorSubMenu(context, generator)
     if not generatorMenu then return nil end
@@ -609,6 +695,8 @@ local function getOrCreateGeneratorAddFuelOption(context, generator)
     return generatorMenu:addOption(getText("ContextMenu_GeneratorAddFuel"), nil, nil)
 end
 
+---@param context ISContextMenu
+---@return ISContextMenu|nil
 local function getGeneratorAddFuelSubMenu(context)
     local generatorMenu = getGeneratorSubMenu(context)
     if not generatorMenu then return nil end
@@ -618,6 +706,9 @@ local function getGeneratorAddFuelSubMenu(context)
     return getOptionSubMenu(generatorMenu, addFuelOption)
 end
 
+---@param context ISContextMenu
+---@param generator IsoGenerator
+---@return ISContextMenu|nil
 local function getOrCreateGeneratorAddFuelSubMenu(context, generator)
     local generatorMenu = getOrCreateGeneratorSubMenu(context, generator)
     if not generatorMenu then return nil end
@@ -632,6 +723,7 @@ local function getOrCreateGeneratorAddFuelSubMenu(context, generator)
     return getOrCreateOptionSubMenu(generatorMenu, addFuelOption)
 end
 
+---@param context ISContextMenu
 local function markGeneratorAddFuelFull(context)
     markNamedMenuOptionsUnavailable(
         context,
@@ -643,6 +735,9 @@ local function markGeneratorAddFuelFull(context)
     )
 end
 
+---@param context ISContextMenu
+---@param player IsoPlayer
+---@param generator IsoGenerator
 local function addGeneratorSourceBarrelOptions(context, player, generator)
     local sourceBarrels = collectNearbyGeneratorSourceBarrels(generator, player)
     local generatorFull = GeneratorUtils.isAvailable(generator) and GeneratorUtils.isFull(generator)
@@ -684,6 +779,11 @@ local function addGeneratorSourceBarrelOptions(context, player, generator)
     end
 end
 
+---@param subMenu ISContextMenu
+---@param sourceBarrel IsoObject
+---@param player IsoPlayer
+---@param sourceData BarrEx_Barrel|nil
+---@param inRange boolean
 local function addGeneratorTransferOption(subMenu, sourceBarrel, player, sourceData, inRange)
     if not inRange then
         local transferOption = subMenu:addOption(Text.translate(ContextConfig.CONTEXT_MENU.TRANSFER_TO_GENERATOR), nil, nil)
@@ -830,6 +930,8 @@ local function addSyncingSubMenu(context, barrel, player)
     AdminBarrelActions.addSubMenu(subMenu, barrel, player)
 end
 
+---@param value any
+---@return any
 local function getWorldObject(value)
     if value and type(value) == "table" and value.object then
         return value.object
@@ -837,18 +939,27 @@ local function getWorldObject(value)
     return value
 end
 
+---@param found table<integer, IsoObject>
+---@param seen table<IsoObject, boolean>
+---@param barrel IsoObject|nil
 local function appendUniqueBarrel(found, seen, barrel)
     if not barrel or seen[barrel] then return end
     seen[barrel] = true
     found[#found + 1] = barrel
 end
 
+---@param found table<integer, IsoGenerator>
+---@param seen table<IsoGenerator, boolean>
+---@param generator IsoGenerator|nil
 local function appendUniqueGenerator(found, seen, generator)
-    if not GeneratorUtils.isGenerator(generator) or seen[generator] then return end
+    if not generator or not GeneratorUtils.isGenerator(generator) or seen[generator] then return end
     seen[generator] = true
     found[#found + 1] = generator
 end
 
+---@param square IsoGridSquare|nil
+---@param found table<integer, IsoObject>
+---@param seen table<IsoObject, boolean>
 function collectBarrelsOnSquare(square, found, seen)
     if not square then return end
 
@@ -863,6 +974,9 @@ function collectBarrelsOnSquare(square, found, seen)
     end
 end
 
+---@generic T
+---@param found table<integer, T>
+---@return T|nil
 local function chooseOnly(found)
     if #found == 1 then return found[1] end
     return nil
@@ -945,6 +1059,9 @@ local function findContextGenerator(worldObjects)
     return nil
 end
 
+---@param found table<integer, IsoGenerator>
+---@param seen table<IsoGenerator, boolean>
+---@param value any
 local function appendGeneratorOptionValue(found, seen, value)
     local object = getWorldObject(value)
     if GeneratorUtils.isGenerator(object) then
@@ -952,6 +1069,10 @@ local function appendGeneratorOptionValue(found, seen, value)
     end
 end
 
+---@param menu ISContextMenu|nil
+---@param found table<integer, IsoGenerator>
+---@param seen table<IsoGenerator, boolean>
+---@param maxDepth number|nil
 local function collectGeneratorsFromMenu(menu, found, seen, maxDepth)
     local depth = tonumber(maxDepth) or 0
     if not menu or not menu.options or depth < 0 then return end
@@ -1026,6 +1147,7 @@ local function patchVanillaGeneratorAddFuelGuard()
     local original = ISWorldObjectContextMenu.doAddFuelGenerator
     if type(original) ~= "function" then return end
 
+    ---@diagnostic disable-next-line: duplicate-set-field
     ISWorldObjectContextMenu.doAddFuelGenerator = function(worldobjects, generator, fuelContainerList, fuelContainer, player)
         if GeneratorUtils.isFull(generator) then return end
         return original(worldobjects, generator, fuelContainerList, fuelContainer, player)

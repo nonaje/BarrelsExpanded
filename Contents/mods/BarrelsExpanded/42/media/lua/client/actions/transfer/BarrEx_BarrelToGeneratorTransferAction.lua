@@ -17,10 +17,31 @@ local BarrelStateClient = require("BarrEx_BarrelStateClient")
 ---@field totalAmount number
 ---@field liquidType string|nil
 ---@field toolItem InventoryItem|nil
+---@field lastSentAnimationProgress number|nil
+---@field progressTicksSinceSync number|nil
+---@field sound any
 local BarrEx_BarrelToGeneratorTransferAction = BarrEx_BarrelActionBase:derive("BarrEx_BarrelToGeneratorTransferAction")
+
+---@class BarrEx_BarrelEndpointPayload
+---@field kind "barrel"
+---@field x number
+---@field y number
+---@field z number
+---@field objectIndex number|nil
+---@field barrelId string|nil
+---@field clientRevision number
+---@field spriteName string|nil
+
+---@class BarrEx_GeneratorEndpointPayload
+---@field kind "generator"
+---@field x number
+---@field y number
+---@field z number
+---@field objectIndex number|nil
 
 local MODE = "barrel_to_generator"
 
+---@return integer
 local function getCurrentTimestamp()
     if type(getTimestampMs) == "function" then
         return getTimestampMs()
@@ -31,6 +52,7 @@ local function getCurrentTimestamp()
     return os and os.time and os.time() or 0
 end
 
+---@return integer
 local function getRandomSuffix()
     if type(ZombRand) == "function" then
         return ZombRand(1000000)
@@ -38,10 +60,16 @@ local function getRandomSuffix()
     return math.random(1000000)
 end
 
+---@param barrel IsoObject|nil
+---@return string
 local function getBarrelId(barrel)
     return BarrEx_BarrelData.getId(barrel) or "nobarrel"
 end
 
+---@param player IsoPlayer|nil
+---@param sourceBarrel IsoObject
+---@param generator IsoGenerator
+---@return string
 local function buildTransferId(player, sourceBarrel, generator)
     local playerId = player and type(player.getOnlineID) == "function" and player:getOnlineID() or "local"
 
@@ -53,6 +81,8 @@ local function buildTransferId(player, sourceBarrel, generator)
         .. ":" .. tostring(getRandomSuffix())
 end
 
+---@param value number|string|nil
+---@return number
 local function clamp01(value)
     local numericValue = tonumber(value) or 0
     if numericValue < 0 then return 0 end
@@ -60,8 +90,12 @@ local function clamp01(value)
     return numericValue
 end
 
+---@param barrel IsoObject|nil
+---@return BarrEx_BarrelEndpointPayload|nil
 local function buildBarrelEndpointPayload(barrel)
-    local square = barrel and barrel:getSquare()
+    if not barrel then return nil end
+
+    local square = barrel:getSquare()
     if not square then return nil end
 
     local barrelData = BarrEx_BarrelData.get(barrel)
@@ -78,6 +112,8 @@ local function buildBarrelEndpointPayload(barrel)
     }
 end
 
+---@param generator IsoGenerator|nil
+---@return BarrEx_GeneratorEndpointPayload|nil
 local function buildGeneratorEndpointPayload(generator)
     local square = generator and generator:getSquare()
     if not square then return nil end
@@ -91,12 +127,19 @@ local function buildGeneratorEndpointPayload(generator)
     }
 end
 
+---@param action BarrEx_BarrelToGeneratorTransferAction|nil
 local function stopSound(action)
-    if action.sound and action.character and action.character:getEmitter():isPlaying(action.sound) then
-        action.character:stopOrTriggerSound(action.sound)
+    if not action then return end
+
+    local sound = action.sound
+    local character = action.character
+    if sound and character and character:getEmitter():isPlaying(sound) then
+        character:stopOrTriggerSound(sound)
     end
 end
 
+---@param item InventoryItem|nil
+---@return any
 local function getStaticHandModel(item)
     if item and type(item.getStaticModel) == "function" then
         return item:getStaticModel()
@@ -105,6 +148,10 @@ local function getStaticHandModel(item)
     return item
 end
 
+---@param action BarrEx_BarrelToGeneratorTransferAction|nil
+---@param command string|nil
+---@param extraArgs table|nil
+---@return boolean
 local function sendEndpointCommand(action, command, extraArgs)
     if not action or not command then return false end
 
@@ -139,6 +186,7 @@ local function sendEndpointCommand(action, command, extraArgs)
     return true
 end
 
+---@return boolean
 function BarrEx_BarrelToGeneratorTransferAction:isValid()
     if not self.sourceBarrel or not GeneratorUtils.isAvailable(self.generator) then
         return false
@@ -159,6 +207,7 @@ function BarrEx_BarrelToGeneratorTransferAction:isValid()
     return TransferRules.canFuelGeneratorFromBarrel(sourceData, self.generator)
 end
 
+---@return nil
 function BarrEx_BarrelToGeneratorTransferAction:start()
     ISBaseTimedAction.start(self)
 
@@ -176,6 +225,7 @@ function BarrEx_BarrelToGeneratorTransferAction:start()
     self.sound = self.character:playSound("GeneratorAddFuel")
 end
 
+---@return nil
 function BarrEx_BarrelToGeneratorTransferAction:update()
     TransferSync.beforeActionUpdate(self)
 
@@ -203,6 +253,7 @@ function BarrEx_BarrelToGeneratorTransferAction:update()
     self.character:setMetabolicTarget(Metabolics.HeavyDomestic)
 end
 
+---@return nil
 function BarrEx_BarrelToGeneratorTransferAction:stop()
     stopSound(self)
     TransferSync.unregisterAction(self.transferId, self)
@@ -213,6 +264,7 @@ function BarrEx_BarrelToGeneratorTransferAction:stop()
     ISBaseTimedAction.stop(self)
 end
 
+---@return nil
 function BarrEx_BarrelToGeneratorTransferAction:perform()
     stopSound(self)
     TransferSync.unregisterAction(self.transferId, self)
