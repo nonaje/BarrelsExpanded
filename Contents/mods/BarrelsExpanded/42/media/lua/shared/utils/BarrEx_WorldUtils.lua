@@ -2,10 +2,20 @@ local Constant = require("BarrEx_Constant")
 
 local WorldUtils = {}
 
+---@param worldObject any
+---@return boolean
+local function isIsoObject(worldObject)
+    if type(worldObject) == "userdata" then
+        return type(instanceof) == "function" and instanceof(worldObject, "IsoObject") == true
+    end
+
+    return type(worldObject) == "table" and type(worldObject.getSprite) == "function"
+end
+
 ---@param worldObject IsoObject|nil
 ---@return string|nil
 function WorldUtils.getSpriteName(worldObject)
-    if not worldObject then return nil end
+    if not isIsoObject(worldObject) then return nil end
 
     local sprite = worldObject:getSprite()
     if not sprite then return nil end

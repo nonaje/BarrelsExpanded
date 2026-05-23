@@ -1,3 +1,6 @@
+Version 1.0.15
+- Hardened world-object sprite detection so custom context-menu objects from other mods are ignored unless they are real IsoObjects.
+
 Version 1.0.14
 - Fixed generator menu scanning so non-object vanilla/modded menu parameters and UI wrappers no longer error when right-clicking barrels.
 - Skipped moveable payload mutation for admin brush barrel placements that use synthetic non-moveable items, improving multiplayer compatibility with CSR barrel-cap hooks.
