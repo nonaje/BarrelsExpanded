@@ -9,9 +9,8 @@ local FULL_FUEL_PERCENT = 100
 
 ---@param object any
 ---@return boolean
-local function isIndexableObject(object)
-    local objectType = type(object)
-    return objectType == "table" or objectType == "userdata"
+local function isTable(object)
+    return type(object) == "table"
 end
 
 ---@param object any
@@ -19,30 +18,25 @@ end
 ---@return boolean
 local function isInstanceOf(object, className)
     if type(instanceof) ~= "function" then return false end
-
-    local ok, result = pcall(instanceof, object, className)
-    return ok and result == true
+    if type(object) ~= "userdata" then return false end
+    return instanceof(object, className) == true
 end
 
 ---@param object any
 ---@param methodName string
 ---@return boolean
 local function hasMethod(object, methodName)
-    if not isIndexableObject(object) then return false end
-
-    local ok, value = pcall(function()
-        return object[methodName]
-    end)
-    return ok and type(value) == "function"
+    if not isTable(object) then return false end
+    return type(object[methodName]) == "function"
 end
 
 ---@param object any
 ---@return boolean
 function GeneratorUtils.isGenerator(object)
-    if not isIndexableObject(object) then return false end
     if isInstanceOf(object, "IsoGenerator") then
         return true
     end
+    if not isTable(object) then return false end
 
     return hasMethod(object, "getFuel")
         and hasMethod(object, "setFuel")
@@ -53,7 +47,9 @@ end
 ---@param generator IsoGenerator|nil
 ---@return number|nil
 function GeneratorUtils.getObjectIndex(generator)
-    if not generator or type(generator.getObjectIndex) ~= "function" then return nil end
+    if not GeneratorUtils.isGenerator(generator) then return nil end
+
+    if isTable(generator) and type(generator.getObjectIndex) ~= "function" then return nil end
 
     local objectIndex = generator:getObjectIndex()
     if type(objectIndex) ~= "number" or objectIndex < 0 then return nil end

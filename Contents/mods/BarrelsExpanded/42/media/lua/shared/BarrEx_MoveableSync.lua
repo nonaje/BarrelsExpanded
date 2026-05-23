@@ -47,6 +47,13 @@ local function isBarrelSpriteName(spriteName)
     return type(spriteName) == "string" and Constant.BARREL_TILE_NAMES[spriteName] == true
 end
 
+---@param item InventoryItem|nil
+---@return boolean
+local function isMoveableInventoryItem(item)
+    if not item or type(item) ~= "userdata" then return false end
+    return type(instanceof) == "function" and instanceof(item, "Moveable") == true
+end
+
 local function findInventoryItemFromArgs(...)
     local argCount = select("#", ...)
     for i = 1, argCount do
@@ -262,14 +269,19 @@ function BarrEx_MoveableSync.start()
             local square = findSquareFromArgs(...)
             local spriteName = findSpriteNameFromArgs(...)
             local isBarrelPlacement = isBarrelSpriteName(spriteName)
+            local shouldSyncPlacedBarrel = item and isBarrelPlacement and isMoveableInventoryItem(item)
 
-            if item and isBarrelPlacement then
+            if item and isBarrelPlacement and not shouldSyncPlacedBarrel then
+                log("Skipped placed barrel item mutation; placement item is not a moveable inventory item.")
+            end
+
+            if shouldSyncPlacedBarrel then
                 markPlacedBarrelAsPlayerCrafted(item)
             end
 
             local result = originalPlaceMoveableInternal(self, ...)
 
-            if item and isBarrelPlacement then
+            if shouldSyncPlacedBarrel then
                 applyItemBarrelPayloadToNewestPlacedBarrel(item, square)
                 applyItemSpawnProfileToNewestPlacedBarrel(item, square)
             end

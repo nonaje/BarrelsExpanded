@@ -1,3 +1,7 @@
+Version 1.0.14
+- Fixed generator menu scanning so non-object vanilla/modded menu parameters and UI wrappers no longer error when right-clicking barrels.
+- Skipped moveable payload mutation for admin brush barrel placements that use synthetic non-moveable items, improving multiplayer compatibility with CSR barrel-cap hooks.
+
 Version 1.0.13
 - Added generator refueling from nearby gasoline barrels through the endpoint-transfer system.
 - Integrated nearby gasoline barrels into the vanilla Generator > Add Fuel source list.
