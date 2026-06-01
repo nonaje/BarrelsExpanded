@@ -1,3 +1,7 @@
+Version 1.0.16
+- Made item washing replacement safer by only removing the dirty item after the cleaned item is successfully created.
+- Hardened strict server barrel resolution so authoritative mutations no longer trust objectIndex alone.
+
 Version 1.0.15
 - Hardened world-object sprite detection so custom context-menu objects from other mods are ignored unless they are real IsoObjects.
 

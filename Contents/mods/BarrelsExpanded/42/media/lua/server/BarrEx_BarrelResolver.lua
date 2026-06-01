@@ -158,7 +158,7 @@ end
 
 --- Strict resolver for authoritative mutations.  Nearby fallback is only used
 --- when the client supplied a stable barrel id; without one, never guess an
---- adjacent barrel in dense barrel areas.
+--- adjacent barrel in dense barrel areas, and never trust objectIndex alone.
 ---@param args table|nil
 ---@return IsoObject|nil
 ---@return string|nil
@@ -180,9 +180,6 @@ function BarrelResolver.resolveStrict(args)
         matches = collectNearbyMatches(args, true)
         return chooseUnique(matches)
     end
-
-    local indexedBarrel = getIndexedBarrel(square, args)
-    if indexedBarrel then return indexedBarrel, nil end
 
     local matches = collectBarrelsOnSquare(square, args, false)
     return chooseUnique(matches)

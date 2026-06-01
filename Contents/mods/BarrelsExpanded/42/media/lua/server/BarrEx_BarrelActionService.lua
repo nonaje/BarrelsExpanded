@@ -193,7 +193,6 @@ local function replaceCleanedItem(player, item, itemAfterCleaning)
     local primary = player and type(player.isPrimaryHandItem) == "function" and player:isPrimaryHandItem(item) or false
     local secondary = player and type(player.isSecondaryHandItem) == "function" and player:isSecondaryHandItem(item) or false
 
-    container:Remove(item)
     local newItem = container:AddItem(itemAfterCleaning)
     if not newItem then return false end
 
@@ -221,6 +220,8 @@ local function replaceCleanedItem(player, item, itemAfterCleaning)
     if (primary or secondary) and type(sendEquip) == "function" then
         sendEquip(player)
     end
+
+    container:Remove(item)
 
     return true
 end
