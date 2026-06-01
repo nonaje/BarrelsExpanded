@@ -81,11 +81,16 @@ Once generated, barrel state is saved in the world and shared in multiplayer.
 
 These are ideas for future versions, not current features:
 
+- **Water Bidons compatibility**: support filling barrels from the Water Bidons mod containers (Workshop ID: 3628782804, Mod ID: WaterBidon).
+- **Rare liquid discoveries**: add uncommon finds such as milk or wine barrels in store buildings.
+- **Barrel labels or ownership markers**: easier multiplayer base organization.
+- **Water treatment interactions**: gameplay steps for making tainted water safer.
+- **Pressurized water transfer**: use a rubber hose to move water from sinks or bathtubs into barrels before the water shuts off, or much more slowly afterward if supported.
+- **Rain and snow collectors**: cut open barrel tops with a propane torch and repurpose them as collectors, including snow melting into water.
 - **Fuel logistics**: refuel vehicles from gasoline barrels.
 - **Fuel station logistics**: pump gasoline from fuel stations directly into barrels.
-- **Barrel labels or ownership markers**: easier multiplayer base organization.
+- **Plumbing-style barrel supply**: feed sinks, bathtubs, and washing machines from nearby or elevated barrels.
 - **Barrel condition system**: rust, damage, leaks, contamination, or reliability risks.
-- **Water treatment interactions**: gameplay steps for making tainted water safer.
 
 ---
 

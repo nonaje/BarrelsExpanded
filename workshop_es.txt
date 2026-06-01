@@ -62,17 +62,25 @@ Traducciones actuales:
 
 Estas características no están metidas todavía, pero son el tipo de agregados planeados para las próximas versiones:
 
+- Agregar compatibilidad con el mod Water Bidons para llenar barriles desde sus recipientes (Workshop ID: 3628782804, Mod ID: WaterBidon).
+
+- Agregar hallazgos de líquidos más raros, como barriles de leche o vino en los comercios.
+
+- Agregar etiquetas o marcas de propiedad para el almacenamiento en multijugador.
+
+- Agregar interacciones de tratamiento de agua para volver más segura el agua contaminada.
+
+- Usar una Manguera de Goma para transferir agua desde piletas o bañaderas presurizadas hacia barriles antes del corte de agua, o mucho más lento después si se puede soportar.
+
+- Cortar la tapa de los barriles con un soplete de propano y reciclarlos como recolectores de lluvia y nieve, incluyendo nieve que se derrite en agua.
+
 - Cargar vehículos directamente desde los barriles de nafta.
 
 - Cargar nafta de las estaciones de servicio directo a los barriles.
 
-- Agregar hallazgos de líquidos más raros, como barriles de leche o vino en los comercios.
-
-- Cortar la tapa de los barriles con un soplete de propano y reciclarlos como recolectores de agua de lluvia.
-
 - Conectar cañerías desde barriles cercanos o elevados para llevar agua a piletas, bañaderas y lavarropas.
 
-- Agregar etiquetas o marcas de propiedad para el almacenamiento en multijugador.
+- Agregar riesgos de condición del barril, como óxido, daño, fugas, contaminación o problemas de confiabilidad.
 [/quote]
 
 [quote]
