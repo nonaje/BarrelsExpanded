@@ -17,6 +17,8 @@ Abrí uno y capaz encontrás agua limpia, agua contaminada, nafta, lavandina o a
 
 - [b]Almacenamiento de líquidos:[/b] Volcá líquidos compatibles adentro de los barriles o llená recipientes desde ellos.
 
+- [b]Más logística con mods:[/b] Si usás mods soportados como Water Bidons o DamnLib/USMIL, sus bidones se integran con las transferencias de los barriles.
+
 - [b]Transferencia entre barriles:[/b] Pasá líquido directamente de un barril abierto a otro cercano para organizar mejor tu base.
 
 - [b]Reabastecimiento de generadores:[/b] Cargá generadores cercanos desde barriles con nafta, ya sea desde el menú del barril o desde [i]Add Fuel[/i] del generador.
@@ -43,7 +45,7 @@ Abrí uno y capaz encontrás agua limpia, agua contaminada, nafta, lavandina o a
 
 - [b]Herramientas de transferencia:[/b] Embudo para volcar dentro de los barriles, manguera de goma para llenar recipientes desde los barriles o reabastecer generadores.
 
-- [b]Soporte opcional para mods:[/b] Los bidones militares de nafta y agua de DamnLib/USMIL funcionan con las transferencias de líquidos de los barriles.
+- [b]Soporte opcional para mods:[/b] Los recipientes de mods soportados funcionan con transferencias bidireccionales de líquidos de los barriles.
 [/quote]
 
 [quote]
@@ -61,8 +63,6 @@ Traducciones actuales:
 [h1]🔮 Ideas a futuro[/h1]
 
 Estas características no están metidas todavía, pero son el tipo de agregados planeados para las próximas versiones:
-
-- Agregar compatibilidad con el mod Water Bidons para llenar barriles desde sus recipientes (Workshop ID: 3628782804, Mod ID: WaterBidon).
 
 - Agregar hallazgos de líquidos más raros, como barriles de leche o vino en los comercios.
 
@@ -91,6 +91,10 @@ Estas características no están metidas todavía, pero son el tipo de agregados
 - [b]Modos soportados:[/b] Un jugador y Multijugador. En multijugador, tanto el cliente como el servidor tienen que activar el mod.
 
 - [b]Instalación segura:[/b] Pensado para funcionar en partidas ya empezadas. Acordate de hacer siempre una copia de seguridad de tu partida guardada antes de activar o sacar mods.
+
+[b]Mods opcionales soportados:[/b]
+- [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3628782804]Water Bidons[/url]: sus bidones pueden verter líquido en barriles y llenarse desde barriles.
+- [url=https://steamcommunity.com/workshop/filedetails/?id=3171167894]DamnLib/USMIL[/url]: sus bidones militares de nafta y agua funcionan con transferencias de líquidos de barriles.
 [/quote]
 
 [quote]

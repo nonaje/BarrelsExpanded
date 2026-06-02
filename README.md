@@ -61,7 +61,7 @@ Once generated, barrel state is saved in the world and shared in multiplayer.
 14. **Server-safe multiplayer behavior** with protection against overlapping use of the same barrel.
 15. **Dynamic barrel weight** based on liquid type and amount.
 16. **Singleplayer and multiplayer support**.
-17. **Optional mod compatibility** for DamnLib/USMIL military gas and water cans in barrel liquid transfers.
+17. **Optional mod compatibility** for supported container mods in barrel liquid transfers.
 18. **Current translations**: English, Spanish, and Argentinian Spanish.
 
 ### Gameplay Data
@@ -81,7 +81,6 @@ Once generated, barrel state is saved in the world and shared in multiplayer.
 
 These are ideas for future versions, not current features:
 
-- **Water Bidons compatibility**: support filling barrels from the Water Bidons mod containers (Workshop ID: 3628782804, Mod ID: WaterBidon).
 - **Rare liquid discoveries**: add uncommon finds such as milk or wine barrels in store buildings.
 - **Barrel labels or ownership markers**: easier multiplayer base organization.
 - **Water treatment interactions**: gameplay steps for making tainted water safer.
@@ -101,6 +100,11 @@ These are ideas for future versions, not current features:
 - **Singleplayer:** Supported
 - **Server-side only:** Not supported; the mod must be enabled on clients too
 - **Safe install:** Designed to work with ongoing saves; always back up saves before adding or removing mods
+
+### Supported Optional Mods
+
+- **Water Bidons**: bidons can pour into barrels and be filled from barrels. Workshop ID: `3628782804`.
+- **DamnLib/USMIL**: military gas and water cans work with barrel liquid transfers. Workshop ID: `3171167894`.
 
 ---
 

@@ -143,6 +143,16 @@ local DAMNLIB_COMPATIBLE_CONTAINERS = {
     },
 }
 
+local WATER_BIDON_COMPATIBLE_CONTAINERS = {
+    ["WaterBidon.WaterBidon"]        = true,
+    ["WaterBidon.WaterBidon_Blue"]   = true,
+    ["WaterBidon.WaterBidon_Red"]    = true,
+    ["WaterBidon.WaterBidon_Yellow"] = true,
+    ["WaterBidon.WaterBidon_Orange"] = true,
+    ["WaterBidon.WaterBidon_White"]  = true,
+    ["WaterBidon.WaterBidon_Black"]  = true,
+}
+
 local function mergeContainerSets(baseContainers, extraContainers)
     local merged = {}
 
@@ -159,23 +169,45 @@ local function mergeContainerSets(baseContainers, extraContainers)
     return merged
 end
 
+local function mergeMultipleContainerSets(...)
+    local merged = {}
+    local sets = { ... }
+
+    for i = 1, #sets do
+        local containers = sets[i]
+        if type(containers) == "table" then
+            for fullType, enabled in pairs(containers) do
+                merged[fullType] = enabled
+            end
+        end
+    end
+
+    return merged
+end
+
 LiquidConfig.COMPATIBLE_CONTAINERS = {
-    GASOLINE = mergeContainerSets(
+    GASOLINE = mergeMultipleContainerSets(
         VANILLA_FLUID_COMPATIBLE_CONTAINERS,
-        DAMNLIB_COMPATIBLE_CONTAINERS.GASOLINE
+        DAMNLIB_COMPATIBLE_CONTAINERS.GASOLINE,
+        WATER_BIDON_COMPATIBLE_CONTAINERS
     ),
-    WATER = mergeContainerSets(
+    WATER = mergeMultipleContainerSets(
         VANILLA_FLUID_COMPATIBLE_CONTAINERS,
-        DAMNLIB_COMPATIBLE_CONTAINERS.WATER
+        DAMNLIB_COMPATIBLE_CONTAINERS.WATER,
+        WATER_BIDON_COMPATIBLE_CONTAINERS
     ),
-    TAINTED_WATER = mergeContainerSets(
+    TAINTED_WATER = mergeMultipleContainerSets(
         VANILLA_FLUID_COMPATIBLE_CONTAINERS,
-        DAMNLIB_COMPATIBLE_CONTAINERS.TAINTED_WATER
+        DAMNLIB_COMPATIBLE_CONTAINERS.TAINTED_WATER,
+        WATER_BIDON_COMPATIBLE_CONTAINERS
     ),
-    BLEACH = {
-        ["Base.Bleach"]          = true,
-        ["Base.CleaningLiquid2"] = true,
-    },
+    BLEACH = mergeContainerSets(
+        {
+            ["Base.Bleach"]          = true,
+            ["Base.CleaningLiquid2"] = true,
+        },
+        WATER_BIDON_COMPATIBLE_CONTAINERS
+    ),
 }
 
 -----------------------------------

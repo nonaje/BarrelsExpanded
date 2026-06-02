@@ -11,6 +11,7 @@ local BarrEx_BarrelToGeneratorTransferAction = require("actions/transfer/BarrEx_
 local BarrEx_DrinkFromBarrelAction = require("actions/BarrEx_DrinkFromBarrelAction")
 local BarrEx_WashFromBarrelAction = require("actions/BarrEx_WashFromBarrelAction")
 local BarrEx_EmptyBarrelAction = require("actions/BarrEx_EmptyBarrelAction")
+local LiquidAdapter = require("BarrEx_LiquidContainerAdapter")
 local PlayerUtils = require("utils/BarrEx_PlayerUtils")
 local Logger = require("utils/BarrEx_Logger")
 
@@ -103,10 +104,24 @@ end
 function Actions.onPourAllIntoBarrel(barrel, player, sourceItems)
     if not barrel or not player or not sourceItems then return end
 
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    local remainingFree = barrelData and barrelData:getFreeCapacity() or 0
+    if remainingFree <= 0 then return end
+
     for i = 1, #sourceItems do
         local item = sourceItems[i]
         if item then
-            queuePourAction(barrel, player, item)
+            local transferableAmount = math.max(math.min(
+                tonumber(LiquidAdapter.getAmount(item)) or 0,
+                remainingFree
+            ), 0)
+            if transferableAmount > 0 then
+                queuePourAction(barrel, player, item)
+                remainingFree = remainingFree - transferableAmount
+                if remainingFree <= 0 then
+                    break
+                end
+            end
         end
     end
 end
@@ -126,10 +141,24 @@ end
 function Actions.onExtractAllFromBarrel(barrel, player, targetItems)
     if not barrel or not player or not targetItems then return end
 
+    local barrelData = BarrEx_BarrelData.get(barrel)
+    local remainingAmount = barrelData and (tonumber(barrelData.amount) or 0) or 0
+    if remainingAmount <= 0 then return end
+
     for i = 1, #targetItems do
         local item = targetItems[i]
         if item then
-            queueExtractAction(barrel, player, item)
+            local transferableAmount = math.max(math.min(
+                tonumber(LiquidAdapter.getFreeCapacity(item)) or 0,
+                remainingAmount
+            ), 0)
+            if transferableAmount > 0 then
+                queueExtractAction(barrel, player, item)
+                remainingAmount = remainingAmount - transferableAmount
+                if remainingAmount <= 0 then
+                    break
+                end
+            end
         end
     end
 end

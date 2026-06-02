@@ -61,7 +61,7 @@ Una vez generado, el estado del barril queda guardado en el mundo y compartido e
 14. **Comportamiento multiplayer seguro** con proteccion contra uso solapado del mismo barril.
 15. **Peso dinamico del barril** segun tipo y cantidad de liquido.
 16. **Soporte singleplayer y multiplayer**.
-17. **Compatibilidad opcional con mods** para bidones militares de gasolina y agua de DamnLib/USMIL en transferencias de liquidos.
+17. **Compatibilidad opcional con mods** para recipientes soportados en transferencias de liquidos de barriles.
 18. **Traducciones actuales**: Ingles, Espanol y Espanol Argentino.
 
 ### Datos de juego
@@ -81,7 +81,6 @@ Una vez generado, el estado del barril queda guardado en el mundo y compartido e
 
 Estas son ideas para versiones futuras, no funciones actuales:
 
-- **Compatibilidad con Water Bidons**: permitir llenar barriles desde los recipientes del mod Water Bidons (Workshop ID: 3628782804, Mod ID: WaterBidon).
 - **Hallazgos raros de liquidos**: agregar descubrimientos poco comunes, como barriles de leche o vino en comercios.
 - **Etiquetas o marcadores de propiedad**: mejor organizacion en bases multiplayer.
 - **Tratamiento de agua**: pasos de gameplay para volver mas segura el agua contaminada.
@@ -101,6 +100,11 @@ Estas son ideas para versiones futuras, no funciones actuales:
 - **Singleplayer:** Soportado
 - **Solo servidor:** No soportado; el mod tambien debe estar activo en los clientes
 - **Instalacion segura:** Pensado para funcionar con partidas existentes; siempre conviene hacer backup antes de agregar o quitar mods
+
+### Mods opcionales soportados
+
+- **Water Bidons**: sus bidones pueden verter liquido en barriles y llenarse desde barriles. Workshop ID: `3628782804`.
+- **DamnLib/USMIL**: sus bidones militares de gasolina y agua funcionan con transferencias de liquidos de barriles. Workshop ID: `3171167894`.
 
 ---
 

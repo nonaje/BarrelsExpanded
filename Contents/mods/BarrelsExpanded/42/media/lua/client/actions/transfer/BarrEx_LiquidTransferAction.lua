@@ -234,6 +234,31 @@ function BarrEx_LiquidTransferAction:getTransferActionTime()
     return TransferRules.getTransferActionTime(self.totalAmount, self.mode, self:getTransferLiquidType())
 end
 
+---@return number
+function BarrEx_LiquidTransferAction:getCurrentTransferAmount()
+    if not self.barrel or not self.liquidItem then return 0 end
+
+    local barrelData = BarrEx_BarrelData.get(self.barrel)
+    if not barrelData then return 0 end
+
+    if self.mode == "pour" then
+        return TransferRules.getPourAmount(barrelData, self.liquidItem)
+    end
+
+    if self.mode == "extract" then
+        return TransferRules.getExtractAmount(barrelData, self.liquidItem)
+    end
+
+    return 0
+end
+
+function BarrEx_LiquidTransferAction:refreshTransferEstimate()
+    local totalAmount = self:getCurrentTransferAmount()
+    self.totalAmount = totalAmount
+    self.initialLiquidAmount = self:getInitialLiquidAmount(self.liquidItem)
+    self.maxTime = math.max(self:getTransferActionTime(), 1)
+end
+
 --- Returns the sound played by this transfer action.
 ---@return string
 function BarrEx_LiquidTransferAction:getTransferSound()
@@ -300,13 +325,22 @@ function BarrEx_LiquidTransferAction:isValid()
     if not inventory then return false end
 
     if type(inventory.containsID) == "function" then
-        return inventory:containsID(self.liquidItem:getID())
+        if not inventory:containsID(self.liquidItem:getID()) then
+            return false
+        end
+    elseif not inventory:contains(self.liquidItem) then
+        return false
     end
 
-    return inventory:contains(self.liquidItem)
+    if self.transferStarted or self.serverCompleted then
+        return true
+    end
+
+    return self:getCurrentTransferAmount() > 0
 end
 
 function BarrEx_LiquidTransferAction:start()
+    self:refreshTransferEstimate()
     ISBaseTimedAction.start(self)
 
     self.toolItem = PlayerUtils.findFirstRequiredItem(self.character, self:getRequiredItems())
